@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RITDorg - Interactive Bible Reader</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Ambient Background -->
+    <div class="ambient-bg">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-content">
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 4L4 12V28L20 36L36 28V12L20 4Z" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path d="M20 4V36" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M4 12L36 28" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+                    <path d="M36 12L4 28" stroke="currentColor" stroke-width="1" opacity="0.5"/>
+                </svg>
+                <span class="logo-text">RITDorg</span>
+            </div>
+            <nav class="main-nav">
+                <!--<button class="nav-btn active" data-view="reader">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                    </svg>
+                    Read
+                </button>
+                <button class="nav-btn" data-view="parallel">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="18" rx="1"/>
+                        <rect x="14" y="3" width="7" height="18" rx="1"/>
+                    </svg>
+                    Compare
+                </button>-->
+                <button class="nav-btn active" data-view="video">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"/>
+                    </svg>
+                    Watch & Listen
+                </button>
+            </nav>
+            <div class="header-actions">
+                <a href="https://www.youtube.com/@RITDorg" target="_blank" class="youtube-link" title="Visit RITDorg YouTube Channel">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                </a>
+                <button class="theme-toggle" id="themeToggle">
+                    <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+            </button>
+            <div class="sidebar-content">
+                <div class="sidebar-header">
+                    <h2>Scripture</h2>
+                </div>
+            <div class="book-selector">
+                <label for="bookSelect">Book</label>
+                <select id="bookSelect" class="styled-select">
+                    {% for book in books %}
+                    <option value="{{ book }}" {% if book == 'Matthew' %}selected{% endif %}>{{ book }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="chapter-selector">
+                <label for="chapterSelect">Chapter</label>
+                <select id="chapterSelect" class="styled-select">
+                    <option value="1">1</option>
+                </select>
+            </div>
+            <div class="quick-nav">
+                <h3>Quick Navigation</h3>
+                <div class="quick-nav-buttons">
+                    <button class="quick-btn" data-book="Matthew" data-chapter="1">Matthew 1</button>
+                    <button class="quick-btn" data-book="Matthew" data-chapter="2">Matthew 2</button>
+                    <button class="quick-btn" data-book="John" data-chapter="1">John 1</button>
+                </div>
+            </div>
+            <div class="reading-settings">
+                <h3>Display</h3>
+                <div class="font-size-control">
+                    <label>Text Size</label>
+                    <div class="size-buttons">
+                        <button class="size-btn" data-size="small">A</button>
+                        <button class="size-btn active" data-size="medium">A</button>
+                        <button class="size-btn" data-size="large">A</button>
+                    </div>
+                </div>
+            </div>
+            </div><!-- end sidebar-content -->
+        </aside>
+
+        <!-- Reader View -->
+        <section class="reader-view" id="readerView">
+            <div class="book-container">
+                <div class="book-wrapper">
+                    <!-- 3D Book -->
+                    <div class="book-3d" id="book3D">
+                        <div class="book-spine"></div>
+                        <div class="book-pages">
+                            <div class="page page-left" id="pageLeft">
+                                <div class="page-content">
+                                    <div class="page-header">
+                                        <span class="book-name" id="leftBookName">Genesis</span>
+                                        <span class="chapter-num" id="leftChapterNum">Chapter 1</span>
+                                    </div>
+                                    <div class="verses" id="leftVerses"></div>
+                                    <div class="page-number" id="leftPageNum">1</div>
+                                </div>
+                            </div>
+                            <div class="page page-right" id="pageRight">
+                                <div class="page-content">
+                                    <div class="page-header">
+                                        <span class="book-name" id="rightBookName">Genesis</span>
+                                        <span class="chapter-num" id="rightChapterNum">Chapter 1</span>
+                                    </div>
+                                    <div class="verses" id="rightVerses"></div>
+                                    <div class="page-number" id="rightPageNum">2</div>
+                                </div>
+                            </div>
+                            <!-- Turning pages for animation -->
+                            <div class="page page-turning" id="pageTurning">
+                                <div class="page-front">
+                                    <div class="page-content"></div>
+                                </div>
+                                <div class="page-back">
+                                    <div class="page-content"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Arrows -->
+                    <button class="page-nav prev" id="prevPage">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="15 18 9 12 15 6"/>
+                        </svg>
+                    </button>
+                    <button class="page-nav next" id="nextPage">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Parallel Translation View -->
+        <section class="parallel-view" id="parallelView">
+            <div class="parallel-container">
+                <div class="parallel-header">
+                    <div class="parallel-title">
+                        <h2 id="parallelBookChapter">Genesis 1</h2>
+                        <p>Side-by-side translation comparison</p>
+                    </div>
+                    <div class="translation-selectors">
+                        <div class="trans-select-group">
+                            <label>Left Translation</label>
+                            <select id="parallelTrans1" class="styled-select">
+                                {% for trans in translations %}
+                                <option value="{{ trans }}" {% if trans == 'NIV' %}selected{% endif %}>{{ trans }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button class="swap-btn" id="swapTranslations" title="Swap translations">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M7 16V4M7 4L3 8M7 4l4 4M17 8v12M17 20l4-4M17 20l-4-4"/>
+                            </svg>
+                        </button>
+                        <div class="trans-select-group">
+                            <label>Right Translation</label>
+                            <select id="parallelTrans2" class="styled-select">
+                                {% for trans in translations %}
+                                <option value="{{ trans }}" {% if trans == 'Hebrew' %}selected{% endif %}>{{ trans }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="parallel-columns">
+                    <div class="parallel-column" id="parallelCol1">
+                        <div class="column-header">
+                            <span class="translation-name" id="col1TransName">NIV</span>
+                        </div>
+                        <div class="column-verses" id="col1Verses"></div>
+                    </div>
+                    <div class="parallel-divider"></div>
+                    <div class="parallel-column" id="parallelCol2">
+                        <div class="column-header">
+                            <span class="translation-name" id="col2TransName">Hebrew</span>
+                        </div>
+                        <div class="column-verses" id="col2Verses"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Video View -->
+        <section class="video-view active" id="videoView">
+            <div class="video-container">
+                <!-- Main content area for video + text side by side -->
+                <div class="video-content-area">
+                    <!-- Video player (hidden by default) -->
+                    <div class="video-player-wrapper hidden-player">
+                        <div class="video-player" id="videoPlayer">
+                            <div id="youtubePlayer"></div>
+                        </div>
+                    </div>
+                    <!-- Bible text container -->
+                    <div class="sync-text-container">
+                        <div class="sync-header">
+                            <h2 id="syncBookChapter">Matthew 1</h2>
+                            <div class="sync-controls">
+                                <div class="sync-translations">
+                                    <select id="syncTrans1" class="styled-select mini">
+                                        {% for trans in translations %}
+                                        <option value="{{ trans }}" {% if trans == 'NIV' %}selected{% endif %}>{{ trans }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <span class="trans-separator">|</span>
+                                    <select id="syncTrans2" class="styled-select mini">
+                                        {% for trans in translations %}
+                                        <option value="{{ trans }}" {% if trans == 'Hebrew' %}selected{% endif %}>{{ trans }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="sync-status">
+                                    <span class="sync-indicator"></span>
+                                    <span id="syncStatusText">Ready to sync</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="sync-text-dual">
+                            <div class="sync-column" id="syncCol1">
+                                <div class="sync-column-header">
+                                    <span id="syncColName1">NIV</span>
+                                </div>
+                                <div class="sync-verses" id="syncVerses1"></div>
+                            </div>
+                            <div class="sync-column" id="syncCol2">
+                                <div class="sync-column-header">
+                                    <span id="syncColName2">Hebrew</span>
+                                </div>
+                                <div class="sync-verses" id="syncVerses2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Audio player controls bar -->
+                <div class="audio-controls-bar">
+                    <button class="chapter-nav-btn" id="prevChapterBtn" title="Previous Chapter">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
+                        </svg>
+                    </button>
+                    <button class="control-btn" id="playPauseBtn">
+                        <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        <svg class="pause-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                            <rect x="6" y="4" width="4" height="16"/>
+                            <rect x="14" y="4" width="4" height="16"/>
+                        </svg>
+                    </button>
+                    <button class="chapter-nav-btn" id="nextChapterBtn" title="Next Chapter">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+                        </svg>
+                    </button>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span class="time-display" id="timeDisplay">0:00 / 0:00</span>
+                    <div class="now-playing">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 18V5l12-2v13"/>
+                            <circle cx="6" cy="18" r="3"/>
+                            <circle cx="18" cy="16" r="3"/>
+                        </svg>
+                        <span id="nowPlayingText">RITDorg Audio</span>
+                    </div>
+                    <button class="video-toggle-btn" id="videoToggleBtn" title="Show/Hide Video">
+                        <svg class="video-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z"/>
+                            <line x1="1" y1="1" x2="23" y2="23"/>
+                        </svg>
+                        <svg class="video-on-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="23 7 16 12 23 17 23 7"/>
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- YouTube API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
