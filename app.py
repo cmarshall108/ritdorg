@@ -1149,11 +1149,31 @@ def get_video_captions(video_id):
             formatted_captions = []
             for caption in captions:
                 # New API uses object attributes instead of dict keys
+                start = caption.start
+                duration = caption.duration
+                text = caption.text
+                end = start + duration
+                
+                # Split text into words and calculate word timings
+                words = text.split()
+                word_timings = []
+                if words:
+                    word_duration = duration / len(words)
+                    for i, word in enumerate(words):
+                        word_start = start + (i * word_duration)
+                        word_end = word_start + word_duration
+                        word_timings.append({
+                            "text": word,
+                            "start": word_start,
+                            "end": word_end
+                        })
+                
                 formatted_captions.append({
-                    "text": caption.text,
-                    "start": caption.start,
-                    "duration": caption.duration,
-                    "end": caption.start + caption.duration
+                    "text": text,
+                    "start": start,
+                    "duration": duration,
+                    "end": end,
+                    "words": word_timings
                 })
             
             return jsonify({

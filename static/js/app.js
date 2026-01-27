@@ -69,6 +69,11 @@ class BibleReader {
         this.scrollDebounceTimer = null;
         this.currentHighlightedWords = new Set();
         this.lastCaptionText = null;
+        // Buffer for previous captions (for snapping)
+        this.captionBuffer = [];
+        this.captionBufferSize = 5;
+        // Dynamic scripture start detection
+        this.scriptureStartTime = null;
         
         this.init();
     }
@@ -567,6 +572,8 @@ class BibleReader {
             this.lastScrolledVerse = null;
             this.currentHighlightedWords = new Set();
             this.lastCaptionText = null;
+            // Reset scripture start detection for new video
+            this.scriptureStartTime = null;
             
             // Reset intro detection for new video
             this.readingStarted = false;
@@ -858,7 +865,7 @@ class BibleReader {
             // Update time display
             this.updateTimeDisplay();
             
-            // Always use dynamic caption sync
+            // Sync verse and words very frequently for real-time feel
             this.syncWithCaptions(currentTime, duration);
         }, 50);
     }
@@ -930,23 +937,41 @@ class BibleReader {
         let matchedVerse = null;
         if (caption) {
             captionText = caption.text;
+            // Store in buffer (keep only last N)
+            if (this.captionBuffer.length === 0 || this.captionBuffer[this.captionBuffer.length-1] !== caption.text) {
+                this.captionBuffer.push(caption.text);
+                if (this.captionBuffer.length > this.captionBufferSize) {
+                    this.captionBuffer.shift();
+                }
+            }
             // Update caption display
             if (captionDisplay && this.lastCaptionText !== caption.text) {
                 this.lastCaptionText = caption.text;
                 captionDisplay.textContent = caption.text;
                 captionDisplay.parentElement.classList.add('active');
             }
-            // Only match if there is an exact verse match (score == 1)
-            matchedVerse = this.findExactMatchingVerse(captionText);
+            // Try to snap to a verse using the buffer (most recent first), using best match for closer sync
+            for (let i = this.captionBuffer.length - 1; i >= 0; i--) {
+                const bufferText = this.captionBuffer[i];
+                const bestMatch = this.findBestMatchingVerse(bufferText);
+                if (bestMatch) {
+                    matchedVerse = bestMatch;
+                    break;
+                }
+            }
         } else if (captionDisplay) {
             captionDisplay.parentElement.classList.remove('active');
         }
-        // Fall back to time-based if no exact text match
+        // Fall back to time-based if no text match
         if (!matchedVerse) {
             matchedVerse = this.getVerseByTime(currentTime, duration);
         }
         // Always highlight current verse
         if (matchedVerse && matchedVerse !== this.lastHighlightedVerse) {
+            // Dynamically detect scripture start when first verse is matched
+            if (matchedVerse === '1' && this.scriptureStartTime === null) {
+                this.scriptureStartTime = currentTime;
+            }
             document.querySelectorAll('.sync-verse.active').forEach(el => {
                 el.classList.remove('active');
             });
@@ -957,7 +982,7 @@ class BibleReader {
             this.lastMatchedVerse = matchedVerse;
             this.scrollToVerse(matchedVerse);
         }
-        this.highlightActiveVerse(matchedVerse, captionText);
+        this.highlightActiveVerse(matchedVerse, captionText, currentTime, caption);
     }
     
     // Get verse based on time progression
@@ -968,8 +993,8 @@ class BibleReader {
         // Use video duration directly
         const totalDuration = duration || 240;
         
-        // Account for intro (~5 seconds) and outro (~10 seconds)
-        const introTime = 5;
+        // Dynamically adjust for scripture start (default to 5 seconds if not detected)
+        const introTime = this.scriptureStartTime || 5;
         const outroTime = 10;
         const contentDuration = totalDuration - introTime - outroTime;
         
@@ -988,7 +1013,7 @@ class BibleReader {
     }
     
     // Always highlight something in the active verse
-    highlightActiveVerse(verseNum, captionText = '') {
+    highlightActiveVerse(verseNum, captionText = '', currentTime = 0, caption = null) {
         // Clear previous highlights
         document.querySelectorAll('.sync-word.caption-match, .sync-word.caption-match-strong').forEach(el => {
             el.classList.remove('caption-match', 'caption-match-strong');
@@ -997,38 +1022,66 @@ class BibleReader {
         if (!verseNum) return;
         
         // Get words from caption for matching
-        const captionWords = captionText ? 
-            this.normalizeText(captionText).split(/\s+/).filter(w => w.length > 1) : [];
+        let captionWords = [];
+        if (caption && caption.words && caption.words.length > 0) {
+            captionWords = caption.words.map(w => w.text);
+        } else {
+            captionWords = captionText ? 
+                this.normalizeText(captionText).split(/\s+/).filter(w => w.length > 1) : [];
+        }
         
-        // Only highlight words that actually match the caption
-        if (captionWords.length > 0) {
-            // Check all sync-words across both columns for matches
-            document.querySelectorAll('.sync-word').forEach(wordEl => {
-                const wordText = this.normalizeText(wordEl.textContent);
-                const parentVerse = wordEl.closest('.sync-verse');
-                const isActiveVerse = parentVerse?.dataset.verse === verseNum;
-                
-                // Check if word matches caption
-                const hasMatch = captionWords.some(cw => this.looseWordMatch(cw, wordText));
-                
-                if (hasMatch) {
-                    if (isActiveVerse) {
-                        // Strong match - word in active verse matches caption
-                        wordEl.classList.add('caption-match-strong');
-                    } else {
-                        // Light match - word elsewhere matches caption
-                        wordEl.classList.add('caption-match');
-                    }
-                }
+        if (captionWords.length === 0) return;
+        
+        // Calculate estimated word timings if caption has timing
+        let wordTimings = [];
+        if (caption && caption.words && caption.words.length > 0) {
+            // Use word timings from backend if available
+            wordTimings = caption.words;
+        } else if (caption && caption.start !== undefined && caption.end !== undefined) {
+            // Fallback: estimate word timings
+            const duration = caption.end - caption.start;
+            const wordDuration = duration / captionWords.length;
+            captionWords.forEach((word, index) => {
+                wordTimings.push({
+                    text: word,
+                    start: caption.start + (index * wordDuration),
+                    end: caption.start + ((index + 1) * wordDuration)
+                });
             });
         }
+        
+        // Only highlight words that match the caption and are "active" based on timing
+        document.querySelectorAll('.sync-word').forEach(wordEl => {
+            const wordText = this.normalizeText(wordEl.textContent);
+            const parentVerse = wordEl.closest('.sync-verse');
+            const isActiveVerse = parentVerse?.dataset.verse === verseNum;
+            
+            if (!isActiveVerse) return;
+            
+            // Check if word matches any caption word
+            const matchingIndex = captionWords.findIndex(cw => this.looseWordMatch(cw, wordText));
+            
+            if (matchingIndex !== -1) {
+                // Check timing: highlight if current time is within the word's estimated timing
+                const timing = wordTimings[matchingIndex];
+                if (timing && currentTime >= timing.start && currentTime <= timing.end) {
+                    wordEl.classList.add('caption-match-strong');
+                } else if (!timing || currentTime >= timing.start) {
+                    // If no timing or past start, highlight normally
+                    wordEl.classList.add('caption-match');
+                }
+            }
+        });
     }
     
     // Find the verse that best matches the caption text
-    findExactMatchingVerse(captionText) {
+    findBestMatchingVerse(captionText) {
         if (!captionText) return null;
         const captionWords = this.normalizeText(captionText).split(/\s+/).filter(w => w.length > 1);
         if (captionWords.length === 0) return null;
+        let bestMatch = null;
+        let bestScore = 0;
+        // Check BOTH columns - NIV (syncVerses1) and Hebrew (syncVerses2)
         const allVerses = [
             ...document.querySelectorAll('#syncVerses1 .sync-verse'),
             ...document.querySelectorAll('#syncVerses2 .sync-verse')
@@ -1042,13 +1095,23 @@ class BibleReader {
             }
             verseTexts.set(verseNum, verseTexts.get(verseNum) + ' ' + verse.textContent);
         });
-        for (const [verseNum, combinedText] of verseTexts.entries()) {
+        verseTexts.forEach((combinedText, verseNum) => {
             const verseWords = this.normalizeText(combinedText).split(/\s+/).filter(w => w.length > 1);
-            if (verseWords.length === captionWords.length && verseWords.every((vw, i) => vw === captionWords[i])) {
-                return verseNum;
+            // Calculate match score
+            let matchCount = 0;
+            captionWords.forEach(cw => {
+                if (verseWords.some(vw => this.looseWordMatch(cw, vw))) {
+                    matchCount++;
+                }
+            });
+            const score = matchCount / captionWords.length;
+            // Require at least 50% match for closer sync
+            if (score > bestScore && score > 0.5) {
+                bestScore = score;
+                bestMatch = verseNum;
             }
-        }
-        return null;
+        });
+        return bestMatch;
     }
     
     // Normalize text for matching (remove punctuation, lowercase)
