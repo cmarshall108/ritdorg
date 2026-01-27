@@ -909,7 +909,7 @@ class BibleReader {
                 captionDisplay.id = 'captionDisplay';
                 captionDisplay.className = 'caption-display';
                 captionDisplay.innerHTML = '<span class="caption-text"></span>';
-                videoContainer.appendChild(captionDisplay);
+                //videoContainer.appendChild(captionDisplay);
             }
         }
     }
@@ -964,6 +964,11 @@ class BibleReader {
         }
         // Fall back to time-based if no text match
         if (!matchedVerse) {
+            matchedVerse = this.getVerseByTime(currentTime, duration);
+        }
+        
+        // If text match is the same as current verse, force progression with time-based
+        if (matchedVerse === this.lastHighlightedVerse) {
             matchedVerse = this.getVerseByTime(currentTime, duration);
         }
         // Always highlight current verse
