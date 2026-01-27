@@ -1,6 +1,31 @@
 // ===== RITDorg - Interactive Bible Reader =====
 
 class BibleReader {
+        // Get the match score for a specific verse number and caption text
+        getVerseMatchScore(verseNum, captionText) {
+            if (!captionText || !verseNum) return 0;
+            const allVerses = [
+                ...document.querySelectorAll('#syncVerses1 .sync-verse'),
+                ...document.querySelectorAll('#syncVerses2 .sync-verse')
+            ];
+            let combinedText = '';
+            allVerses.forEach(verse => {
+                if (verse.dataset.verse === verseNum) {
+                    combinedText += ' ' + verse.textContent;
+                }
+            });
+            if (!combinedText) return 0;
+            const verseWords = this.normalizeText(combinedText).split(/\s+/).filter(w => w.length > 1);
+            const captionWords = this.normalizeText(captionText).split(/\s+/).filter(w => w.length > 1);
+            if (captionWords.length === 0) return 0;
+            let matchCount = 0;
+            captionWords.forEach(cw => {
+                if (verseWords.some(vw => this.looseWordMatch(cw, vw))) {
+                    matchCount++;
+                }
+            });
+            return matchCount / captionWords.length;
+        }
     constructor() {
         this.currentBook = 'Matthew';
         this.currentChapter = 1;
@@ -900,51 +925,38 @@ class BibleReader {
         const caption = this.getCurrentCaption(currentTime);
         const captionDisplay = document.querySelector('#captionDisplay .caption-text');
         const totalVerses = document.querySelectorAll('#syncVerses1 .sync-verse').length;
-        
         if (totalVerses === 0) return;
-        
         let captionText = '';
         let matchedVerse = null;
-        
         if (caption) {
             captionText = caption.text;
-            
             // Update caption display
             if (captionDisplay && this.lastCaptionText !== caption.text) {
                 this.lastCaptionText = caption.text;
                 captionDisplay.textContent = caption.text;
                 captionDisplay.parentElement.classList.add('active');
             }
-            
-            // Try text-based matching first (works with English captions)
-            matchedVerse = this.findBestMatchingVerse(captionText);
+            // Only match if there is an exact verse match (score == 1)
+            matchedVerse = this.findExactMatchingVerse(captionText);
         } else if (captionDisplay) {
             captionDisplay.parentElement.classList.remove('active');
         }
-        
-        // Fall back to time-based if no text match
+        // Fall back to time-based if no exact text match
         if (!matchedVerse) {
             matchedVerse = this.getVerseByTime(currentTime, duration);
         }
-        
         // Always highlight current verse
         if (matchedVerse && matchedVerse !== this.lastHighlightedVerse) {
-            // Update verse highlighting
             document.querySelectorAll('.sync-verse.active').forEach(el => {
                 el.classList.remove('active');
             });
-            
             document.querySelectorAll(`.sync-verse[data-verse="${matchedVerse}"]`).forEach(verse => {
                 verse.classList.add('active');
             });
-            
             this.lastHighlightedVerse = matchedVerse;
-            
-            // Smooth scroll to matched verse
+            this.lastMatchedVerse = matchedVerse;
             this.scrollToVerse(matchedVerse);
         }
-        
-        // Always highlight words in the current verse
         this.highlightActiveVerse(matchedVerse, captionText);
     }
     
@@ -1013,21 +1025,14 @@ class BibleReader {
     }
     
     // Find the verse that best matches the caption text
-    findBestMatchingVerse(captionText) {
+    findExactMatchingVerse(captionText) {
         if (!captionText) return null;
-        
         const captionWords = this.normalizeText(captionText).split(/\s+/).filter(w => w.length > 1);
         if (captionWords.length === 0) return null;
-        
-        let bestMatch = null;
-        let bestScore = 0;
-        
-        // Check BOTH columns - NIV (syncVerses1) and Hebrew (syncVerses2)
         const allVerses = [
             ...document.querySelectorAll('#syncVerses1 .sync-verse'),
             ...document.querySelectorAll('#syncVerses2 .sync-verse')
         ];
-        
         // Group by verse number
         const verseTexts = new Map();
         allVerses.forEach(verse => {
@@ -1037,66 +1042,56 @@ class BibleReader {
             }
             verseTexts.set(verseNum, verseTexts.get(verseNum) + ' ' + verse.textContent);
         });
-        
-        verseTexts.forEach((combinedText, verseNum) => {
+        for (const [verseNum, combinedText] of verseTexts.entries()) {
             const verseWords = this.normalizeText(combinedText).split(/\s+/).filter(w => w.length > 1);
-            
-            // Calculate match score
-            let matchCount = 0;
-            captionWords.forEach(cw => {
-                if (verseWords.some(vw => this.looseWordMatch(cw, vw))) {
-                    matchCount++;
-                }
-            });
-            
-            const score = matchCount / captionWords.length;
-            
-            if (score > bestScore && score > 0.2) { // At least 20% match
-                bestScore = score;
-                bestMatch = verseNum;
+            if (verseWords.length === captionWords.length && verseWords.every((vw, i) => vw === captionWords[i])) {
+                return verseNum;
             }
-        });
-        
-        return bestMatch;
+        }
+        return null;
     }
     
     // Normalize text for matching (remove punctuation, lowercase)
     normalizeText(text) {
-        return text.toLowerCase()
+        // Normalize Unicode (NFKC), remove punctuation, diacritics, and trim
+        let norm = text.normalize('NFKC')
             .replace(/[.,!?;:'"()[\]{}]/g, '')
             .replace(/\s+/g, ' ')
             .trim();
+        // Remove Hebrew diacritics (niqqud, cantillation)
+        norm = norm.replace(/[\u0591-\u05C7]/g, '');
+        // Lowercase for non-Hebrew, leave Hebrew as-is (no case)
+        return norm.toLowerCase();
     }
     
     // Loose word matching - handles variations, stems, etc.
     looseWordMatch(word1, word2) {
         if (!word1 || !word2) return false;
-        
-        const w1 = word1.toLowerCase();
-        const w2 = word2.toLowerCase();
-        
+        // Normalize both words (removes diacritics, punctuation, etc.)
+        const w1 = this.normalizeText(word1);
+        const w2 = this.normalizeText(word2);
         // Exact match
         if (w1 === w2) return true;
-        
-        // One contains the other (for prefixes/suffixes)
-        if (w1.length > 3 && w2.length > 3) {
-            if (w1.includes(w2) || w2.includes(w1)) return true;
+        // For Hebrew: allow loose match if one contains the other and both are at least 2 chars (Hebrew words are often short)
+        const isHebrew = /[\u0590-\u05FF]/.test(w1) && /[\u0590-\u05FF]/.test(w2);
+        if (isHebrew) {
+            if (w1.length > 1 && w2.length > 1 && (w1.includes(w2) || w2.includes(w1))) return true;
+        } else {
+            // One contains the other (for prefixes/suffixes)
+            if (w1.length > 3 && w2.length > 3 && (w1.includes(w2) || w2.includes(w1))) return true;
+            // Common stem (first 4+ characters match)
+            if (w1.length >= 4 && w2.length >= 4) {
+                const stem1 = w1.substring(0, Math.min(4, w1.length));
+                const stem2 = w2.substring(0, Math.min(4, w2.length));
+                if (stem1 === stem2) return true;
+            }
         }
-        
-        // Common stem (first 4+ characters match)
-        if (w1.length >= 4 && w2.length >= 4) {
-            const stem1 = w1.substring(0, Math.min(4, w1.length));
-            const stem2 = w2.substring(0, Math.min(4, w2.length));
-            if (stem1 === stem2) return true;
-        }
-        
-        // Levenshtein distance for similar words
+        // Levenshtein distance for similar words (for both Hebrew and non-Hebrew)
         if (w1.length > 4 && w2.length > 4) {
             const distance = this.levenshteinDistance(w1, w2);
             const maxLen = Math.max(w1.length, w2.length);
             if (distance / maxLen < 0.25) return true; // Allow ~25% difference
         }
-        
         return false;
     }
     
