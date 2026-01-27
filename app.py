@@ -145,6 +145,25 @@ BIBLE_KJV = {
             21: "And he arose, and took the young child and his mother, and came into the land of Israel.",
             22: "But when he heard that Archelaus did reign in Judaea in the room of his father Herod, he was afraid to go thither: notwithstanding, being warned of God in a dream, he turned aside into the parts of Galilee:",
             23: "And he came and dwelt in a city called Nazareth: that it might be fulfilled which was spoken by the prophets, He shall be called a Nazarene."
+        },
+        3: {
+            1: "In those days came John the Baptist, preaching in the wilderness of Judaea,",
+            2: "And saying, Repent ye: for the kingdom of heaven is at hand.",
+            3: "For this is he that was spoken of by the prophet Esaias, saying, The voice of one crying in the wilderness, Prepare ye the way of the Lord, make his paths straight.",
+            4: "And the same John had his raiment of camel's hair, and a leathern girdle about his loins; and his meat was locusts and wild honey.",
+            5: "Then went out to him Jerusalem, and all Judaea, and all the region round about Jordan,",
+            6: "And were baptized of him in Jordan, confessing their sins.",
+            7: "But when he saw many of the Pharisees and Sadducees come to his baptism, he said unto them, O generation of vipers, who hath warned you to flee from the wrath to come?",
+            8: "Bring forth therefore fruits meet for repentance:",
+            9: "And think not to say within yourselves, We have Abraham to our father: for I say unto you, that God is able of these stones to raise up children unto Abraham.",
+            10: "And now also the axe is laid unto the root of the trees: therefore every tree which bringeth not forth good fruit is hewn down, and cast into the fire.",
+            11: "I indeed baptize you with water unto repentance: but he that cometh after me is mightier than I, whose shoes I am not worthy to bear: he shall baptize you with the Holy Ghost, and with fire:",
+            12: "Whose fan is in his hand, and he will throughly purge his floor, and gather his wheat into the garner; but he will burn up the chaff with unquenchable fire.",
+            13: "Then cometh Jesus from Galilee to Jordan unto John, to be baptized of him.",
+            14: "But John forbad him, saying, I have need to be baptized of thee, and comest thou to me?",
+            15: "And Jesus answering said unto him, Suffer it to be so now: for thus it becometh us to fulfil all righteousness. Then he suffered him.",
+            16: "And Jesus, when he was baptized, went up straightway out of the water: and, lo, the heavens were opened unto him, and he saw the Spirit of God descending like a dove, and lighting upon him:",
+            17: "And lo a voice from heaven, saying, This is my beloved Son, in whom I am well pleased."
         }
     }
 }
@@ -282,6 +301,25 @@ BIBLE_NIV = {
             21: "So he got up, took the child and his mother and went to the land of Israel.",
             22: "But when he heard that Archelaus was reigning in Judea in place of his father Herod, he was afraid to go there. Having been warned in a dream, he withdrew to the district of Galilee,",
             23: "and he went and lived in a town called Nazareth. So was fulfilled what was said through the prophets, that he would be called a Nazarene."
+        },
+        3: {
+            1: "In those days John the Baptist came, preaching in the wilderness of Judea",
+            2: "and saying, \"Repent, for the kingdom of heaven has come near.\"",
+            3: "This is he who was spoken of through the prophet Isaiah: \"A voice of one calling in the wilderness, 'Prepare the way for the Lord, make straight paths for him.'\"",
+            4: "John's clothes were made of camel's hair, and he had a leather belt around his waist. His food was locusts and wild honey.",
+            5: "People went out to him from Jerusalem and all Judea and the whole region of the Jordan.",
+            6: "Confessing their sins, they were baptized by him in the Jordan River.",
+            7: "But when he saw many of the Pharisees and Sadducees coming to where he was baptizing, he said to them: \"You brood of vipers! Who warned you to flee from the coming wrath?",
+            8: "Produce fruit in keeping with repentance.",
+            9: "And do not think you can say to yourselves, 'We have Abraham as our father.' I tell you that out of these stones God can raise up children for Abraham.",
+            10: "The ax is already at the root of the trees, and every tree that does not produce good fruit will be cut down and thrown into the fire.",
+            11: "\"I baptize you with water for repentance. But after me comes one who is more powerful than I, whose sandals I am not worthy to carry. He will baptize you with the Holy Spirit and fire.",
+            12: "His winnowing fork is in his hand, and he will clear his threshing floor, gathering his wheat into the barn and burning up the chaff with unquenchable fire.\"",
+            13: "Then Jesus came from Galilee to the Jordan to be baptized by John.",
+            14: "But John tried to deter him, saying, \"I need to be baptized by you, and do you come to me?\"",
+            15: "Jesus replied, \"Let it be so now; it is proper for us to do this to fulfill all righteousness.\" Then John consented.",
+            16: "As soon as Jesus was baptized, he went up out of the water. At that moment heaven was opened, and he saw the Spirit of God descending like a dove and alighting on him.",
+            17: "And a voice from heaven said, \"This is my Son, whom I love; with him I am well pleased.\""
         }
     }
 }
@@ -364,6 +402,25 @@ BIBLE_HEBREW = {
             21: "Vayakam vayikach et-hayeled ve'et-imo, vayavo el-eretz Yisrael.",
             22: "Vayishma ki Archelaus molech biYhudah tachat Hordos aviv, vayira lalechet shamah, vayuzhar bachalom, vayasar el-galil Hagelil.",
             23: "Vayavo vayeshev be'ir hannikret Natzeret, lema'an yimale hane'emar al-yedei hanevi'im, Notzri yikarei."
+        },
+        3: {
+            1: "Bayamim hahem ba Yochanan HaMatbil, korei bamidbar Yehudah,",
+            2: "Ve'omer, Shuvu, ki karevah malchut hashamayim.",
+            3: "Ki zeh hu asher diber alav Yeshayahu hanavi lemor, Kol korei bamidbar, Panu derech Adonai, yashru netivotav.",
+            4: "VeYochanan hayah levush se'ar gemalim ve'ezor or bemotnav, uma'achalo arbeh udevash ya'ar.",
+            5: "Az yatze'u elav Yerushalayim vechol Yehudah vechol kikar haYarden.",
+            6: "Vayitbelu bimei haYarden al-yadav, mitvadim et-chatoteihem.",
+            7: "Vayar et-rabim min-haPerushim vemin-haTzdukim ba'im el-tevilato, vayomer lahem, Yaldei nechashim, mi hizhar etchem lanus min-hachemah haba'ah?",
+            8: "Asu pri ra'ui litshuvah.",
+            9: "Ve'al tachshevu lomar benafshechem, Avinu Avraham. Ki omer ani lachem, ki yachol Elohim lehakim min-ha'avanim ha'eleh banim le'Avraham.",
+            10: "Vehine hagarzen musam al-shoresh ha'etzim, vechol etz asher eino oseh pri tov yikarei veyushlach ba'esh.",
+            11: "Ani mativ etchem bamayim litshuvah, aval haba acharai chazak mimeni, asher lo shaviti lase'et na'alav. Hu yativ etchem beRuach HaKodesh uva'esh.",
+            12: "Mizreto beyado, vetaher et-gorno, veyasef et-chitav el-ha'otzar, ve'et-hamotz yisrof be'esh shelo tichbeh.",
+            13: "Az ba Yeshua min-haGalil el-haYarden el-Yochanan lehitabel al-yado.",
+            14: "VeYochanan mena mimenu lemor, Ani tzarich lehitabel al-yadcha, ve'atah ba elai?",
+            15: "Vaya'an Yeshua vayomer elav, Hanach atah ki ken na'eh lanu lemale et-kol hatzedakah. Az hinichohu.",
+            16: "VeYeshua nitbal vaya'al miyad min-hamayim, vehineh niftechu lo hashamayim, vayar et-Ruach Elohim yoredet keyonah unachah alav.",
+            17: "Vehineh kol min-hashamayim omer, Zeh beni ahavi asher bo chafatzti."
         }
     }
 }
@@ -422,6 +479,25 @@ BIBLE_GREEK = {
             21: "Ho de egertheis parelaben to paidion kai tēn mētera autou kai eisēlthen eis gēn Israēl.",
             22: "Akousas de hoti Archelaos basileuei tēs Ioudaias anti tou patros autou Hērōdou ephobēthē ekei apelthein; chrēmatistheis de kat' onar anechōrēsen eis ta merē tēs Galilaias,",
             23: "kai elthōn katōkēsen eis polin legomenēn Nazaret; hopōs plērōthē to rhēthen dia tōn prophētōn hoti Nazōraios klēthēsetai."
+        },
+        3: {
+            1: "En de tais hēmerais ekeinais paraginetai Iōannēs ho Baptistēs kēryssōn en tē erēmō tēs Ioudaias",
+            2: "kai legōn, Metanoeite; ēngiken gar hē basileia tōn ouranōn.",
+            3: "Houtos gar estin ho rhētheis dia Ēsaiou tou prophētou legontos, Phōnē boōntos en tē erēmō, Hetoimasate tēn hodon Kyriou, eutheias poieite tas tribous autou.",
+            4: "Autos de ho Iōannēs eichen to endyma autou apo trichōn kamēlou kai zōnēn dermatinēn peri tēn osphyn autou; hē de trophē ēn autou akrides kai meli agrion.",
+            5: "Tote exeporeueto pros auton Hierosolyma kai pasa hē Ioudaia kai pasa hē perichōros tou Iordanou,",
+            6: "kai ebaptizonto en tō Iordanē potamō hyp' autou exomologoumenoi tas hamartias autōn.",
+            7: "Idōn de pollous tōn Pharisaiōn kai Saddoukaiōn erchomenous epi to baptisma autou eipen autois, Gennēmata echidnōn, tis hypedeixen hymin phygein apo tēs mellousēs orgēs?",
+            8: "Poiēsate oun karpon axion tēs metanoias;",
+            9: "kai mē doxēte legein en heautois, Patera echomen ton Abraam. Legō gar hymin hoti dynatai ho Theos ek tōn lithōn toutōn egeirai tekna tō Abraam.",
+            10: "Ēdē de hē axinē pros tēn rhizan tōn dendrōn keitai; pan oun dendron mē poioun karpon kalon ekkoptetai kai eis pyr balletai.",
+            11: "Egō men hymas baptizō en hydati eis metanoian; ho de opisō mou erchomenos ischyroteros mou estin, hou ouk eimi hikanos ta hypodēmata bastasai; autos hymas baptisei en Pneumati Hagiō kai pyri;",
+            12: "hou to ptyon en tē cheiri autou, kai diakathariei tēn halōna autou, kai synaxei ton siton autou eis tēn apothēkēn, to de achyron katakausei pyri asbestō.",
+            13: "Tote paraginetai ho Iēsous apo tēs Galilaias epi ton Iordanēn pros ton Iōannēn tou baptisthēnai hyp' autou.",
+            14: "Ho de Iōannēs diekōlyen auton legōn, Egō chreian echō hypo sou baptisthēnai, kai sy erchē pros me?",
+            15: "Apokritheis de ho Iēsous eipen pros auton, Aphes arti; houtōs gar prepon estin hēmin plērōsai pasan dikaiosynēn. Tote aphiēsin auton.",
+            16: "Baptistheis de ho Iēsous euthys anebē apo tou hydatos; kai idou ēneōchthēsan autō hoi ouranoi, kai eiden to Pneuma tou Theou katabainon hōsei peristeran kai erchomenon ep' auton;",
+            17: "kai idou phōnē ek tōn ouranōn legousa, Houtos estin ho Huios mou ho agapētos, en hō eudokēsa."
         }
     },
     "John": {
@@ -866,6 +942,32 @@ VIDEO_SYNC_DATA = {
             {"verse": 21, "start": 312, "end": 326},
             {"verse": 22, "start": 326, "end": 350},
             {"verse": 23, "start": 350, "end": 375}
+        ]
+    },
+    "Matthew_3": {
+        "video_id": "VBx6V1iaHFk",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 2,  # Chapter 3 = index 2
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 3 - Bible Reading",
+        "timestamps": [
+            {"verse": 1, "start": 0, "end": 12},
+            {"verse": 2, "start": 12, "end": 22},
+            {"verse": 3, "start": 22, "end": 40},
+            {"verse": 4, "start": 40, "end": 55},
+            {"verse": 5, "start": 55, "end": 68},
+            {"verse": 6, "start": 68, "end": 80},
+            {"verse": 7, "start": 80, "end": 100},
+            {"verse": 8, "start": 100, "end": 112},
+            {"verse": 9, "start": 112, "end": 128},
+            {"verse": 10, "start": 128, "end": 145},
+            {"verse": 11, "start": 145, "end": 170},
+            {"verse": 12, "start": 170, "end": 195},
+            {"verse": 13, "start": 195, "end": 210},
+            {"verse": 14, "start": 210, "end": 225},
+            {"verse": 15, "start": 225, "end": 248},
+            {"verse": 16, "start": 248, "end": 275},
+            {"verse": 17, "start": 275, "end": 300}
         ]
     }
 }
