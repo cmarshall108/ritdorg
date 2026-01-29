@@ -57,23 +57,8 @@ class BibleReader {
         this.captions = null;
         this.currentCaptionIndex = -1;
         this.captionSyncEnabled = true;
-        
-        // Intro detection - hold at verse 1 until reading starts
-        this.readingStarted = false;
-        this.readingStartTime = null;
-        this.consecutiveMatches = 0;
-        
-        // Smooth sync tracking
         this.lastHighlightedVerse = null;
-        this.lastScrolledVerse = null;
-        this.scrollDebounceTimer = null;
-        this.currentHighlightedWords = new Set();
         this.lastCaptionText = null;
-        // Buffer for previous captions (for snapping)
-        this.captionBuffer = [];
-        this.captionBufferSize = 5;
-        // Dynamic scripture start detection
-        this.scriptureStartTime = null;
         
         this.init();
     }
@@ -569,21 +554,6 @@ class BibleReader {
         try {
             // Reset sync tracking for new chapter
             this.lastHighlightedVerse = null;
-            this.lastScrolledVerse = null;
-            this.currentHighlightedWords = new Set();
-            this.lastCaptionText = null;
-            // Reset scripture start detection for new video
-            this.scriptureStartTime = null;
-            
-            // Reset intro detection for new video
-            this.readingStarted = false;
-            this.readingStartTime = null;
-            this.consecutiveMatches = 0;
-            
-            if (this.scrollDebounceTimer) {
-                clearTimeout(this.scrollDebounceTimer);
-                this.scrollDebounceTimer = null;
-            }
             
             const response = await fetch(`/api/sync/${this.currentBook}/${this.currentChapter}`);
             this.syncData = await response.json();
@@ -927,56 +897,36 @@ class BibleReader {
         return null;
     }
     
-    // Enhanced caption-based sync - always shows some match
+    // Simplified caption-based sync
     syncWithCaptions(currentTime, duration) {
         const caption = this.getCurrentCaption(currentTime);
         const captionDisplay = document.querySelector('#captionDisplay .caption-text');
         const totalVerses = document.querySelectorAll('#syncVerses1 .sync-verse').length;
         if (totalVerses === 0) return;
-        let captionText = '';
+
         let matchedVerse = null;
-        if (caption) {
-            captionText = caption.text;
-            // Store in buffer (keep only last N)
-            if (this.captionBuffer.length === 0 || this.captionBuffer[this.captionBuffer.length-1] !== caption.text) {
-                this.captionBuffer.push(caption.text);
-                if (this.captionBuffer.length > this.captionBufferSize) {
-                    this.captionBuffer.shift();
-                }
-            }
-            // Update caption display
-            if (captionDisplay && this.lastCaptionText !== caption.text) {
+
+        // Update caption display
+        if (caption && captionDisplay) {
+            if (this.lastCaptionText !== caption.text) {
                 this.lastCaptionText = caption.text;
                 captionDisplay.textContent = caption.text;
                 captionDisplay.parentElement.classList.add('active');
             }
-            // Try to snap to a verse using the buffer (most recent first), using best match for closer sync
-            for (let i = this.captionBuffer.length - 1; i >= 0; i--) {
-                const bufferText = this.captionBuffer[i];
-                const bestMatch = this.findBestMatchingVerse(bufferText);
-                if (bestMatch) {
-                    matchedVerse = bestMatch;
-                    break;
-                }
-            }
+            // Find best matching verse for current caption
+            matchedVerse = this.findBestMatchingVerse(caption.text);
         } else if (captionDisplay) {
             captionDisplay.parentElement.classList.remove('active');
+            this.lastCaptionText = null;
         }
-        // Fall back to time-based if no text match
+
+        // Fall back to time-based sync if no caption match
         if (!matchedVerse) {
             matchedVerse = this.getVerseByTime(currentTime, duration);
         }
-        
-        // If text match is the same as current verse, force progression with time-based
-        if (matchedVerse === this.lastHighlightedVerse) {
-            matchedVerse = this.getVerseByTime(currentTime, duration);
-        }
-        // Always highlight current verse
+
+        // Update verse highlight if changed
         if (matchedVerse && matchedVerse !== this.lastHighlightedVerse) {
-            // Dynamically detect scripture start when first verse is matched
-            if (matchedVerse === '1' && this.scriptureStartTime === null) {
-                this.scriptureStartTime = currentTime;
-            }
             document.querySelectorAll('.sync-verse.active').forEach(el => {
                 el.classList.remove('active');
             });
@@ -984,10 +934,11 @@ class BibleReader {
                 verse.classList.add('active');
             });
             this.lastHighlightedVerse = matchedVerse;
-            this.lastMatchedVerse = matchedVerse;
             this.scrollToVerse(matchedVerse);
         }
-        this.highlightActiveVerse(matchedVerse, captionText, currentTime, caption);
+
+        // Highlight words in the active verse
+        this.highlightActiveWords(matchedVerse, caption);
     }
     
     // Get verse based on time progression
@@ -995,67 +946,38 @@ class BibleReader {
         const totalVerses = document.querySelectorAll('#syncVerses1 .sync-verse').length;
         if (totalVerses === 0) return '1';
         
-        // Use video duration directly
         const totalDuration = duration || 240;
-        
-        // Dynamically adjust for scripture start (default to 5 seconds if not detected)
-        const introTime = this.scriptureStartTime || 5;
+        const introTime = 5; // Fixed intro time
         const outroTime = 10;
         const contentDuration = totalDuration - introTime - outroTime;
         
-        // Adjust current time for intro
         const adjustedTime = Math.max(0, currentTime - introTime);
-        
-        // Calculate which verse we should be at based on adjusted time
         const progress = Math.min(Math.max(adjustedTime / contentDuration, 0), 1);
         
-        // Use a slightly slower progression (0.85 factor)
-        const slowedProgress = progress * 0.85;
-        const estimatedVerse = Math.floor(slowedProgress * totalVerses) + 1;
-        
-        // Clamp to valid range
+        const estimatedVerse = Math.floor(progress * totalVerses) + 1;
         return Math.max(1, Math.min(estimatedVerse, totalVerses)).toString();
     }
     
-    // Always highlight something in the active verse
-    highlightActiveVerse(verseNum, captionText = '', currentTime = 0, caption = null) {
+    // Highlight matching words in the active verse
+    highlightActiveWords(verseNum, caption) {
         // Clear previous highlights
         document.querySelectorAll('.sync-word.caption-match, .sync-word.caption-match-strong').forEach(el => {
             el.classList.remove('caption-match', 'caption-match-strong');
         });
         
-        if (!verseNum) return;
+        if (!verseNum || !caption) return;
         
-        // Get words from caption for matching
+        // Get caption words
         let captionWords = [];
-        if (caption && caption.words && caption.words.length > 0) {
+        if (caption.words && caption.words.length > 0) {
             captionWords = caption.words.map(w => w.text);
         } else {
-            captionWords = captionText ? 
-                this.normalizeText(captionText).split(/\s+/).filter(w => w.length > 1) : [];
+            captionWords = this.normalizeText(caption.text).split(/\s+/).filter(w => w.length > 1);
         }
         
         if (captionWords.length === 0) return;
         
-        // Calculate estimated word timings if caption has timing
-        let wordTimings = [];
-        if (caption && caption.words && caption.words.length > 0) {
-            // Use word timings from backend if available
-            wordTimings = caption.words;
-        } else if (caption && caption.start !== undefined && caption.end !== undefined) {
-            // Fallback: estimate word timings
-            const duration = caption.end - caption.start;
-            const wordDuration = duration / captionWords.length;
-            captionWords.forEach((word, index) => {
-                wordTimings.push({
-                    text: word,
-                    start: caption.start + (index * wordDuration),
-                    end: caption.start + ((index + 1) * wordDuration)
-                });
-            });
-        }
-        
-        // Only highlight words that match the caption and are "active" based on timing
+        // Highlight matching words in the active verse
         document.querySelectorAll('.sync-word').forEach(wordEl => {
             const wordText = this.normalizeText(wordEl.textContent);
             const parentVerse = wordEl.closest('.sync-verse');
@@ -1063,18 +985,8 @@ class BibleReader {
             
             if (!isActiveVerse) return;
             
-            // Check if word matches any caption word
-            const matchingIndex = captionWords.findIndex(cw => this.looseWordMatch(cw, wordText));
-            
-            if (matchingIndex !== -1) {
-                // Check timing: highlight if current time is within the word's estimated timing
-                const timing = wordTimings[matchingIndex];
-                if (timing && currentTime >= timing.start && currentTime <= timing.end) {
-                    wordEl.classList.add('caption-match-strong');
-                } else if (!timing || currentTime >= timing.start) {
-                    // If no timing or past start, highlight normally
-                    wordEl.classList.add('caption-match');
-                }
+            if (captionWords.some(cw => this.looseWordMatch(cw, wordText))) {
+                wordEl.classList.add('caption-match');
             }
         });
     }
@@ -1186,79 +1098,21 @@ class BibleReader {
     
     // Smooth scroll to a verse
     scrollToVerse(verseNum) {
-        if (this.scrollDebounceTimer) {
-            clearTimeout(this.scrollDebounceTimer);
-        }
+        const verse1 = document.querySelector(`#syncVerses1 .sync-verse[data-verse="${verseNum}"]`);
+        const verse2 = document.querySelector(`#syncVerses2 .sync-verse[data-verse="${verseNum}"]`);
         
-        this.scrollDebounceTimer = setTimeout(() => {
-            const verse1 = document.querySelector(`#syncVerses1 .sync-verse[data-verse="${verseNum}"]`);
-            const verse2 = document.querySelector(`#syncVerses2 .sync-verse[data-verse="${verseNum}"]`);
-            
-            const scrollOptions = {
-                behavior: 'smooth',
-                block: 'center'
-            };
-            
-            if (verse1) verse1.scrollIntoView(scrollOptions);
-            if (verse2) verse2.scrollIntoView(scrollOptions);
-        }, 150);
+        const scrollOptions = {
+            behavior: 'smooth',
+            block: 'center'
+        };
+        
+        if (verse1) verse1.scrollIntoView(scrollOptions);
+        if (verse2) verse2.scrollIntoView(scrollOptions);
     }
     
-    highlightCaptionWords(currentTime) {
-        const caption = this.getCurrentCaption(currentTime);
-        const captionDisplay = document.querySelector('#captionDisplay .caption-text');
-        
-        if (caption && captionDisplay) {
-            // Only update if caption text changed
-            if (this.lastCaptionText !== caption.text) {
-                this.lastCaptionText = caption.text;
-                captionDisplay.textContent = caption.text;
-                captionDisplay.parentElement.classList.add('active');
-                
-                // Find matching words in the Bible text and highlight them
-                this.highlightMatchingWords(caption.text);
-            }
-        } else if (captionDisplay) {
-            captionDisplay.parentElement.classList.remove('active');
-            this.lastCaptionText = null;
-        }
-    }
+
     
-    highlightMatchingWords(captionText, focusVerse = null) {
-        if (!captionText) return;
-        
-        // Get words from caption
-        const captionWords = this.normalizeText(captionText)
-            .split(/\s+/)
-            .filter(w => w.length > 1);  // Allow shorter words for Hebrew
-        
-        // Clear previous highlights
-        document.querySelectorAll('.sync-word.caption-match').forEach(el => {
-            el.classList.remove('caption-match', 'caption-match-strong');
-        });
-        
-        // Find and highlight matching words in sync verses (both columns)
-        document.querySelectorAll('.sync-word').forEach(wordEl => {
-            const wordText = this.normalizeText(wordEl.textContent);
-            const parentVerse = wordEl.closest('.sync-verse');
-            const verseNum = parentVerse?.dataset.verse;
-            
-            // Prioritize words in the focus verse if specified
-            const inFocusVerse = focusVerse && verseNum === focusVerse;
-            
-            // Check if this word matches any caption word
-            const hasMatch = captionWords.some(cw => this.looseWordMatch(cw, wordText));
-            
-            if (hasMatch) {
-                wordEl.classList.add('caption-match');
-                
-                // Add stronger highlight for focus verse words
-                if (inFocusVerse) {
-                    wordEl.classList.add('caption-match-strong');
-                }
-            }
-        });
-    }
+
     
     updateTimeDisplay() {
         if (!this.player || !this.isPlayerReady) return;
@@ -1276,93 +1130,7 @@ class BibleReader {
             `${formatTime(current)} / ${formatTime(duration)}`;
     }
     
-    highlightCurrentWords(currentTime) {
-        // Track which verse is currently active to prevent scroll bobbing
-        let currentVerseNum = null;
-        let shouldScroll = false;
-        
-        // Find the current verse first
-        const allVerses = document.querySelectorAll('#syncVerses1 .sync-verse[data-start]');
-        allVerses.forEach(verse => {
-            const start = parseFloat(verse.dataset.start);
-            const end = parseFloat(verse.dataset.end);
-            
-            if (currentTime >= start && currentTime <= end) {
-                currentVerseNum = verse.dataset.verse;
-            }
-        });
-        
-        // Only update verses if the verse changed
-        if (currentVerseNum !== this.lastHighlightedVerse) {
-            // Remove previous verse highlights
-            document.querySelectorAll('.sync-verse.active').forEach(el => {
-                el.classList.remove('active');
-            });
-            
-            // Highlight current verse in BOTH columns
-            if (currentVerseNum) {
-                document.querySelectorAll(`.sync-verse[data-verse="${currentVerseNum}"]`).forEach(verse => {
-                    verse.classList.add('active');
-                });
-                shouldScroll = true;
-            }
-            
-            this.lastHighlightedVerse = currentVerseNum;
-        }
-        
-        // Smooth scroll only when verse changes (prevents bobbing)
-        if (shouldScroll && currentVerseNum !== this.lastScrolledVerse) {
-            this.lastScrolledVerse = currentVerseNum;
-            
-            // Debounce scroll to prevent rapid scrolling
-            if (this.scrollDebounceTimer) {
-                clearTimeout(this.scrollDebounceTimer);
-            }
-            
-            this.scrollDebounceTimer = setTimeout(() => {
-                // Scroll both columns to the active verse
-                const verse1 = document.querySelector(`#syncVerses1 .sync-verse[data-verse="${currentVerseNum}"]`);
-                const verse2 = document.querySelector(`#syncVerses2 .sync-verse[data-verse="${currentVerseNum}"]`);
-                
-                if (verse1) {
-                    verse1.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-                // Slight delay for second column to prevent conflict
-                setTimeout(() => {
-                    if (verse2) {
-                        verse2.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }, 50);
-            }, 100);
-        }
-        
-        // Handle word-level highlighting with smooth transitions
-        const wordsToHighlight = new Set();
-        
-        document.querySelectorAll('.sync-word[data-start]').forEach(word => {
-            const start = parseFloat(word.dataset.start);
-            const end = parseFloat(word.dataset.end);
-            const wordId = `${word.closest('.sync-verse')?.dataset.verse}-${word.textContent}`;
-            
-            if (currentTime >= start && currentTime <= end) {
-                wordsToHighlight.add(wordId);
-                if (!word.classList.contains('highlight')) {
-                    word.classList.add('highlight');
-                }
-            } else {
-                if (word.classList.contains('highlight')) {
-                    word.classList.remove('highlight');
-                }
-            }
-        });
-        
-        this.currentHighlightedWords = wordsToHighlight;
-        
-        // Dynamic caption sync - highlight words based on YouTube captions
-        if (this.captions && this.captionSyncEnabled) {
-            this.highlightCaptionWords(currentTime);
-        }
-    }
+
     
     // ===== Toast Notifications =====
     showToast(message, type = 'success') {
