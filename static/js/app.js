@@ -535,9 +535,11 @@ class BibleReader {
         const col1 = document.getElementById('col1Verses');
         const col2 = document.getElementById('col2Verses');
         let isSyncing = false;
+        let manualScroll = false;
+        let scrollTimer;
         
         const syncScroll = (source, target) => {
-            if (isSyncing) return;
+            if (isSyncing || manualScroll) return;
             isSyncing = true;
             
             const scrollRatio = source.scrollTop / (source.scrollHeight - source.clientHeight);
@@ -546,6 +548,16 @@ class BibleReader {
             requestAnimationFrame(() => { isSyncing = false; });
         };
         
+        const onScroll = () => {
+            manualScroll = true;
+            clearTimeout(scrollTimer);
+            scrollTimer = setTimeout(() => { manualScroll = false; }, 300);
+        };
+        
+        col1.addEventListener('scroll', onScroll);
+        col2.addEventListener('scroll', onScroll);
+        
+        // Also sync on scroll
         col1.addEventListener('scroll', () => syncScroll(col1, col2));
         col2.addEventListener('scroll', () => syncScroll(col2, col1));
     }
@@ -698,9 +710,11 @@ class BibleReader {
         const col1 = document.getElementById('syncVerses1');
         const col2 = document.getElementById('syncVerses2');
         let isSyncing = false;
+        let manualScroll = false;
+        let scrollTimer;
         
         const syncScroll = (source, target) => {
-            if (isSyncing) return;
+            if (isSyncing || manualScroll) return;
             isSyncing = true;
             
             const scrollRatio = source.scrollTop / (source.scrollHeight - source.clientHeight);
@@ -709,6 +723,16 @@ class BibleReader {
             requestAnimationFrame(() => { isSyncing = false; });
         };
         
+        const onScroll = () => {
+            manualScroll = true;
+            clearTimeout(scrollTimer);
+            scrollTimer = setTimeout(() => { manualScroll = false; }, 300);
+        };
+        
+        col1.addEventListener('scroll', onScroll);
+        col2.addEventListener('scroll', onScroll);
+        
+        // Also sync on scroll
         col1.addEventListener('scroll', () => syncScroll(col1, col2));
         col2.addEventListener('scroll', () => syncScroll(col2, col1));
     }
