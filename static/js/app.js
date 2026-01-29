@@ -59,6 +59,7 @@ class BibleReader {
         this.captionSyncEnabled = true;
         this.lastHighlightedVerse = null;
         this.lastCaptionText = null;
+        this.verseStartTimes = new Map();
         
         this.init();
     }
@@ -554,6 +555,7 @@ class BibleReader {
         try {
             // Reset sync tracking for new chapter
             this.lastHighlightedVerse = null;
+            this.verseStartTimes.clear();
             
             const response = await fetch(`/api/sync/${this.currentBook}/${this.currentChapter}`);
             this.syncData = await response.json();
@@ -915,6 +917,10 @@ class BibleReader {
             }
             // Find best matching verse for current caption
             matchedVerse = this.findBestMatchingVerse(caption.text);
+            // Record the start time for this verse if matched via caption
+            if (matchedVerse && !this.verseStartTimes.has(matchedVerse)) {
+                this.verseStartTimes.set(matchedVerse, currentTime);
+            }
         } else if (captionDisplay) {
             captionDisplay.parentElement.classList.remove('active');
             this.lastCaptionText = null;
@@ -941,13 +947,57 @@ class BibleReader {
         this.highlightActiveWords(matchedVerse, caption);
     }
     
-    // Get verse based on time progression
+    // Get verse based on time progression with dynamic adjustment
     getVerseByTime(currentTime, duration) {
         const totalVerses = document.querySelectorAll('#syncVerses1 .sync-verse').length;
         if (totalVerses === 0) return '1';
         
+        // Use recorded verse start times for dynamic adjustment
+        const knownVerses = Array.from(this.verseStartTimes.keys()).sort((a, b) => a - b);
+        
+        if (knownVerses.length >= 2) {
+            // Find the last known verse before current time
+            let lastKnownVerse = null;
+            let lastKnownTime = 0;
+            for (const verse of knownVerses) {
+                const time = this.verseStartTimes.get(verse);
+                if (time <= currentTime) {
+                    lastKnownVerse = verse;
+                    lastKnownTime = time;
+                } else {
+                    break;
+                }
+            }
+            
+            if (lastKnownVerse) {
+                const nextKnownVerses = knownVerses.filter(v => v > lastKnownVerse);
+                if (nextKnownVerses.length > 0) {
+                    const nextVerse = nextKnownVerses[0];
+                    const nextTime = this.verseStartTimes.get(nextVerse);
+                    const timeDiff = nextTime - lastKnownTime;
+                    const verseDiff = nextVerse - lastKnownVerse;
+                    const timeSinceLast = currentTime - lastKnownTime;
+                    
+                    if (timeDiff > 0) {
+                        const progressBetween = timeSinceLast / timeDiff;
+                        const estimatedVerse = lastKnownVerse + (verseDiff * progressBetween);
+                        return Math.max(1, Math.min(Math.round(estimatedVerse), totalVerses)).toString();
+                    }
+                } else {
+                    // After last known verse, extrapolate based on average time per verse
+                    const avgTimePerVerse = (lastKnownTime - (this.verseStartTimes.get(knownVerses[0]) || 0)) / (lastKnownVerse - 1);
+                    if (avgTimePerVerse > 0) {
+                        const versesSinceLast = (currentTime - lastKnownTime) / avgTimePerVerse;
+                        const estimatedVerse = lastKnownVerse + versesSinceLast;
+                        return Math.max(1, Math.min(Math.round(estimatedVerse), totalVerses)).toString();
+                    }
+                }
+            }
+        }
+        
+        // Fallback to linear time-based calculation
         const totalDuration = duration || 240;
-        const introTime = 5; // Fixed intro time
+        const introTime = 5;
         const outroTime = 10;
         const contentDuration = totalDuration - introTime - outroTime;
         
