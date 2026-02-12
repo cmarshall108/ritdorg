@@ -42,6 +42,7 @@ class BibleReader {
         this.parallelTrans2 = 'Hebrew';
         this.parallelVerses1 = {};
         this.parallelVerses2 = {};
+        this.allTranslations = []; // Will be populated from the dropdown options
         
         // Video sync translations (Hebrew audio, show NIV + Hebrew text)
         this.syncTrans1 = 'NIV';
@@ -52,6 +53,7 @@ class BibleReader {
         this.isPlayerReady = false;
         this.syncData = null;
         this.syncInterval = null;
+        this.playbackRate = 1; // default playback rate
         
         // Dynamic caption sync
         this.captions = null;
@@ -66,11 +68,22 @@ class BibleReader {
     
     init() {
         this.bindEvents();
+
+        // Initialize playback rate UI
+        const rateSlider = document.getElementById('rateSlider');
+        if (rateSlider) {
+            rateSlider.value = this.playbackRate;
+            const rateLabel = document.getElementById('rateLabel');
+            if (rateLabel) rateLabel.textContent = `${this.playbackRate}×`;
+        }
         
         // Set dropdown to match default book
         document.getElementById('bookSelect').value = this.currentBook;
         
         this.initTheme();
+        
+        // Initialize translation options to prevent same selection
+        this.updateTranslationOptions();
         
         // Load chapters for the book (this will also load chapter content and video sync)
         this.loadChapters(this.currentBook, this.currentChapter);
@@ -148,23 +161,22 @@ class BibleReader {
         // Parallel translation selectors
         document.getElementById('parallelTrans1').addEventListener('change', (e) => {
             this.parallelTrans1 = e.target.value;
+            this.updateTranslationOptions();
             this.loadParallelVerses();
         });
         
         document.getElementById('parallelTrans2').addEventListener('change', (e) => {
             this.parallelTrans2 = e.target.value;
+            this.updateTranslationOptions();
             this.loadParallelVerses();
         });
         
-        // Swap translations button
-        document.getElementById('swapTranslations').addEventListener('click', () => {
-            const temp = this.parallelTrans1;
-            this.parallelTrans1 = this.parallelTrans2;
-            this.parallelTrans2 = temp;
-            document.getElementById('parallelTrans1').value = this.parallelTrans1;
-            document.getElementById('parallelTrans2').value = this.parallelTrans2;
-            this.loadParallelVerses();
-        });
+        // Swap translations button (disabled since Hebrew is locked to right side)
+        const swapBtn = document.getElementById('swapTranslations');
+        swapBtn.disabled = true;
+        swapBtn.style.opacity = '0.5';
+        swapBtn.style.cursor = 'not-allowed';
+        swapBtn.title = 'Swap disabled - Hebrew is locked to right side';
         
         // Sync translation selectors
         document.getElementById('syncTrans1').addEventListener('change', (e) => {
@@ -172,10 +184,17 @@ class BibleReader {
             this.loadVideoSync();
         });
         
-        document.getElementById('syncTrans2').addEventListener('change', (e) => {
-            this.syncTrans2 = e.target.value;
-            this.loadVideoSync();
-        });
+        // syncTrans2 is locked to Hebrew and cannot be changed
+        // Ensure it's always set to Hebrew
+        this.syncTrans2 = 'Hebrew';
+        const syncTrans2Select = document.getElementById('syncTrans2');
+        if (syncTrans2Select) {
+            syncTrans2Select.value = 'Hebrew';
+            syncTrans2Select.disabled = true;
+        }
+        
+        // Filter syncTrans1 options to exclude Hebrew
+        this.updateSyncTranslationOptions();
         
         // Font size
         document.querySelectorAll('.size-btn').forEach(btn => {
@@ -192,6 +211,15 @@ class BibleReader {
         // Video controls
         document.getElementById('playPauseBtn').addEventListener('click', () => this.togglePlay());
         document.querySelector('.progress-bar').addEventListener('click', (e) => this.seekVideo(e));
+
+        // Playback rate slider
+        const rateSlider = document.getElementById('rateSlider');
+        if (rateSlider) {
+            rateSlider.addEventListener('input', (e) => {
+                const r = parseFloat(e.target.value);
+                this.setPlaybackRate(r);
+            });
+        }
         
         // Video visibility toggle
         document.getElementById('videoToggleBtn').addEventListener('click', () => this.toggleVideoVisibility());
@@ -455,6 +483,99 @@ class BibleReader {
     }
     
     // ===== Parallel Translation View =====
+    
+    // Update translation dropdown options to lock Hebrew to right side
+    updateTranslationOptions() {
+        const trans1Select = document.getElementById('parallelTrans1');
+        const trans2Select = document.getElementById('parallelTrans2');
+        
+        // If we haven't stored all translations yet, get them from the current options
+        if (this.allTranslations.length === 0) {
+            this.allTranslations = Array.from(trans1Select.options).map(option => ({
+                value: option.value,
+                text: option.text
+            }));
+        }
+        
+        // Separate Hebrew and non-Hebrew translations
+        const hebrewTranslations = this.allTranslations.filter(trans => 
+            trans.value.toLowerCase().includes('hebrew')
+        );
+        const otherTranslations = this.allTranslations.filter(trans => 
+            !trans.value.toLowerCase().includes('hebrew')
+        );
+        
+        // Clear both selects
+        trans1Select.innerHTML = '';
+        trans2Select.innerHTML = '';
+        
+        // Populate left side (trans1) with non-Hebrew translations
+        otherTranslations.forEach(trans => {
+            const option = document.createElement('option');
+            option.value = trans.value;
+            option.text = trans.text;
+            if (trans.value === this.parallelTrans1) {
+                option.selected = true;
+            }
+            trans1Select.appendChild(option);
+        });
+        
+        // Populate right side (trans2) with Hebrew translations
+        hebrewTranslations.forEach(trans => {
+            const option = document.createElement('option');
+            option.value = trans.value;
+            option.text = trans.text;
+            if (trans.value === this.parallelTrans2) {
+                option.selected = true;
+            }
+            trans2Select.appendChild(option);
+        });
+        
+        // If no Hebrew translation is selected on the right, select the first available
+        if (hebrewTranslations.length > 0 && !hebrewTranslations.some(trans => trans.value === this.parallelTrans2)) {
+            this.parallelTrans2 = hebrewTranslations[0].value;
+            trans2Select.value = this.parallelTrans2;
+        }
+    }
+    
+    // Update sync translation dropdown options to exclude Hebrew from left side
+    updateSyncTranslationOptions() {
+        const syncTrans1Select = document.getElementById('syncTrans1');
+        
+        // If we haven't stored all translations yet, get them from the current options
+        if (this.allTranslations.length === 0) {
+            this.allTranslations = Array.from(syncTrans1Select.options).map(option => ({
+                value: option.value,
+                text: option.text
+            }));
+        }
+        
+        // Clear syncTrans1
+        syncTrans1Select.innerHTML = '';
+        
+        // Populate syncTrans1 with all translations except Hebrew
+        this.allTranslations.forEach(trans => {
+            if (!trans.value.toLowerCase().includes('hebrew')) {
+                const option = document.createElement('option');
+                option.value = trans.value;
+                option.text = trans.text;
+                if (trans.value === this.syncTrans1) {
+                    option.selected = true;
+                }
+                syncTrans1Select.appendChild(option);
+            }
+        });
+        
+        // If current selection is Hebrew, switch to first available option
+        if (this.syncTrans1.toLowerCase().includes('hebrew')) {
+            const firstOption = syncTrans1Select.querySelector('option');
+            if (firstOption) {
+                this.syncTrans1 = firstOption.value;
+                firstOption.selected = true;
+            }
+        }
+    }
+    
     async loadParallelVerses() {
         try {
             const response = await fetch(
@@ -484,7 +605,7 @@ class BibleReader {
                 const fallbackMsg = [];
                 if (data.translation1.fallback) fallbackMsg.push(`${this.parallelTrans1}`);
                 if (data.translation2.fallback) fallbackMsg.push(`${this.parallelTrans2}`);
-                this.showToast(`${fallbackMsg.join(' and ')} not available. Showing KJV fallback.`, 'info');
+                this.showToast(`${fallbackMsg.join(' and ')} not available. Showing NIV fallback.`, 'info');
             }
             
             // Render columns
@@ -565,6 +686,9 @@ class BibleReader {
     // ===== Video Sync =====
     async loadVideoSync() {
         try {
+            // Ensure sync translation options are properly filtered
+            this.updateSyncTranslationOptions();
+            
             // Reset sync tracking for new chapter
             this.lastHighlightedVerse = null;
             this.verseStartTimes.clear();
@@ -595,6 +719,7 @@ class BibleReader {
                 }
             } else {
                 document.querySelector('.video-placeholder').style.display = 'flex';
+                document.getElementById('syncStatusText').textContent = 'No video available';
                 this.renderSyncTextNoVideo();
             }
         } catch (error) {
@@ -789,6 +914,8 @@ class BibleReader {
                 'onReady': () => {
                     this.isPlayerReady = true;
                     this.updateTimeDisplay();
+                    // Apply user-selected playback rate (if supported)
+                    try { this.setPlaybackRate(this.playbackRate); } catch (err) { /* ignore */ }
                 },
                 'onStateChange': (e) => this.onPlayerStateChange(e)
             }
@@ -835,6 +962,33 @@ class BibleReader {
             this.player.playVideo();
         }
     }
+
+    // Set playback rate (UI + player). Chooses nearest supported rate for YouTube.
+    setPlaybackRate(rate) {
+        this.playbackRate = Number(rate) || 1;
+        const label = document.getElementById('rateLabel');
+        if (label) label.textContent = `${this.playbackRate}×`;
+
+        if (!this.player || !this.isPlayerReady) return;
+
+        try {
+            // Prefer rounding to one of the available playback rates reported by the player
+            if (typeof this.player.getAvailablePlaybackRates === 'function') {
+                const avail = this.player.getAvailablePlaybackRates() || [];
+                if (Array.isArray(avail) && avail.length > 0) {
+                    let closest = avail.reduce((a, b) => Math.abs(a - this.playbackRate) < Math.abs(b - this.playbackRate) ? a : b);
+                    this.player.setPlaybackRate(closest);
+                    return;
+                }
+            }
+            // Fallback: try setting directly
+            if (typeof this.player.setPlaybackRate === 'function') {
+                this.player.setPlaybackRate(this.playbackRate);
+            }
+        } catch (err) {
+            console.warn('Playback rate unsupported or failed to set', err);
+        }
+    }
     
     seekVideo(e) {
         if (!this.player || !this.isPlayerReady) return;
@@ -874,6 +1028,15 @@ class BibleReader {
     }
     
     async fetchCaptions(videoId) {
+        // Skip fetching captions for placeholder video IDs
+        if (videoId === 'placeholder_video_id' || !videoId) {
+            console.log('Skipping caption fetch for placeholder video ID');
+            this.captions = null;
+            this.showToast('No video available for this chapter - captions disabled', 'info');
+            document.getElementById('syncStatusText').textContent = 'No video available';
+            return;
+        }
+        
         try {
             const response = await fetch(`/api/captions/${videoId}`);
             const data = await response.json();
@@ -882,16 +1045,21 @@ class BibleReader {
                 this.captions = data.captions;
                 console.log(`Loaded ${data.captions.length} captions for video (${data.language}, ${data.is_generated ? 'auto-generated' : 'manual'})`);
                 this.showToast(`Captions loaded: ${data.captions.length} segments`, 'success');
+                document.getElementById('syncStatusText').textContent = 'Ready to sync';
                 
                 // Render caption display area
                 this.renderCaptionDisplay();
             } else {
                 console.log('No captions available:', data.error);
                 this.captions = null;
+                this.showToast('No captions available for this video', 'info');
+                document.getElementById('syncStatusText').textContent = 'No captions available';
             }
         } catch (error) {
             console.error('Failed to fetch captions:', error);
             this.captions = null;
+            this.showToast('Failed to load captions', 'error');
+            document.getElementById('syncStatusText').textContent = 'Caption error';
         }
     }
     

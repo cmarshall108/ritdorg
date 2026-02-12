@@ -9,7 +9,7 @@ app = Flask(__name__)
 ytt_api = YouTubeTranscriptApi()
 
 # Available translations
-TRANSLATIONS = ["KJV", "NIV", "ESV", "NASB", "Hebrew", "Greek"]
+TRANSLATIONS = ["NIV", "Hebrew"]
 
 # Bible data with multiple translations
 # KJV - King James Version (Primary)
@@ -164,6 +164,33 @@ BIBLE_KJV = {
             15: "And Jesus answering said unto him, Suffer it to be so now: for thus it becometh us to fulfil all righteousness. Then he suffered him.",
             16: "And Jesus, when he was baptized, went up straightway out of the water: and, lo, the heavens were opened unto him, and he saw the Spirit of God descending like a dove, and lighting upon him:",
             17: "And lo a voice from heaven, saying, This is my beloved Son, in whom I am well pleased."
+        },
+        4: {
+            1: "Then was Jesus led up of the Spirit into the wilderness to be tempted of the devil.",
+            2: "And when he had fasted forty days and forty nights, he was afterward an hungred.",
+            3: "And when the tempter came to him, he said, If thou be the Son of God, command that these stones be made bread.",
+            4: "But he answered and said, It is written, Man shall not live by bread alone, but by every word that proceedeth out of the mouth of God.",
+            5: "Then the devil taketh him up into the holy city, and setteth him on a pinnacle of the temple,",
+            6: "And saith unto him, If thou be the Son of God, cast thyself down: for it is written, He shall give his angels charge concerning thee: and in their hands they shall bear thee up, lest at any time thou dash thy foot against a stone.",
+            7: "Jesus said unto him, It is written again, Thou shalt not tempt the Lord thy God.",
+            8: "Again, the devil taketh him up into an exceeding high mountain, and sheweth him all the kingdoms of the world, and the glory of them;",
+            9: "And saith unto him, All these things will I give thee, if thou wilt fall down and worship me.",
+            10: "Then saith Jesus unto him, Get thee hence, Satan: for it is written, Thou shalt worship the Lord thy God, and him only shalt thou serve.",
+            11: "Then the devil leaveth him, and, behold, angels came and ministered unto him.",
+            12: "Now when Jesus had heard that John was cast into prison, he departed into Galilee;",
+            13: "And leaving Nazareth, he came and dwelt in Capernaum, which is upon the sea coast, in the borders of Zabulon and Nephthalim:",
+            14: "That it might be fulfilled which was spoken by Esaias the prophet, saying,",
+            15: "The land of Zabulon, and the land of Nephthalim, by the way of the sea, beyond Jordan, Galilee of the Gentiles;",
+            16: "The people which sat in darkness saw great light; and to them which sat in the region and shadow of death light is sprung up.",
+            17: "From that time Jesus began to preach, and to say, Repent: for the kingdom of heaven is at hand.",
+            18: "And Jesus, walking by the sea of Galilee, saw two brethren, Simon called Peter, and Andrew his brother, casting a net into the sea: for they were fishers.",
+            19: "And he saith unto them, Follow me, and I will make you fishers of men.",
+            20: "And they straightway left their nets, and followed him.",
+            21: "And going on from thence, he saw other two brethren, James the son of Zebedee, and John his brother, in a ship with Zebedee their father, mending their nets; and he called them.",
+            22: "And they immediately left the ship and their father, and followed him.",
+            23: "And Jesus went about all Galilee, teaching in their synagogues, and preaching the gospel of the kingdom, and healing all manner of sickness and all manner of disease among the people.",
+            24: "And his fame went throughout all Syria: and they brought unto him all sick people that were taken with divers diseases and torments, and those which were possessed with devils, and those which were lunatick, and those that had the palsy; and he healed them.",
+            25: "And there followed him great multitudes of people from Galilee, and from Decapolis, and from Jerusalem, and from Judaea, and from beyond Jordan."
         }
     }
 }
@@ -320,6 +347,186 @@ BIBLE_NIV = {
             15: "Jesus replied, \"Let it be so now; it is proper for us to do this to fulfill all righteousness.\" Then John consented.",
             16: "As soon as Jesus was baptized, he went up out of the water. At that moment heaven was opened, and he saw the Spirit of God descending like a dove and alighting on him.",
             17: "And a voice from heaven said, \"This is my Son, whom I love; with him I am well pleased.\""
+        },
+        4: {
+            1: "Then Jesus was led by the Spirit into the wilderness to be tempted by the devil.",
+            2: "After fasting forty days and forty nights, he was hungry.",
+            3: "The tempter came to him and said, \"If you are the Son of God, tell these stones to become bread.\"",
+            4: "Jesus answered, \"It is written: 'Man shall not live on bread alone, but on every word that comes from the mouth of God.'\"",
+            5: "Then the devil took him to the holy city and had him stand on the highest point of the temple.",
+            6: "\"If you are the Son of God,\" he said, \"throw yourself down. For it is written: \"'He will command his angels concerning you, and they will lift you up in their hands, so that you will not strike your foot against a stone.'\"",
+            7: "Jesus answered him, \"It is also written: 'Do not put the Lord your God to the test.'\"",
+            8: "Again, the devil took him to a very high mountain and showed him all the kingdoms of the world and their splendor.",
+            9: "\"All this I will give you,\" he said, \"if you will bow down and worship me.\"",
+            10: "Jesus said to him, \"Away from me, Satan! For it is written: 'Worship the Lord your God, and serve him only.'\"",
+            11: "Then the devil left him, and angels came and attended him.",
+            12: "When Jesus heard that John had been put in prison, he withdrew to Galilee.",
+            13: "Leaving Nazareth, he went and lived in Capernaum, which was by the lake in the area of Zebulun and Naphtali—",
+            14: "to fulfill what was said through the prophet Isaiah:",
+            15: "\"Land of Zebulun and land of Naphtali, the Way of the Sea, beyond the Jordan, Galilee of the Gentiles—",
+            16: "the people living in darkness have seen a great light; on those living in the land of the shadow of death a light has dawned.\"",
+            17: "From that time on Jesus began to preach, \"Repent, for the kingdom of heaven has come near.\"",
+            18: "As Jesus was walking beside the Sea of Galilee, he saw two brothers, Simon called Peter and his brother Andrew. They were casting a net into the lake, for they were fishermen.",
+            19: "\"Come, follow me,\" Jesus said, \"and I will send you out to fish for people.\"",
+            20: "At once they left their nets and followed him.",
+            21: "Going on from there, he saw two other brothers, James son of Zebedee and his brother John. They were in a boat with their father Zebedee, preparing their nets. Jesus called them,",
+            22: "and immediately they left the boat and their father and followed him.",
+            23: "Jesus went throughout Galilee, teaching in their synagogues, proclaiming the good news of the kingdom, and healing every disease and sickness among the people.",
+            24: "News about him spread all over Syria, and people brought to him all who were ill with various diseases, those suffering severe pain, the demon-possessed, those having seizures, and the paralyzed; and he healed them.",
+            25: "Large crowds from Galilee, the Decapolis, Jerusalem, Judea and the region across the Jordan followed him."
+        },
+        5: {
+            1: "Now when Jesus saw the crowds, he went up on a mountainside and sat down. His disciples came to him,",
+            2: "and he began to teach them. He said:",
+            3: "\"Blessed are the poor in spirit, for theirs is the kingdom of heaven.",
+            4: "Blessed are those who mourn, for they will be comforted.",
+            5: "Blessed are the meek, for they will inherit the earth.",
+            6: "Blessed are those who hunger and thirst for righteousness, for they will be filled.",
+            7: "Blessed are the merciful, for they will be shown mercy.",
+            8: "Blessed are the pure in heart, for they will see God.",
+            9: "Blessed are the peacemakers, for they will be called children of God.",
+            10: "Blessed are those who are persecuted because of righteousness, for theirs is the kingdom of heaven.",
+            11: "\"Blessed are you when people insult you, persecute you and falsely say all kinds of evil against you because of me.",
+            12: "Rejoice and be glad, because great is your reward in heaven, for in the same way they persecuted the prophets who were before you.",
+            13: "\"You are the salt of the earth. But if the salt loses its saltiness, how can it be made salty again? It is no longer good for anything, except to be thrown out and trampled underfoot.",
+            14: "\"You are the light of the world. A town built on a hill cannot be hidden.",
+            15: "Neither do people light a lamp and put it under a bowl. Instead they put it on its stand, and it gives light to everyone in the house.",
+            16: "In the same way, let your light shine before others, that they may see your good deeds and glorify your Father in heaven.",
+            17: "\"Do not think that I have come to abolish the Law or the Prophets; I have not come to abolish them but to fulfill them.",
+            18: "For truly I tell you, until heaven and earth disappear, not the smallest letter, not the least stroke of a pen, will by any means disappear from the Law until everything is accomplished.",
+            19: "Therefore anyone who sets aside one of the least of these commands and teaches others accordingly will be called least in the kingdom of heaven, but whoever practices and teaches these commands will be called great in the kingdom of heaven.",
+            20: "For I tell you that unless your righteousness surpasses that of the Pharisees and the teachers of the law, you will certainly not enter the kingdom of heaven.",
+            21: "\"You have heard that it was said to the people long ago, 'You shall not murder, and anyone who murders will be subject to judgment.'",
+            22: "But I tell you that anyone who is angry with a brother or sister will be subject to judgment. Again, anyone who says to a brother or sister, 'Raca,' is answerable to the Sanhedrin. And anyone who says, 'You fool!' will be in danger of the fire of hell.",
+            23: "\"Therefore, if you are offering your gift at the altar and there remember that your brother or sister has something against you,",
+            24: "leave your gift there in front of the altar. First go and be reconciled to them; then come and offer your gift.",
+            25: "\"Settle matters quickly with your adversary who is taking you to court. Do it while you are still together on the way, or your adversary may hand you over to the judge, and the judge may hand you over to the officer, and you may be thrown into prison.",
+            26: "Truly I tell you, you will not get out until you have paid the last penny.",
+            27: "\"You have heard that it was said, 'You shall not commit adultery.'",
+            28: "But I tell you that anyone who looks at a woman lustfully has already committed adultery with her in his heart.",
+            29: "\"If your right eye causes you to stumble, gouge it out and throw it away. It is better for you to lose one part of your body than for your whole body to be thrown into hell.",
+            30: "And if your right hand causes you to stumble, cut it off and throw it away. It is better for you to lose one part of your body than for your whole body to go into hell.",
+            31: "\"It has been said, 'Anyone who divorces his wife must give her a certificate of divorce.'",
+            32: "But I tell you that anyone who divorces his wife, except for sexual immorality, makes her the victim of adultery, and anyone who marries a divorced woman commits adultery.",
+            33: "\"Again, you have heard that it was said to the people long ago, 'Do not break your oath, but fulfill to the Lord the vows you have made.'",
+            34: "But I tell you, do not swear an oath at all: either by heaven, for it is God's throne;",
+            35: "or by the earth, for it is his footstool; or by Jerusalem, for it is the city of the Great King.",
+            36: "And do not swear by your head, for you cannot make even one hair white or black.",
+            37: "All you need to say is simply 'Yes' or 'No'; otherwise you will be condemned.",
+            38: "\"You have heard that it was said, 'Eye for eye, and tooth for tooth.'",
+            39: "But I tell you, do not resist an evil person. If someone slaps you on one cheek, turn to them the other also.",
+            40: "If someone wants to sue you and take your shirt, let them have your coat as well.",
+            41: "If someone forces you to go one mile, go with them two miles.",
+            42: "Give to the one who asks you, and do not turn away from the one who wants to borrow from you.",
+            43: "\"You have heard that it was said, 'Love your neighbor and hate your enemy.'",
+            44: "But I tell you, love your enemies and pray for those who persecute you,",
+            45: "that you may be children of your Father in heaven. He causes his sun to rise on the evil and the good, and sends rain on the righteous and the unrighteous.",
+            46: "If you love those who love you, what reward will you get? Are not even the tax collectors doing that?",
+            47: "And if you greet only your own people, what are you doing more than others? Do not even pagans do that?",
+            48: "Be perfect, therefore, as your heavenly Father is perfect."
+        },
+        6: {
+            1: "\"Be careful not to practice your righteousness in front of others to be seen by them. If you do, you will have no reward from your Father in heaven.",
+            2: "\"So when you give to the needy, do not announce it with trumpets, as the hypocrites do in the synagogues and on the streets, to be honored by others. Truly I tell you, they have received their reward in full.",
+            3: "But when you give to the needy, do not let your left hand know what your right hand is doing,",
+            4: "so that your giving may be in secret. Then your Father, who sees what is done in secret, will reward you.",
+            5: "\"And when you pray, do not be like the hypocrites, for they love to pray standing in the synagogues and on the street corners to be seen by others. Truly I tell you, they have received their reward in full.",
+            6: "But when you pray, go into your room, close the door and pray to your Father, who is unseen. Then your Father, who sees what is done in secret, will reward you.",
+            7: "And when you pray, do not keep on babbling like pagans, for they think they will be heard because of their many words.",
+            8: "Do not be like them, for your Father knows what you need before you ask him.",
+            9: "\"This, then, is how you should pray: \"'Our Father in heaven, hallowed be your name,",
+            10: "your kingdom come, your will be done, on earth as it is in heaven.",
+            11: "Give us today our daily bread.",
+            12: "And forgive us our debts, as we also have forgiven our debtors.",
+            13: "And lead us not into temptation, but deliver us from the evil one.'",
+            14: "For if you forgive other people when they sin against you, your heavenly Father will also forgive you.",
+            15: "But if you do not forgive others their sins, your Father will not forgive your sins.",
+            16: "\"When you fast, do not look somber as the hypocrites do, for they disfigure their faces to show others they are fasting. Truly I tell you, they have received their reward in full.",
+            17: "But when you fast, put oil on your head and wash your face,",
+            18: "so that it will not be obvious to others that you are fasting, but only to your Father, who is unseen; and your Father, who sees what is done in secret, will reward you.",
+            19: "\"Do not store up for yourselves treasures on earth, where moths and vermin destroy, and where thieves break in and steal.",
+            20: "But store up for yourselves treasures in heaven, where moths and vermin do not destroy, and where thieves do not break in and steal.",
+            21: "For where your treasure is, there your heart will be also.",
+            22: "\"The eye is the lamp of the body. If your eyes are healthy, your whole body will be full of light.",
+            23: "But if your eyes are unhealthy, your whole body will be full of darkness. If then the light within you is darkness, how great is that darkness!",
+            24: "\"No one can serve two masters. Either you will hate the one and love the other, or you will be devoted to the one and despise the other. You cannot serve both God and money.",
+            25: "\"Therefore I tell you, do not worry about your life, what you will eat or drink; or about your body, what you will wear. Is not life more than food, and the body more than clothes?",
+            26: "Look at the birds of the air; they do not sow or reap or store away in barns, and yet your heavenly Father feeds them. Are you not much more valuable than they?",
+            27: "Can any one of you by worrying add a single hour to your life?",
+            28: "\"And why do you worry about clothes? See how the flowers of the field grow. They do not labor or spin.",
+            29: "Yet I tell you that not even Solomon in all his splendor was dressed like one of these.",
+            30: "If that is how God clothes the grass of the field, which is here today and tomorrow is thrown into the fire, will he not much more clothe you—you of little faith?",
+            31: "So do not worry, saying, 'What shall we eat?' or 'What shall we drink?' or 'What shall we wear?'",
+            32: "For the pagans run after all these things, and your heavenly Father knows that you need them.",
+            33: "But seek first his kingdom and his righteousness, and all these things will be given to you as well.",
+            34: "Therefore do not worry about tomorrow, for tomorrow will worry about itself. Each day has enough trouble of its own."
+        },
+        7: {
+            1: "\"Do not judge, or you too will be judged.",
+            2: "For in the same way you judge others, you will be judged, and with the measure you use, it will be measured to you.",
+            3: "\"Why do you look at the speck of sawdust in your brother's eye and pay no attention to the plank in your own eye?",
+            4: "How can you say to your brother, 'Let me take the speck out of your eye,' when all the time there is a plank in your own eye?",
+            5: "You hypocrite, first take the plank out of your own eye, and then you will see clearly to remove the speck from your brother's eye.",
+            6: "\"Do not give dogs what is sacred; do not throw your pearls to pigs. If you do, they may trample them under their feet, and turn and tear you to pieces.",
+            7: "\"Ask and it will be given to you; seek and you will find; knock and the door will be opened to you.",
+            8: "For everyone who asks receives; the one who seeks finds; and to the one who knocks, the door will be opened.",
+            9: "\"Which of you, if your son asks for bread, will give him a stone?",
+            10: "Or if he asks for a fish, will give him a snake?",
+            11: "If you, then, though you are evil, know how to give good gifts to your children, how much more will your Father in heaven give good gifts to those who ask him!",
+            12: "So in everything, do to others what you would have them do to you, for this sums up the Law and the Prophets.",
+            13: "\"Enter through the narrow gate. For wide is the gate and broad is the road that leads to destruction, and many enter through it.",
+            14: "But small is the gate and narrow the road that leads to life, and only a few find it.",
+            15: "\"Watch out for false prophets. They come to you in sheep's clothing, but inwardly they are ferocious wolves.",
+            16: "By their fruit you will recognize them. Do people pick grapes from thornbushes, or figs from thistles?",
+            17: "Likewise, every good tree bears good fruit, but a bad tree bears bad fruit.",
+            18: "A good tree cannot bear bad fruit, and a bad tree cannot bear good fruit.",
+            19: "Every tree that does not bear good fruit is cut down and thrown into the fire.",
+            20: "Thus, by their fruit you will recognize them.",
+            21: "\"Not everyone who says to me, 'Lord, Lord,' will enter the kingdom of heaven, but only the one who does the will of my Father who is in heaven.",
+            22: "Many will say to me on that day, 'Lord, Lord, did we not prophesy in your name and in your name drive out demons and in your name perform many miracles?'",
+            23: "Then I will tell them plainly, 'I never knew you. Away from me, you evildoers!'",
+            24: "\"Therefore everyone who hears these words of mine and puts them into practice is like a wise man who built his house on the rock.",
+            25: "The rain came down, the streams rose, and the winds blew and beat against that house; yet it did not fall, because it had its foundation on the rock.",
+            26: "But everyone who hears these words of mine and does not put them into practice is like a foolish man who built his house on sand.",
+            27: "The rain came down, the streams rose, and the winds blew and beat against that house, and it fell with a great crash.\"",
+            28: "When Jesus had finished saying these things, the crowds were amazed at his teaching,",
+            29: "because he taught as one who had authority, and not as their teachers of the law."
+        },
+        8: {
+            1: "When Jesus came down from the mountainside, large crowds followed him.",
+            2: "A man with leprosy came and knelt before him and said, \"Lord, if you are willing, you can make me clean.\"",
+            3: "Jesus reached out his hand and touched the man. \"I am willing,\" he said. \"Be clean!\" Immediately he was cleansed of his leprosy.",
+            4: "Then Jesus said to him, \"See that you don't tell anyone. But go, show yourself to the priest and offer the gift Moses commanded, as a testimony to them.\"",
+            5: "When Jesus had entered Capernaum, a centurion came to him, asking for help.",
+            6: "\"Lord,\" he said, \"my servant lies at home paralyzed, suffering terribly.\"",
+            7: "Jesus said to him, \"Shall I come and heal him?\"",
+            8: "The centurion replied, \"Lord, I do not deserve to have you come under my roof. But just say the word, and my servant will be healed.",
+            9: "For I myself am a man under authority, with soldiers under me. I tell this one, 'Go,' and he goes; and that one, 'Come,' and he comes. I say to my servant, 'Do this,' and he does it.\"",
+            10: "When Jesus heard this, he was amazed and said to those following him, \"Truly I tell you, I have not found anyone in Israel with such great faith.",
+            11: "I say to you that many will come from the east and the west, and will take their places at the feast with Abraham, Isaac and Jacob in the kingdom of heaven.",
+            12: "But the subjects of the kingdom will be thrown outside, into the darkness, where there will be weeping and gnashing of teeth.\"",
+            13: "Then Jesus said to the centurion, \"Go! Let it be done just as you believed it would.\" And his servant was healed at that moment.",
+            14: "When Jesus came into Peter's house, he saw Peter's mother-in-law lying in bed with a fever.",
+            15: "He touched her hand and the fever left her, and she got up and began to wait on him.",
+            16: "When evening came, many who were demon-possessed were brought to him, and he drove out the spirits with a word and healed all the sick.",
+            17: "This was to fulfill what was spoken through the prophet Isaiah: \"He took up our infirmities and bore our diseases.\"",
+            18: "When Jesus saw the crowd around him, he gave orders to cross to the other side of the lake.",
+            19: "Then a teacher of the law came to him and said, \"Teacher, I will follow you wherever you go.\"",
+            20: "Jesus replied, \"Foxes have dens and birds have nests, but the Son of Man has no place to lay his head.\"",
+            21: "Another disciple said to him, \"Lord, first let me go and bury my father.\"",
+            22: "But Jesus told him, \"Follow me, and let the dead bury their own dead.\"",
+            23: "Then he got into the boat and his disciples followed him.",
+            24: "Suddenly a furious storm came up on the lake, so that the waves swept over the boat. But Jesus was sleeping.",
+            25: "The disciples went and woke him, saying, \"Lord, save us! We're going to drown!\"",
+            26: "He replied, \"You of little faith, why are you so afraid?\" Then he got up and rebuked the winds and the waves, and it was completely calm.",
+            27: "The men were amazed and asked, \"What kind of man is this? Even the winds and the waves obey him!\"",
+            28: "When he arrived at the other side in the region of the Gadarenes, two demon-possessed men coming from the tombs met him. They were so violent that no one could pass that way.",
+            29: "\"What do you want with us, Son of God?\" they shouted. \"Have you come here to torture us before the appointed time?\"",
+            30: "Some distance from them a large herd of pigs was feeding.",
+            31: "The demons begged Jesus, \"If you drive us out, send us into the herd of pigs.\"",
+            32: "He said to them, \"Go!\" So they came out and went into the pigs, and the whole herd rushed down the steep bank into the lake and died in the water.",
+            33: "Those tending the pigs ran off, went into the town and reported all this, including what had happened to the demon-possessed men.",
+            34: "Then the whole town went out to meet Jesus. And when they saw him, they pleaded with him to leave their region."
         }
     }
 }
@@ -421,6 +628,186 @@ BIBLE_HEBREW = {
             15: "וַיַּעַן יֵשׁוּעַ וַיֹּאמֶר אֵלָיו, הַנַּח עַתָּה כִּי כֵן נָאֶה לָנוּ לְמַלֵּא אֶת-כָּל הַצְּדָקָה. אָז הִנִּיחַ לוֹ.",
             16: "וַיֵּשׁוּעַ נִטְבַּל וַיַּעַל מִיָּד מִן-הַמַּיִם, וְהִנֵּה נִפְתְּחוּ לוֹ הַשָּׁמַיִם, וַיַּרְא אֶת-רוּחַ אֱלֹהִים יוֹרֶדֶת כְּיוֹנָה וּבָאָה עָלָיו.",
             17: "וְהִנֵּה קוֹל מִן-הַשָּׁמַיִם אוֹמֵר, זֶה בְּנִי הָאָהוּב אֲשֶׁר בּוֹ חָפַצְתִּי."
+        },
+        4: {
+            1: "אָז הוּבָל יֵשׁוּעַ עַל-יְדֵי הָרוּחַ הַקּוֹדֶשׁ אֶל-הַמִּדְבָּר לְהִתְנַסּוֹת עַל-יְדֵי הַשָּׂטָן.",
+            2: "וַיָּצוּם אַרְבָּעִים יוֹם וְאַרְבָּעִים לַיְלָה, וְאַחֲרֵי כֵן רָעֵב.",
+            3: "וַיִּגַּשׁ אֵלָיו הַמְּנַסֶּה וַיֹּאמֶר, אִם-בֶּן אֱלֹהִים אַתָּה, אֱמֹר לָאֲבָנִים הָאֵלֶּה שֶׁיִּהְיוּ לְלֶחֶם.",
+            4: "וַיַּעַן יֵשׁוּעַ וַיֹּאמֶר, כָּתוּב: לֹא עַל הַלֶּחֶם לְבַדּוֹ יִחְיֶה הָאָדָם, כִּי עַל כָּל-דָּבָר יוֹצֵא מִפִּי יְהוָה.",
+            5: "אָז לָקַח אֹתוֹ הַשָּׂטָן אֶל-הָעִיר הַקּוֹדֶשׁ, וַיַּעֲמִידֵהוּ עַל מִפְלַס הַהֵיכָל,",
+            6: "וַיֹּאמֶר אֵלָיו, אִם-בֶּן אֱלֹהִים אַתָּה, הַשְׁלֵךְ אֶת-עַצְמְךָ מִטָּה, כִּי כָּתוּב: לְמַלְאָכָיו יְצַוֶּה עָלֶיךָ, וְעַל-כַּפַּיִם יִשָּׂאוּךָ, פֶּן-תִּגֹּף אֶת-רַגְלְךָ בְּאֶבֶן.",
+            7: "אָמַר אֵלָיו יֵשׁוּעַ, גַּם כָּתוּב: לֹא תְנַסֶּה אֶת-יְהוָה אֱלֹהֶיךָ.",
+            8: "שׁוּב לָקַח אֹתוֹ הַשָּׂטָן אֶל-הַר גָּבוֹהַּ מְאֹד, וַיַּרְאֵהוּ אֶת-כָּל מַמְלְכוֹת הָעוֹלָם וְאֶת-כְּבוֹדָן,",
+            9: "וַיֹּאמֶר אֵלָיו, אֶת-כָּל-אֵלֶּה אֶתֵּן לְךָ, אִם-תִּפֹּל וְתִשְׁתַּחֲוֶה לִי.",
+            10: "אָז אָמַר אֵלָיו יֵשׁוּעַ, לֵךְ מֵאִתִּי, הַשָּׂטָן, כִּי כָּתוּב: לַיהוָה אֱלֹהֶיךָ תִּשְׁתַּחֲוֶה, וְאוֹתוֹ לְבַדּוֹ תַּעֲבֹד.",
+            11: "אָז עָזַב אֹתוֹ הַשָּׂטָן, וְהִנֵּה מַלְאָכִים נִגְּשׁוּ וְשֵׁרְתוּ אֹתוֹ.",
+            12: "וַיִּשְׁמַע יֵשׁוּעַ כִּי יוֹחָנָן נִתְפַּס, וַיָּסַר אֶל-הַגָּלִיל.",
+            13: "וַיַּעֲזֹב אֶת-נָצְרַת וַיָּבֹא וַיֵּשֶׁב בְּכַפַּר נַחוּם, אֲשֶׁר עַל-שְׂפַת יָם הַגָּלִיל, בִּגְבוּל זְבֻלוּן וְנַפְתָּלִי.",
+            14: "לְמַעַן יִמָּלֵא הַדָּבָר הַנֶּאֱמָר עַל-יְדֵי יְשַׁעְיָהוּ הַנָּבִיא, לֵאמֹר:",
+            15: "אֶרֶץ זְבֻלוּן וְאֶרֶץ נַפְתָּלִי, דֶּרֶךְ הַיָּם, מֵעֵבֶר לַיַּרְדֵּן, גָּלִיל הַגּוֹיִם.",
+            16: "הָעָם הַיּוֹשֵׁב בַּחֹשֶׁךְ רָאָה אוֹר גָּדוֹל, וְלַיּוֹשְׁבִים בְּאֶרֶץ צֵל מָוֶת אוֹר זָרַח עֲלֵיהֶם.",
+            17: "מֵאוֹתָהּ שָׁעָה הֵחֵל יֵשׁוּעַ לְהַכְרִיז וְלֹאמַר, שׁוּבוּ מֵחַטֹּאתֵיכֶם, כִּי מַלְכוּת הַשָּׁמַיִם קָרְבָה.",
+            18: "וַיֵּלֶךְ יֵשׁוּעַ עַל-שְׂפַת יָם הַגָּלִיל, וַיַּרְא שְׁנֵי אַחִים, שִׁמְעוֹן הַנִּקְרָא פֶּטְרוֹס וְאַנְדְּרֵי אָחִיו, מַשְׁלִיכִים מִכְמֹרֶת בַּיָּם, כִּי דַיָּגִים הָיוּ.",
+            19: "וַיֹּאמֶר אֲלֵיהֶם, בֹּאוּ אַחֲרַי, וְאֶעֱשֶׂה אֶתְכֶם דַּיָּגֵי אָדָם.",
+            20: "וַיַּעֲזְבוּ מִיָּד אֶת-הַמִּכְמֹרוֹת וַיֵּלְכוּ אַחֲרָיו.",
+            21: "וַיֵּלֶךְ מִשָּׁם, וַיַּרְא שְׁנֵי אַחִים אֲחֵרִים, יַעֲקֹב בֶּן-זְבַדְיָה וְיוֹחָנָן אָחִיו, בַּסְּפִינָה עִם זְבַדְיָה אֲבִיהֶם, מְתַקְנִים אֶת-מִכְמְרוֹתֵיהֶם, וַיִּקְרָא לָהֶם.",
+            22: "וַיַּעֲזְבוּ מִיָּד אֶת-הַסְּפִינָה וְאֶת-אֲבִיהֶם וַיֵּלְכוּ אַחֲרָיו.",
+            23: "וַיָּסַר יֵשׁוּעַ בְּכָל-הַגָּלִיל, מְלַמֵּד בְּבָתֵּי כְנֵסִיּוֹתֵיהֶם וּמַכְרִיז אֶת-בְּשׂוֹרַת מַלְכוּת הַשָּׁמַיִם, וּמְרַפֵּא כָּל-חֹלִי וְכָל-מַחֲלָה בָּעָם.",
+            24: "וַיֵּלֶךְ שְׁמַעְתּוֹ בְּכָל-סוּרְיָה, וַיָּבִיאוּ אֵלָיו אֶת-כָּל-הַחוֹלִים, אֲשֶׁר נֶאֱנָסִים בְּחֳלָיִים שׁוֹנִים וּבְכָאֲבִים, וּשְׁדוּפִים, וְיָרְחִים, וּנְכֵה יָדַיִם וְרַגְלַיִם, וַיִּרְפָּאֵם.",
+            25: "וַיֵּלְכוּ אַחֲרָיו הֲמוֹנִים רַבִּים מֵהַגָּלִיל וּמִדְּקַפּוֹלִיס וּמִירוּשָׁלַיִם וּמִיהוּדָה וּמֵעֵבֶר לַיַּרְדֵּן."
+        },
+        5: {
+            1: "וַיַּרְא יֵשׁוּעַ אֶת-הֲמוֹנִים וַיַּעַל אֶל-הָהָר וַיֵּשֶׁב שָׁם וַיִּגַּשׁוּ אֵלָיו תַּלְמִידָיו.",
+            2: "וַיִּפְתַּח אֶת-פִּיו וַיְלַמְּדֵם לֵאמֹר:",
+            3: "אַשְׁרֵי עֲנִיֵי הָרוּחַ כִּי לָהֶם מַלְכוּת הַשָּׁמַיִם.",
+            4: "אַשְׁרֵי הָאֲבֵלִים כִּי הֵם יְנֻחָמוּ.",
+            5: "אַשְׁרֵי הָעֲנָוִים כִּי הֵם יִירְשׁוּ אֶת-הָאָרֶץ.",
+            6: "אַשְׁרֵי הָרְעֵבִים וְהַצְּמֵאִים לַצְּדָקָה כִּי הֵם יִשְׂבָּעוּ.",
+            7: "אַשְׁרֵי הָרַחֲמָנִים כִּי הֵם יְרֻחָמוּ.",
+            8: "אַשְׁרֵי טְהוֹרֵי הַלֵּב כִּי הֵם יִרְאוּ אֶת-הָאֱלֹהִים.",
+            9: "אַשְׁרֵי רוֹדְפֵי הַשָּׁלוֹם כִּי בָנִים לֵאלֹהִים יִקָּרְאוּ.",
+            10: "אַשְׁרֵי הַנִּרְדָּפִים בַּעֲבוּר הַצְּדָקָה כִּי לָהֶם מַלְכוּת הַשָּׁמַיִם.",
+            11: "אַשְׁרֵי אַתֶּם כִּי יְחָרְפוּ אֶתְכֶם וְיִרְדְּפוּ אֶתְכֶם וְיֹאמְרוּ עֲלֵיכֶם כָּל-דָּבָר רָע בִּשְׁקָר בַּעֲבוּרִי.",
+            12: "שִׂמְחוּ וְגִילוּ כִּי שְׂכַרְכֶם רָב בַּשָּׁמַיִם כִּי כֵן רָדְפוּ אֶת-הַנְּבִיאִים אֲשֶׁר לִפְנֵיכֶם.",
+            13: "אַתֶּם מֶלַח הָאָרֶץ וְאִם-יִפְסַד הַמֶּלַח אֵיךְ יִמְלַח אַחֵר? לֹא יוֹעִיל עוֹד לִמְאוּמָה כִּי אִם-לְהִשָּׁלֵךְ חוּצָה וְלִרְמֹס תַּחַת רַגְלֵי הָאָדָם.",
+            14: "אַתֶּם אוֹר הָעוֹלָם עִיר שֶׁעַל-הַר לֹא תוּכַל לְהִסָּתֵר.",
+            15: "וְלֹא מַדְלִיקִים נֵר וְשָׂמִים אוֹתוֹ תַּחַת הָאֵיפָה כִּי אִם-עַל הַמְּנוֹרָה וְהוּא מֵאִיר לְכָל-אֲשֶׁר בַּבַּיִת.",
+            16: "כֵּן יָאֵר אוֹרְכֶם לִפְנֵי הָאָדָם לְמַעַן יִרְאוּ מַעֲשֵׂיכֶם הַטּוֹבִים וִיהַלְלוּ אֶת-אֲבִיכֶם אֲשֶׁר בַּשָּׁמַיִם.",
+            17: "אַל-תַּחְשְׁבוּ כִּי בָאתִי לְהָפֵר אֶת-הַתּוֹרָה אוֹ אֶת-הַנְּבִיאִים לֹא בָאתִי לְהָפֵר כִּי אִם-לְמַלֵּא.",
+            18: "כִּי אָמֵן אֹמֵר אֲנִי לָכֶם עַד אֲשֶׁר-יַעַבְרוּ הַשָּׁמַיִם וְהָאָרֶץ לֹא-יַעֲבֹר יוֹד אֶחָד אוֹ קֶרֶן אַחַת מִן-הַתּוֹרָה עַד אֲשֶׁר יִהְיֶה הַכֹּל.",
+            19: "לָכֵן כָּל-מִי שֶׁיָּפֵר אַחַת מִן-הַמִּצְוֹת הַקְּטַנּוֹת הָאֵלֶּה וִילַמֵּד כֵן אֶת-הָאָדָם קָטָן יִקָּרֵא בְּמַלְכוּת הַשָּׁמַיִם וְכָל-מִי שֶׁיַּעֲשֶׂה וִילַמֵּד גָּדוֹל יִקָּרֵא בְּמַלְכוּת הַשָּׁמַיִם.",
+            20: "כִּי אֹמֵר אֲנִי לָכֶם כִּי אִם-לֹא תִרְבֶּה צִדְקוּתְכֶם מִצִּדְקוּת הַסּוֹפְרִים וְהַפְּרוּשִׁים לֹא תָבֹאוּ בְּשֶׁלֶם אֶל-מַלְכוּת הַשָּׁמַיִם.",
+            21: "שְׁמַעְתֶּם כִּי נֶאֱמַר לָאָבוֹת הָרִאשׁוֹנִים לֹא תִרְצָח וְכָל-הָרוֹצֵחַ יִהְיֶה חַיָּב לַמִּשְׁפָּט.",
+            22: "וַאֲנִי אֹמֵר לָכֶם כָּל-מִי שֶׁיִּכְעַס עַל-אָחִיו יִהְיֶה חַיָּב לַמִּשְׁפָּט וְכָל-מִי שֶׁיֹּאמַר לְאָחִיו רֵיקָא יִהְיֶה חַיָּב לְסַנְהֶדְרִין וְכָל-מִי שֶׁיֹּאמַר כְּסִיל יִהְיֶה חַיָּב לְאֵשׁ גֵּיהִנֹּם.",
+            23: "לָכֵן אִם-תָּבִיא קָרְבָּנְךָ אֶל-הַמִּזְבֵּחַ וְשָׁם תִּזְכֹּר כִּי אָחִיךָ יֵשׁ לוֹ מַשֶּׁהוּ עָלֶיךָ.",
+            24: "הַנַּח שָׁם אֶת-קָרְבָּנְךָ לִפְנֵי הַמִּזְבֵּחַ וְלֵךְ תְּחִלָּה וְהִתְרַצֶּה עִם-אָחִיךָ וְאַחַר תָּבֹא וְהַקְרֵב אֶת-קָרְבָּנְךָ.",
+            25: "הִתְרַצֶּה מַהֵר עִם-יְרִיבְךָ בְּעוֹדְךָ עִמּוֹ בַּדֶּרֶךְ פֶּן-יַסְגִּירְךָ הַיָּרִיב לַשּׁוֹפֵט וְהַשּׁוֹפֵט יַסְגִּירְךָ לַמִּשְׁמָר וְתִשָּׁלֵךְ לַכֶּלֶא.",
+            26: "אָמֵן אֹמֵר אֲנִי לְךָ לֹא תֵצֵא מִשָּׁם עַד אֲשֶׁר תְּשַׁלֵּם אֶת-הַלַּסְטָר הָאַחֲרוֹן.",
+            27: "שְׁמַעְתֶּם כִּי נֶאֱמַר לֹא תִנְאָף.",
+            28: "וַאֲנִי אֹמֵר לָכֶם כָּל-מִי שֶׁיַּבִּיט אֶל-אִשָּׁה לְתַאֲוָה כְּבָר נִאֵף עִמָּהּ בְּלִבּוֹ.",
+            29: "וְאִם-עֵינְךָ הַיְּמָנִית מַכְשִׁילָה אוֹתְךָ עֲקֹר אוֹתָהּ וְהַשְׁלֵךְ מִמְּךָ כִּי טוֹב לְךָ שֶׁיֹּאבַד אֵבֶר אֶחָד מִגּוּפְךָ וְלֹא כָל-גּוּפְךָ יִשָּׁלֵךְ לְגֵיהִנֹּם.",
+            30: "וְאִם-יָדְךָ הַיְּמָנִית מַכְשִׁילָה אוֹתְךָ קְצֹץ אוֹתָהּ וְהַשְׁלֵךְ מִמְּךָ כִּי טוֹב לְךָ שֶׁיֹּאבַד אֵבֶר אֶחָד מִגּוּפְךָ וְלֹא כָל-גּוּפְךָ יֵלֵךְ לְגֵיהִנֹּם.",
+            31: "וְנֶאֱמַר כָּל-הַמְשַׁלֵּחַ אֶת-אִשְׁתּוֹ יִתֵּן לָהּ סֵפֶר כְּרִיתוּת.",
+            32: "וַאֲנִי אֹמֵר לָכֶם כָּל-מִי שֶׁיְשַׁלֵּחַ אֶת-אִשְׁתּוֹ לְלֹא עֲלִילַת זְנוּת יַעֲשֶׂה אוֹתָהּ לְזוֹנָה וְכָל-מִי שֶׁיִּשָּׂא אִשָּׁה גְּרוּשָׁה יִנְאָף.",
+            33: "עוֹד שְׁמַעְתֶּם כִּי נֶאֱמַר לָאָבוֹת הָרִאשׁוֹנִים לֹא תִשָּׁבַע בִּשְׁקָר וְתְשַׁלֵּם לַיהוָה אֶת-נְדָרֶיךָ.",
+            34: "וַאֲנִי אֹמֵר לָכֶם לֹא תִשָּׁבְעוּ כָל-עִקָּר לֹא בַשָּׁמַיִם כִּי כִסֵּא אֱלֹהִים הֵם.",
+            35: "וְלֹא בָאָרֶץ כִּי הֲדֹם רַגְלָיו וְלֹא בִירוּשָׁלַיִם כִּי עִיר הַמֶּלֶךְ הַגָּדוֹל הִיא.",
+            36: "וְלֹא בְרֹאשְׁךָ תִשָּׁבַע כִּי לֹא תוּכַל לַעֲשׂוֹת שֵׂעָר אֶחָד לָבָן אוֹ שָׁחוֹר.",
+            37: "יְהִי דְבַרְכֶם כֵּן כֵּן לֹא לֹא וּמַה שֶׁיִּתְרֶה עַל-אֵלֶּה מֵהָרָע הוּא.",
+            38: "שְׁמַעְתֶּם כִּי נֶאֱמַר עַיִן תַּחַת עַיִן וְשֶׁנֶּה תַּחַת שֶׁנֶּה.",
+            39: "וַאֲנִי אֹמֵר לָכֶם לֹא תָּמִידוּ לָרָע אֶלָּא אִם-יַכֶּה אוֹתְךָ מִישֶׁהוּ עַל-הַלֶּחִי הַיְּמָנִית הָפֵן אֵלָיו גַם אֶת-הַשְּׁנִיָּה.",
+            40: "וְלַמִּי שֶׁיִּרְצֶה לִשָּׁפְטְךָ וְלָקַחַת אֶת-כֻּתָּנְתְּךָ הַנַּח לוֹ גַם אֶת-הַמְּעִיל.",
+            41: "וְלַמִּי שֶׁיַּכְרִיחַ אוֹתְךָ לָלֶכֶת מִיל אֶחָד לֵךְ עִמּוֹ שְׁנַיִם.",
+            42: "לַמִּי שֶׁשּׁוֹאֵל מֵאִתְּךָ תֵּן לוֹ וְלַמִּי שֶׁיִּרְצֶה לָלוֹת מִמְּךָ אַל-תָּסֵב מִמֶּנּוּ.",
+            43: "שְׁמַעְתֶּם כִּי נֶאֱמַר אֱהַב אֶת-רֵעֲךָ וְשָׂנֵא אֶת-אוֹיִבְךָ.",
+            44: "וַאֲנִי אֹמֵר לָכֶם אֱהַבוּ אֶת-אוֹיְבֵיכֶם וְהִתְפַּלְלוּ בְּעַד הָרוֹדְפִים אֶתְכֶם.",
+            45: "לְמַעַן תִּהְיוּ בָנִים לַאֲבִיכֶם אֲשֶׁר בַּשָּׁמַיִם כִּי הוּא מַעֲלֶה שִׁמְשׁוֹ עַל-רָעִים וְטוֹבִים וּמַמְטִיר עַל-צַדִּיקִים וְעַל-רְשָׁעִים.",
+            46: "כִּי אִם-תֶּאֱהֲבוּ אֶת-אֹהֲבֵיכֶם מָה-שְׂכָרְכֶם? הֲלֹא גַם הַמּוֹכְסִים עוֹשִׂים כֵן?",
+            47: "וְאִם-תְּבָרְכוּ רַק אֶת-אֲחֵיכֶם מָה-יִתְרוֹן לָכֶם? הֲלֹא גַם הַגּוֹיִים עוֹשִׂים כֵן?",
+            48: "לָכֵן הֱיוּ שְׁלֵמִים כְּשֶׁלֵם אֲבִיכֶם אֲשֶׁר בַּשָּׁמַיִם."
+        },
+        6: {
+            1: "הִשָּׁמְרוּ לְבִלְתִּי עֲשׂוֹת צִדְקוּתְכֶם לִפְנֵי הָאָדָם לְמַעַן הֵרָאוֹת לָהֶם כִּי אִם-לֹא תִהְיֶה לָכֶם שְׂכָר מֵאֵת אֲבִיכֶם אֲשֶׁר בַּשָּׁמַיִם.",
+            2: "לָכֵן כַּאֲשֶׁר תִּתֵּן צְדָקָה אַל-תְּרַעֵשׁ בְּשׁוֹפָר לְפָנֶיךָ כַּאֲשֶׁר עוֹשִׂים הַצְּבוּעִים בַּבָּתִּים וּבַשְּׁוָקִים לְמַעַן יְהַלְלוּ אוֹתָם הָאָדָם אָמֵן אֹמֵר אֲנִי לָכֶם קִבְּלוּ שְׂכָרָם בְּמָלֵא.",
+            3: "וְאַתָּה בְּתִתְּךָ צְדָקָה אַל-יֵדַע שְׂמֹאלְךָ מַה-שֶּׁיַּעֲשֶׂה יְמִינֶךָ.",
+            4: "לְמַעַן תִּהְיֶה צְדָקָתְךָ בַסֵּתֶר וַאֲבִיךָ הָרֹאֶה בַסֵּתֶר יְשַׁלֵּם לָךְ.",
+            5: "וּכְשֶׁתִּתְפַּלֵּל אַל-תִּהְיֶה כַּצְּבוּעִים כִּי אָהֲבוּ לְהִתְפַּלֵּל עוֹמְדִים בַּבָּתִּים וּבְפִנּוֹת הָרְחֹבוֹת לְמַעַן הֵרָאוֹת לָאָדָם אָמֵן אֹמֵר אֲנִי לָכֶם קִבְּלוּ שְׂכָרָם בְּמָלֵא.",
+            6: "וְאַתָּה בְּהִתְפַּלְּלֶךָ בֹּא אֶל-חֶדְרְךָ וְסָגֹר דְּלָתְךָ וְהִתְפַּלֵּל אֶל-אָבִיךָ אֲשֶׁר בַּסֵּתֶר וַאֲבִיךָ הָרֹאֶה בַסֵּתֶר יְשַׁלֵּם לָךְ.",
+            7: "וּבְהִתְפַּלְּלְכֶם אַל-תַּשְׁנּוּ כַּגּוֹיִים כִּי יַחְשְׁבוּ בְּרֹב דִּבְרֵיהֶם יִשָּׁמְעוּ.",
+            8: "אַל-תִּדְמּוּ לָהֶם כִּי יוֹדֵעַ אֲבִיכֶם מַה-צָּרְכְכֶם בְּטֶרֶם תִּשְׁאֲלוּ מֵאִתּוֹ.",
+            9: "לָכֵן כָּךְ תִּתְפַּלְּלוּ אַתֶּם אָבִינוּ שֶׁבַּשָּׁמַיִם יִתְקַדֵּשׁ שִׁמְךָ.",
+            10: "תָּבוֹא מַלְכוּתְךָ יֵעָשֶׂה רְצוֹנְךָ כַּאֲשֶׁר בַּשָּׁמַיִם כֵּן בָּאָרֶץ.",
+            11: "אֶת-לֶחֶם חֻקֵּנוּ תֵּן-לָנוּ הַיּוֹם.",
+            12: "וְסָלַח לָנוּ אֶת-חוֹבוֹתֵינוּ כַּאֲשֶׁר סָלַחְנוּ גַם-אֲנַחְנוּ לְחַיָּבֵינוּ.",
+            13: "וְאַל-תְּבִיאֵנוּ לִידֵי נִסָּיוֹן כִּי אִם-הַצִּילֵנוּ מִן-הָרָע.",
+            14: "כִּי אִם-תִּסְלְחוּ לָאָדָם אֶת-פִּשְׁעֵיהֶם יִסְלַח לָכֶם גַם-אֲבִיכֶם שֶׁבַּשָּׁמַיִם.",
+            15: "וְאִם לֹא תִסְלְחוּ לָאָדָם אֶת-פִּשְׁעֵיהֶם גַּם-אֲבִיכֶם לֹא יִסְלַח לָכֶם אֶת-פִּשְׁעֵיכֶם.",
+            16: "וּכְשֶׁתָּצוּמוּ אַל-תִּהְיוּ קוֹדְרִים כַּצְּבוּעִים כִּי יְשַׁחֲתוּ פְנֵיהֶם לְמַעַן יֵרָאוּ לָאָדָם צוֹמִים אָמֵן אֹמֵר אֲנִי לָכֶם קִבְּלוּ שְׂכָרָם בְּמָלֵא.",
+            17: "וְאַתָּה בְּצָמְךָ מְשַׁח אֶת-רֹאשְׁךָ וְרַחֵץ פָּנֶיךָ.",
+            18: "לְמַעַן לֹא תֵרָאֶה לָאָדָם צוֹם כִּי אִם-לְאָבִיךָ אֲשֶׁר בַּסֵּתֶר וַאֲבִיךָ הָרֹאֶה בַסֵּתֶר יְשַׁלֵּם לָךְ.",
+            19: "אַל-תִּצְבְּרוּ לָכֶם אוֹצָרוֹת בָּאָרֶץ אֲשֶׁר עָשׁ וְרִמָּה מַשְׁחִיתִים וַאֲשֶׁר גַּנָּבִים חוֹפְרִים וְגוֹנְבִים.",
+            20: "כִּי אִם-צִבְּרוּ לָכֶם אוֹצָרוֹת בַּשָּׁמַיִם אֲשֶׁר לֹא עָשׁ וְלֹא רִמָּה מַשְׁחִיתִים וְלֹא גַּנָּבִים חוֹפְרִים וְגוֹנְבִים.",
+            21: "כִּי אֲשֶׁר יִהְיֶה אוֹצָרְךָ שָׁם יִהְיֶה לִבְּךָ גַם-הוּא.",
+            22: "נֵר הַגּוּף הוּא הָעַיִן אִם-יִהְיֶה עֵינְךָ טוֹב יָאִיר כָּל-גּוּפְךָ.",
+            23: "וְאִם-יִהְיֶה עֵינְךָ רָעָה יֶחְשַׁךְ כָּל-גּוּפְךָ וְאִם-אֵפוֹא הָאוֹר אֲשֶׁר בְּךָ חֹשֶׁךְ מַה-גָּדוֹל הַחֹשֶׁךְ.",
+            24: "אֵין אִישׁ יָכוֹל לַעֲבֹד שְׁנֵי אֲדוֹנִים כִּי אִם-יִשְׂנָא אֶת-הָאֶחָד וְיֶאֱהַב אֶת-הַשֵּׁנִי אוֹ יִדְבַּק בָּאֶחָד וְיִבְזֶה אֶת-הַשֵּׁנִי לֹא תוּכְלוּ לַעֲבֹד אֱלֹהִים וּמָמוֹן.",
+            25: "לָכֵן אֹמֵר אֲנִי לָכֶם אַל-תִּדְאֲגוּ לְנַפְשְׁכֶם מַה-תֹּאכְלוּ וּמַה-תִּשְׁתּוּ וְלֹא לְגוּפְכֶם מַה-תִּלְבָּשׁוּ הֲלֹא הַנֶּפֶשׁ יְקָרָה מִן-הָאֹכֶל וְהַגּוּף מִן-הַלְּבוּשׁ.",
+            26: "הַבִּיטוּ אֶל-עוֹף הַשָּׁמַיִם כִּי לֹא יִזְרְעוּ וְלֹא יִקְצְרוּ וְלֹא יֶאֱסְפוּ אֶל-אֲסַמִּים וַאֲבִיכֶם שֶׁבַּשָּׁמַיִם מְכַלְכְּלָם הֲלֹא אַתֶּם יְקָרִים מֵהֶם מְאֹד.",
+            27: "וּמִי מִכֶּם בְּדָאֲגוֹ יוּכַל לְהוֹסִיף עַל-חַיָּיו אַמָּה אַחַת.",
+            28: "וְלָמָּה תִדְאֲגוּ עַל-לְבוּשׁ רְאוּ אֶת-שׁוֹשַׁנּוֹת הַשָּׂדֶה אֵיךְ יִגְדָּלוּ לֹא יַעֲמִלוּ וְלֹא יִטּוּוּ.",
+            29: "וְאוּלָם אֹמֵר אֲנִי לָכֶם כִּי גַם-שְׁלֹמֹה בְּכָל-כְּבוֹדוֹ לֹא לָבַשׁ כְּאַחַת מֵהֵנָּה.",
+            30: "וְאִם אֶת-חֲצִיר הַשָּׂדֶה אֲשֶׁר הַיּוֹם יֵשׁ וּמָחָר יִשָּׁלֵךְ אֶל-הַתַּנּוּר כָּךְ יַלְבִּישׁ הָאֱלֹהִים אַף כִּי אַתֶּם קְטַנֵּי אֱמוּנָה.",
+            31: "לָכֵן אַל-תִּדְאֲגוּ לֵאמֹר מַה-נֹּאכַל אוֹ מַה-נִּשְׁתֶּה אוֹ מַה-נִלְבַּשׁ.",
+            32: "כִּי אֶת-כָּל-אֵלֶּה יְבַקְשׁוּ הַגּוֹיִים וַאֲבִיכֶם שֶׁבַּשָּׁמַיִם יוֹדֵעַ כִּי צְרִיכִים אַתֶּם לְכָל-אֵלֶּה.",
+            33: "כִּי אִם-בַּקְשׁוּ תְּחִלָּה אֶת-מַלְכוּתוֹ וְצִדְקוֹ וְכָל-אֵלֶּה יִוָּסְפוּ לָכֶם.",
+            34: "לָכֵן אַל-תִּדְאֲגוּ לַמָּחָר כִּי הַמָּחָר יִדְאַג לְעַצְמוֹ דַי לַיּוֹם רָעָתוֹ."
+        },
+        7: {
+            1: "אַל-תִּשְׁפְּטוּ לְמַעַן לֹא תִשָּׁפְטוּ.",
+            2: "כִּי בַּמִּשְׁפָּט אֲשֶׁר תִּשְׁפְּטוּ יִשָּׁפְטוּ אֶתְכֶם וּבַמִּדָּה אֲשֶׁר תְּמַדְּדוּ יְמַדְּדוּ לָכֶם.",
+            3: "וּמַדּוּעַ תַּבִּיט אֶל-הַקֶּשֶׁת בְּעֵין אָחִיךָ וְהַקּוֹרָה בְעֵינְךָ לֹא תְבִינֶנָּה.",
+            4: "אוֹ אֵיךְ תֹּאמַר לְאָחִיךָ הַנַּחֵנִי אַעֲשֶׂה אֶת-הַקֶּשֶׁת מֵעֵינְךָ וְהִנֵּה הַקּוֹרָה בְעֵינְךָ.",
+            5: "צָבוּעַ הוֹצֵא תְּחִלָּה אֶת-הַקּוֹרָה מֵעֵינְךָ וְאַחַר תִּרְאֶה לְהוֹצִיא אֶת-הַקֶּשֶׁת מֵעֵין אָחִיךָ.",
+            6: "אַל-תִּתְּנוּ אֶת-הַקֹּדֶשׁ לַכְּלָבִים וְאַל-תַּשְׁלִיכוּ מַרְגְּלִיתוֹתֵיכֶם לִפְנֵי הַחֲזִירִים פֶּן-יִרְמְסוּ אוֹתָם בְּרַגְלֵיהֶם וְיִפְנוּ וְיִקְרְעוּ אֶתְכֶם.",
+            7: "שַׁאֲלוּ וְיִנָּתֵן לָכֶם בַּקְשׁוּ וְתִמְצָאוּ דַּפְּקוּ וְיִפָּתַח לָכֶם.",
+            8: "כִּי כָל-הַשּׁוֹאֵל יִקַּח וְהַמְבַקֵּשׁ יִמְצָא וְלַדּוֹפֵק יִפָּתַח.",
+            9: "מִי מִכֶּם אִישׁ אֲשֶׁר יִתֵּן לִבְנוֹ אֶבֶן אִם-יִשְׁאַל לֶחֶם.",
+            10: "אוֹ אִם-יִשְׁאַל דָּג יִתֵּן לוֹ נָחָשׁ.",
+            11: "אִם-אֵפוֹא אַתֶּם רָעִים יוֹדְעִים לָתֵת מַתָּנוֹת טוֹבוֹת לִבְנֵיכֶם כַּמָּה יוֹתֵר אֲבִיכֶם שֶׁבַּשָּׁמַיִם יִתֵּן טוֹבוֹת לַשּׁוֹאֲלִים מֵאִתּוֹ.",
+            12: "לָכֵן כָּל אֲשֶׁר תַּחְפְּצוּ שֶׁיַּעֲשׂוּ לָכֶם הָאָדָם כֵּן עֲשׂוּ אַתֶּם לָהֶם כִּי זֶה הַתּוֹרָה וְהַנְּבִיאִים.",
+            13: "בֹּאוּ בַשַּׁעַר הַצָּר כִּי רָחָב הַשַּׁעַר וּרְחָבָה הַדֶּרֶךְ הַמּוֹלִיכָה לָאֲבַדּוֹן וְרַבִּים הַבָּאִים בָּהּ.",
+            14: "מַה-צָּר הַשַּׁעַר וּמַה-לְחוּצָה הַדֶּרֶךְ הַמּוֹלִיכָה לַחַיִּים וּמְעַטִּים הַמּוֹצְאִים אוֹתָהּ.",
+            15: "הִשָּׁמְרוּ מִן-הַנְּבִיאִים הַשְּׁקָרִים הַבָּאִים אֵלֵיכֶם בִּלְבוּשׁ צֹאן וּמִבִּפְנִים זְאֵבִים טוֹרְפִים.",
+            16: "מִפִּרְיָם תַּכִּירוּ אוֹתָם הַיִקְטֹפוּ עֲנָבִים מִן-הַקּוֹצִים אוֹ תְאֵנִים מִן-הַחֲרֻלִים.",
+            17: "כֵּן כָּל-עֵץ טוֹב עוֹשֶׂה פְּרִי טוֹב וְעֵץ רַע עוֹשֶׂה פְּרִי רַע.",
+            18: "לֹא יוּכַל עֵץ טוֹב לַעֲשׂוֹת פְּרִי רַע וְעֵץ רַע לַעֲשׂוֹת פְּרִי טוֹב.",
+            19: "כָּל-עֵץ אֲשֶׁר לֹא-יַעֲשֶׂה פְּרִי טוֹב יִגָּדַע וְיִשָּׁלֵךְ אֶל-הָאֵשׁ.",
+            20: "לָכֵן מִפִּרְיָם תַּכִּירוּ אוֹתָם.",
+            21: "לֹא כָל-הָאוֹמֵר אֵלַי אֲדוֹנִי אֲדוֹנִי יָבוֹא אֶל-מַלְכוּת הַשָּׁמַיִם כִּי אִם-הָעוֹשֶׂה רְצוֹן אָבִי אֲשֶׁר בַּשָּׁמַיִם.",
+            22: "רַבִּים יֹאמְרוּ אֵלַי בַּיּוֹם הַהוּא אֲדוֹנִי אֲדוֹנִי הֲלֹא בִשְׁמְךָ נִבֵּאנוּ וּבִשְׁמְךָ גֵרַשְׁנוּ שֵׁדִים וּבִשְׁמְךָ עָשִׂינוּ נִפְלָאוֹת רַבּוֹת.",
+            23: "וְאָז אֹמַר אֲלֵיהֶם בְּגָלוּי לֹא יָדַעְתִּי אֶתְכֶם סוּרוּ מִמֶּנִּי פֹּעֲלֵי הָאָוֶן.",
+            24: "לָכֵן כָּל-הַשּׁוֹמֵעַ אֶת-דְּבָרַי אֵלֶּה וְעוֹשֶׂה אוֹתָם יִדְמֶה לְאִישׁ חָכָם אֲשֶׁר בָּנָה בֵיתוֹ עַל-הַסֶּלַע.",
+            25: "וַיֵּרֶד הַגֶּשֶׁם וַיָּבֹאוּ הַנְּהָרוֹת וַיִּשְּׁבוּ הָרוּחוֹת וַיִּפְגְּעוּ בַּבַּיִת הַהוּא וְלֹא נָפַל כִּי הָיָה יְסוּדוֹ עַל-הַסֶּלַע.",
+            26: "וְכָל-הַשּׁוֹמֵעַ אֶת-דְּבָרַי אֵלֶּה וְלֹא עוֹשֶׂה אוֹתָם יִדְמֶה לְאִישׁ סָכָל אֲשֶׁר בָּנָה בֵיתוֹ עַל-הַחוֹל.",
+            27: "וַיֵּרֶד הַגֶּשֶׁם וַיָּבֹאוּ הַנְּהָרוֹת וַיִּשְּׁבוּ הָרוּחוֹת וַיִּפְגְּעוּ בַּבַּיִת הַהוּא וַיִּפֹּל וַיְהִי מַפַּלְתּוֹ גְדוֹלָה.",
+            28: "וַיְהִי כַּאֲשֶׁר כִּלָּה יֵשׁוּעַ אֶת-הַדְּבָרִים הָאֵלֶּה וַיִּתְמְהוּ הֲמוֹנִים עַל-תּוֹרָתוֹ.",
+            29: "כִּי הָיָה מְלַמֵּד אוֹתָם כְּבַעַל סַמְכוּת וְלֹא כְּסוֹפְרֵיהֶם."
+        },
+        8: {
+            1: "וּכְשֶׁיָּרַד יֵשׁוּעַ מִן-הָהָר וַיֵּלְכוּ אַחֲרָיו הֲמוֹנִים רַבִּים.",
+            2: "וְהִנֵּה אִישׁ מְצוֹרָע בָּא וַיִּשְׁתַּחוּ לְפָנָיו לֵאמֹר אֲדוֹנִי אִם-תַּחְפֹּץ תּוּכַל לְטַהֲרֵנִי.",
+            3: "וַיִּשְׁלַח יֵשׁוּעַ אֶת-יָדוֹ וַיִּגַּע בּוֹ לֵאמֹר אֲנִי חָפֵץ הֱיֵה טָהוֹר וּמִיָּד נִטְהַר מִצָּרַעְתּוֹ.",
+            4: "וַיֹּאמֶר אֵלָיו יֵשׁוּעַ רְאֵה אַל-תַּגִּיד לְאִישׁ כִּי אִם-לֵךְ הֵרְאֵה אֶת-עַצְמְךָ לַכֹּהֵן וְהַקְרֵב אֶת-הַקָּרְבָּן אֲשֶׁר צִוָּה מֹשֶׁה לְעֵדוּת לָהֶם.",
+            5: "וּכְבוֹא יֵשׁוּעַ אֶל-כַּפַּרְנַחוּם נִגַּשׁ אֵלָיו קֶנֶטְרִיּוֹן מְבַקֵּשׁ מִמֶּנּוּ.",
+            6: "וַיֹּאמֶר אֲדוֹנִי עַבְדִּי שׁוֹכֵב בַּבַּיִת מְשַׁתַּק וְכוֹאֵב מְאֹד.",
+            7: "וַיֹּאמֶר לוֹ יֵשׁוּעַ הֲאָבוֹא וְאֶרְפָּאֵהוּ.",
+            8: "וַיַּעַן הַקֶּנֶטְרִיּוֹן וַיֹּאמֶר אֲדוֹנִי אֵינֶנִּי רָאוּי שֶׁתָּבוֹא תַּחַת גַּגִּי כִּי אִם-רַק אֱמֹר בִּדְבָר וְיֵרָפֵא עַבְדִּי.",
+            9: "כִּי גַם-אֲנִי אִישׁ אָנֹכִי תַּחַת רָשׁוּת וַיֵּשׁ לִי חַיָּלִים תַּחְתָּי וְאֹמֵר לָזֶה לֵךְ וְהוֹלֵךְ וְלָזֶה בֹּא וּבָא וְלְעַבְדִּי עֲשֵׂה זֹאת וְעוֹשֶׂה.",
+            10: "וַיִּשְׁמַע יֵשׁוּעַ וַיִּתְמַהּ וַיֹּאמֶר לַהֹלְכִים אַחֲרָיו אָמֵן אֹמֵר אֲנִי לָכֶם לֹא מָצָאתִי אֱמוּנָה כָּזֹאת בְּיִשְׂרָאֵל.",
+            11: "וְאֹמֵר אֲנִי לָכֶם כִּי רַבִּים יָבוֹאוּ מִמִּזְרָח וּמִמַּעֲרָב וְיִשְׁבוּ עִם אַבְרָהָם וְיִצְחָק וְיַעֲקֹב בְּמַלְכוּת הַשָּׁמַיִם.",
+            12: "וּבְנֵי הַמַּלְכוּת יִגָּרְשׁוּ אֶל-הַחֹשֶׁךְ הַחִיצוֹן שָׁם יִהְיֶה הַבְּכִי וְחַרְקַת הַשִּׁנַּיִם.",
+            13: "וַיֹּאמֶר יֵשׁוּעַ לַקֶּנֶטְרִיּוֹן לֵךְ וְכַאֲשֶׁר הֶאֱמַנְתָּ יִהְיֶה לָךְ וַיֵּרָפֵא עַבְדּוֹ בָּעֵת הַהִיא.",
+            14: "וַיָּבֹא יֵשׁוּעַ אֶל-בֵּית כֵּיפָא וַיַּרְא אֶת-חֲמוֹתוֹ שׁוֹכֶבֶת וְחוֹלָה בַקַּדַּחַת.",
+            15: "וַיִּגַּע בְּיָדָהּ וַתַּעֲזֹב אוֹתָהּ הַקַּדַּחַת וַתָּקָם וַתְּשָׁרְתֵהוּ.",
+            16: "וּכְעֶרֶב הָיָה וַיָּבִיאוּ אֵלָיו רַבִּים אֲחוּזֵי שֵׁדִים וַיְגָרֵשׁ אֶת-הָרוּחוֹת בִּדְבָר וַיִּרְפָּא אֶת-כָּל-הַחוֹלִים.",
+            17: "לְמַעַן יִמָּלֵא הַנֶּאֱמָר עַל-יַד יְשַׁעְיָהוּ הַנָּבִיא לֵאמֹר הוּא נָשָׂא חֳלָיֵנוּ וְנָשָׂא מַכְאוֹבֵינוּ.",
+            18: "וַיַּרְא יֵשׁוּעַ הֲמוֹנִים רַבִּים סְבִיבוֹתָיו וַיְצַו לַעֲבֹר אֶל-הָעֵבֶר הָאַחֵר.",
+            19: "וַיִּגַּשׁ אֵלָיו סוֹפֵר אֶחָד וַיֹּאמֶר רַבִּי אֵלֵךְ אַחֲרֶיךָ בְּכָל אֲשֶׁר תֵּלֵךְ.",
+            20: "וַיֹּאמֶר לוֹ יֵשׁוּעַ לַשּׁוּעָלִים חֹרִים וְלְעוֹפוֹת הַשָּׁמַיִם קִנִּים וְלִבֶן-הָאָדָם אֵין מָקוֹם אֲשֶׁר יַנִּיחַ אֶת-רֹאשׁוֹ.",
+            21: "וַאֲחֵר מִתַּלְמִידָיו אָמַר לוֹ אֲדוֹנִי הַנַּח לִי תְּחִלָּה לָלֶכֶת וְלִקְבֹּר אֶת-אָבִי.",
+            22: "וַיֹּאמֶר לוֹ יֵשׁוּעַ לֵךְ אַחֲרַי וְהַנַּח לַמֵּתִים לִקְבֹּר אֶת-מֵתֵיהֶם.",
+            23: "וַיַּעַל אֶל-הַסְּפִינָה וַיֵּלְכוּ אַחֲרָיו תַּלְמִידָיו.",
+            24: "וְהִנֵּה סַעַר גָּדוֹל נִהְיָה בַיָּם עַד אֲשֶׁר הַסְּפִינָה נִכְסְתָה מִן-הַגַּלִּים וְהוּא יָשֵׁן.",
+            25: "וַיִּגַּשׁוּ תַּלְמִידָיו וַיְעִירוּהוּ לֵאמֹר אֲדוֹנִי הוֹשִׁיעֵנוּ אָנוּ אֹבְדִים.",
+            26: "וַיֹּאמֶר לָהֶם מַה-תִּירְאוּ קְטַנֵּי אֱמוּנָה וַיָּקָם וַיְגַעַר בָּרוּחוֹת וּבַיָּם וַיְהִי שָׁלוֹם גָּדוֹל.",
+            27: "וַיִּתְמְהוּ הָאֲנָשִׁים וַיֹּאמְרוּ מָה-זֶּה כִּי גַם-הָרוּחוֹת וְהַיָּם מִשְׁמָעִים לוֹ.",
+            28: "וּכְבוֹאוֹ אֶל-הָעֵבֶר הָאַחֵר אֶל-אֶרֶץ הַגְּדָרִים נִפְגְּשׁוּ אִתּוֹ שְׁנַיִם אֲחוּזֵי שֵׁדִים יוֹצְאִים מִן-הַקְּבָרִים עַזִּים מְאֹד עַד אֲשֶׁר לֹא-יָכוֹל אִישׁ לַעֲבֹר בַּדֶּרֶךְ הַהוּא.",
+            29: "וְהִנֵּה צָעֲקוּ לֵאמֹר מַה-לָּנוּ וָלָךְ בֶּן-הָאֱלֹהִים הֲבָאתָ לְהַכְעִיסֵנוּ לִפְנֵי הָעֵת.",
+            30: "וְהָיָה מֵרָחוֹק מֵהֶם עֵדֶר חֲזִירִים רַבִּים רוֹעִים.",
+            31: "וַיִּתְחַנְּנוּ אֵלָיו הַשֵּׁדִים לֵאמֹר אִם-תְּגָרֵשׁ אוֹתָנוּ שַׁלְּחֵנוּ אֶל-עֵדֶר הַחֲזִירִים.",
+            32: "וַיֹּאמֶר לָהֶם לְכוּ וַיֵּצְאוּ וַיָּבֹאוּ אֶל-הַחֲזִירִים וְהִנֵּה נָהַר כָּל-הָעֵדֶר בַּמּוֹרָד אֶל-הַיָּם וַיָּמֻתוּ בַמַּיִם.",
+            33: "וַיָּנֻסוּ הָרוֹעִים וַיָּבֹאוּ אֶל-הָעִיר וַיְסַפְּרוּ אֶת-הַכֹּל וְאֵת אֲשֶׁר קָרָה לַאֲחוּזֵי הַשֵּׁדִים.",
+            34: "וְהִנֵּה כָל-הָעִיר יָצְאָה לִקְרַאת יֵשׁוּעַ וּכְרָאוֹתָם אוֹתוֹ בִקְּשׁוּ מִמֶּנּוּ לֵלֶךְ מִגְּבוּלָם."
         }
     }
 }
@@ -598,16 +985,12 @@ BIBLE_NASB = {
 
 # Map translation codes to data
 BIBLE_TRANSLATIONS = {
-    "KJV": BIBLE_KJV,
     "NIV": BIBLE_NIV,
-    "ESV": BIBLE_ESV,
-    "NASB": BIBLE_NASB,
-    "Hebrew": BIBLE_HEBREW,
-    "Greek": BIBLE_GREEK
+    "Hebrew": BIBLE_HEBREW
 }
 
-# Primary Bible data (KJV as default)
-BIBLE_DATA = BIBLE_KJV
+# Primary Bible data (NIV as default)
+BIBLE_DATA = BIBLE_NIV
 
 # RITDorg YouTube Playlists by Book
 # Official playlists from https://www.youtube.com/@RITDorg/playlists
@@ -969,6 +1352,221 @@ VIDEO_SYNC_DATA = {
             {"verse": 16, "start": 248, "end": 275},
             {"verse": 17, "start": 275, "end": 300}
         ]
+    },
+    "Matthew_4": {
+        "video_id": "3DC_MXg8fkM",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 4 - Bible Reading",
+        "timestamps": [
+            {"verse": 1, "start": 0, "end": 15},
+            {"verse": 2, "start": 15, "end": 35},
+            {"verse": 3, "start": 35, "end": 50},
+            {"verse": 4, "start": 50, "end": 65},
+            {"verse": 5, "start": 65, "end": 85},
+            {"verse": 6, "start": 85, "end": 105},
+            {"verse": 7, "start": 105, "end": 125},
+            {"verse": 8, "start": 125, "end": 150},
+            {"verse": 9, "start": 150, "end": 175},
+            {"verse": 10, "start": 175, "end": 195},
+            {"verse": 11, "start": 195, "end": 220},
+            {"verse": 12, "start": 220, "end": 240},
+            {"verse": 13, "start": 240, "end": 265},
+            {"verse": 14, "start": 265, "end": 285},
+            {"verse": 15, "start": 285, "end": 310},
+            {"verse": 16, "start": 310, "end": 330},
+            {"verse": 17, "start": 330, "end": 350},
+            {"verse": 18, "start": 350, "end": 375},
+            {"verse": 19, "start": 375, "end": 400},
+            {"verse": 20, "start": 400, "end": 420},
+            {"verse": 21, "start": 420, "end": 445},
+            {"verse": 22, "start": 445, "end": 470},
+            {"verse": 23, "start": 470, "end": 495},
+            {"verse": 24, "start": 495, "end": 520},
+            {"verse": 25, "start": 520, "end": 550}
+        ]
+    },
+    "Matthew_5": {
+        "video_id": "placeholder_video_id",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 5 - Bible Reading",
+        "timestamps": [
+            {"verse": 1, "start": 0, "end": 20},
+            {"verse": 2, "start": 20, "end": 35},
+            {"verse": 3, "start": 35, "end": 45},
+            {"verse": 4, "start": 45, "end": 55},
+            {"verse": 5, "start": 55, "end": 70},
+            {"verse": 6, "start": 70, "end": 85},
+            {"verse": 7, "start": 85, "end": 95},
+            {"verse": 8, "start": 95, "end": 110},
+            {"verse": 9, "start": 110, "end": 125},
+            {"verse": 10, "start": 125, "end": 145},
+            {"verse": 11, "start": 145, "end": 170},
+            {"verse": 12, "start": 170, "end": 190},
+            {"verse": 13, "start": 190, "end": 215},
+            {"verse": 14, "start": 215, "end": 235},
+            {"verse": 15, "start": 235, "end": 255},
+            {"verse": 16, "start": 255, "end": 275},
+            {"verse": 17, "start": 275, "end": 300},
+            {"verse": 18, "start": 300, "end": 325},
+            {"verse": 19, "start": 325, "end": 350},
+            {"verse": 20, "start": 350, "end": 370},
+            {"verse": 21, "start": 370, "end": 390},
+            {"verse": 22, "start": 390, "end": 420},
+            {"verse": 23, "start": 420, "end": 445},
+            {"verse": 24, "start": 445, "end": 465},
+            {"verse": 25, "start": 465, "end": 490},
+            {"verse": 26, "start": 490, "end": 510},
+            {"verse": 27, "start": 510, "end": 525},
+            {"verse": 28, "start": 525, "end": 545},
+            {"verse": 29, "start": 545, "end": 565},
+            {"verse": 30, "start": 565, "end": 585},
+            {"verse": 31, "start": 585, "end": 605},
+            {"verse": 32, "start": 605, "end": 635},
+            {"verse": 33, "start": 635, "end": 655},
+            {"verse": 34, "start": 655, "end": 675},
+            {"verse": 35, "start": 675, "end": 690},
+            {"verse": 36, "start": 690, "end": 710},
+            {"verse": 37, "start": 710, "end": 725},
+            {"verse": 38, "start": 725, "end": 740},
+            {"verse": 39, "start": 740, "end": 760},
+            {"verse": 40, "start": 760, "end": 775},
+            {"verse": 41, "start": 775, "end": 790},
+            {"verse": 42, "start": 790, "end": 805},
+            {"verse": 43, "start": 805, "end": 820},
+            {"verse": 44, "start": 820, "end": 840},
+            {"verse": 45, "start": 840, "end": 865},
+            {"verse": 46, "start": 865, "end": 885},
+            {"verse": 47, "start": 885, "end": 905},
+            {"verse": 48, "start": 905, "end": 925}
+        ]
+    },
+    "Matthew_6": {
+        "video_id": "placeholder_video_id",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 6 - Bible Reading",
+        "timestamps": [
+            {"verse": 1, "start": 0, "end": 20},
+            {"verse": 2, "start": 20, "end": 45},
+            {"verse": 3, "start": 45, "end": 60},
+            {"verse": 4, "start": 60, "end": 75},
+            {"verse": 5, "start": 75, "end": 100},
+            {"verse": 6, "start": 100, "end": 115},
+            {"verse": 7, "start": 115, "end": 130},
+            {"verse": 8, "start": 130, "end": 145},
+            {"verse": 9, "start": 145, "end": 165},
+            {"verse": 10, "start": 165, "end": 180},
+            {"verse": 11, "start": 180, "end": 190},
+            {"verse": 12, "start": 190, "end": 205},
+            {"verse": 13, "start": 205, "end": 220},
+            {"verse": 14, "start": 220, "end": 235},
+            {"verse": 15, "start": 235, "end": 250},
+            {"verse": 16, "start": 250, "end": 275},
+            {"verse": 17, "start": 275, "end": 290},
+            {"verse": 18, "start": 290, "end": 305},
+            {"verse": 19, "start": 305, "end": 325},
+            {"verse": 20, "start": 325, "end": 340},
+            {"verse": 21, "start": 340, "end": 355},
+            {"verse": 22, "start": 355, "end": 375},
+            {"verse": 23, "start": 375, "end": 395},
+            {"verse": 24, "start": 395, "end": 420},
+            {"verse": 25, "start": 420, "end": 445},
+            {"verse": 26, "start": 445, "end": 465},
+            {"verse": 27, "start": 465, "end": 480},
+            {"verse": 28, "start": 480, "end": 500},
+            {"verse": 29, "start": 500, "end": 520},
+            {"verse": 30, "start": 520, "end": 545},
+            {"verse": 31, "start": 545, "end": 565},
+            {"verse": 32, "start": 565, "end": 585},
+            {"verse": 33, "start": 585, "end": 605},
+            {"verse": 34, "start": 605, "end": 625}
+        ]
+    },
+    "Matthew_7": {
+        "video_id": "placeholder_video_id",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 7 - Bible Reading",
+        "timestamps": [
+            {"verse": 1, "start": 0, "end": 10},
+            {"verse": 2, "start": 10, "end": 25},
+            {"verse": 3, "start": 25, "end": 45},
+            {"verse": 4, "start": 45, "end": 65},
+            {"verse": 5, "start": 65, "end": 85},
+            {"verse": 6, "start": 85, "end": 105},
+            {"verse": 7, "start": 105, "end": 120},
+            {"verse": 8, "start": 120, "end": 135},
+            {"verse": 9, "start": 135, "end": 150},
+            {"verse": 10, "start": 150, "end": 165},
+            {"verse": 11, "start": 165, "end": 185},
+            {"verse": 12, "start": 185, "end": 205},
+            {"verse": 13, "start": 205, "end": 225},
+            {"verse": 14, "start": 225, "end": 240},
+            {"verse": 15, "start": 240, "end": 260},
+            {"verse": 16, "start": 260, "end": 275},
+            {"verse": 17, "start": 275, "end": 290},
+            {"verse": 18, "start": 290, "end": 305},
+            {"verse": 19, "start": 305, "end": 320},
+            {"verse": 20, "start": 320, "end": 335},
+            {"verse": 21, "start": 335, "end": 355},
+            {"verse": 22, "start": 355, "end": 380},
+            {"verse": 23, "start": 380, "end": 400},
+            {"verse": 24, "start": 400, "end": 425},
+            {"verse": 25, "start": 425, "end": 445},
+            {"verse": 26, "start": 445, "end": 470},
+            {"verse": 27, "start": 470, "end": 490},
+            {"verse": 28, "start": 490, "end": 510},
+            {"verse": 29, "start": 510, "end": 530}
+        ]
+    },
+    "Matthew_8": {
+        "video_id": "placeholder_video_id",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 8 - Bible Reading",
+        "timestamps": [
+            {"verse": 1, "start": 0, "end": 12},
+            {"verse": 2, "start": 12, "end": 28},
+            {"verse": 3, "start": 28, "end": 45},
+            {"verse": 4, "start": 45, "end": 70},
+            {"verse": 5, "start": 70, "end": 85},
+            {"verse": 6, "start": 85, "end": 95},
+            {"verse": 7, "start": 95, "end": 105},
+            {"verse": 8, "start": 105, "end": 125},
+            {"verse": 9, "start": 125, "end": 150},
+            {"verse": 10, "start": 150, "end": 170},
+            {"verse": 11, "start": 170, "end": 190},
+            {"verse": 12, "start": 190, "end": 205},
+            {"verse": 13, "start": 205, "end": 220},
+            {"verse": 14, "start": 220, "end": 235},
+            {"verse": 15, "start": 235, "end": 245},
+            {"verse": 16, "start": 245, "end": 265},
+            {"verse": 17, "start": 265, "end": 285},
+            {"verse": 18, "start": 285, "end": 300},
+            {"verse": 19, "start": 300, "end": 315},
+            {"verse": 20, "start": 315, "end": 335},
+            {"verse": 21, "start": 335, "end": 350},
+            {"verse": 22, "start": 350, "end": 365},
+            {"verse": 23, "start": 365, "end": 375},
+            {"verse": 24, "start": 375, "end": 395},
+            {"verse": 25, "start": 395, "end": 410},
+            {"verse": 26, "start": 410, "end": 425},
+            {"verse": 27, "start": 425, "end": 440},
+            {"verse": 28, "start": 440, "end": 465},
+            {"verse": 29, "start": 465, "end": 480},
+            {"verse": 30, "start": 480, "end": 490},
+            {"verse": 31, "start": 490, "end": 505},
+            {"verse": 32, "start": 505, "end": 525},
+            {"verse": 33, "start": 525, "end": 545},
+            {"verse": 34, "start": 545, "end": 565}
+        ]
     }
 }
 
@@ -996,13 +1594,13 @@ def get_chapters(book):
 
 @app.route('/api/verses/<book>/<int:chapter>')
 def get_verses(book, chapter):
-    translation = request.args.get('translation', 'KJV')
-    bible = BIBLE_TRANSLATIONS.get(translation, BIBLE_KJV)
+    translation = request.args.get('translation', 'NIV')
+    bible = BIBLE_TRANSLATIONS.get(translation, BIBLE_NIV)
     
     if book in bible and chapter in bible[book]:
         verses = bible[book][chapter]
         return jsonify({"verses": verses, "translation": translation, "fallback": False})
-    # Fallback to KJV if translation doesn't have the passage
+    # Fallback to NIV if translation doesn't have the passage
     if book in BIBLE_KJV and chapter in BIBLE_KJV[book]:
         return jsonify({"verses": BIBLE_KJV[book][chapter], "translation": "KJV", "fallback": True, "requested": translation})
     return jsonify({"verses": {}, "translation": translation, "fallback": False})
@@ -1010,11 +1608,11 @@ def get_verses(book, chapter):
 @app.route('/api/verses/parallel/<book>/<int:chapter>')
 def get_parallel_verses(book, chapter):
     """Get verses in two translations side by side"""
-    trans1 = request.args.get('translation1', 'KJV')
-    trans2 = request.args.get('translation2', 'NIV')
+    trans1 = request.args.get('translation1', 'NIV')
+    trans2 = request.args.get('translation2', 'HEBREW')
     
-    bible1 = BIBLE_TRANSLATIONS.get(trans1, BIBLE_KJV)
-    bible2 = BIBLE_TRANSLATIONS.get(trans2, BIBLE_KJV)
+    bible1 = BIBLE_TRANSLATIONS.get(trans1, BIBLE_NIV)
+    bible2 = BIBLE_TRANSLATIONS.get(trans2, BIBLE_HEBREW)
     
     verses1 = {}
     verses2 = {}
@@ -1025,17 +1623,17 @@ def get_parallel_verses(book, chapter):
     
     if book in bible1 and chapter in bible1[book]:
         verses1 = bible1[book][chapter]
-    elif book in BIBLE_KJV and chapter in BIBLE_KJV[book]:
-        verses1 = BIBLE_KJV[book][chapter]
+    elif book in BIBLE_NIV and chapter in BIBLE_NIV[book]:
+        verses1 = BIBLE_NIV[book][chapter]
         fallback1 = True
-        actual_trans1 = "KJV"
+        actual_trans1 = "NIV"
         
     if book in bible2 and chapter in bible2[book]:
         verses2 = bible2[book][chapter]
-    elif book in BIBLE_KJV and chapter in BIBLE_KJV[book]:
-        verses2 = BIBLE_KJV[book][chapter]
+    elif book in BIBLE_HEBREW and chapter in BIBLE_HEBREW[book]:
+        verses2 = BIBLE_HEBREW[book][chapter]
         fallback2 = True
-        actual_trans2 = "KJV"
+        actual_trans2 = "HEBREW"
     
     return jsonify({
         "translation1": {"name": trans1, "actual": actual_trans1, "verses": verses1, "fallback": fallback1},
