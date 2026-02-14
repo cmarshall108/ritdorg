@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questions & Answers - RITDorg</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Ambient Background -->
+    <div class="ambient-bg">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-content">
+            <div class="logo">
+                <img src="/static/images/ritd-logo.png" alt="RITD Logo">
+                <span class="logo-text">RITDorg</span>
+            </div>
+            <div class="header-actions">
+                <form action="https://www.paypal.com/cgi-bin/webscr" method="post" style="margin: 0;">
+                    <input type="hidden" name="cmd" value="_s-xclick">
+                    <input type="hidden" name="hosted_button_id" value="9FPUAENMV9VPQ">
+                    <input type="image" src="https://www.paypal.com/en_US/i/btn/btn_donateCC_LG.gif" name="submit" alt="Donate to RITDorg with PayPal" style="vertical-align: middle;">
+                    <img alt="" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
+                </form>
+                <a href="https://www.youtube.com/@RITDorg" target="_blank" class="youtube-link" title="Visit RITDorg YouTube Channel">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                </a>
+                <button class="theme-toggle" id="themeToggle">
+                    <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/vision" class="nav-link">Vision</a>
+            <a href="/services" class="nav-link">Services</a>
+            <a href="/classes" class="nav-link">Classes</a>
+            <a href="/qa" class="nav-link active">Q&A</a>
+            <a href="/newsletter" class="nav-link">Newsletter</a>
+            <a href="/founders" class="nav-link">Founders</a>
+            <a href="/contact" class="nav-link">Contact</a>
+            <a href="/hebrew-lessons" class="nav-link">Hebrew</a>
+            <a href="/downloads" class="nav-link">Downloads</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            <article class="page-content">
+                <h1>The Cross and Judaism - A Question and Answer Session by Joe Christian</h1>
+                <p>Friday, May 17, 2002<br>Edited September 7, 2003</p>
+                <h2>The Cross and Judaism</h2>
+                <h3>A QUESTION AND ANSWER SESSION</h3>
+                <p>BY JOE CHRISTIAN</p>
+                <p>Friday, May 17, 2002<br>Edited September 7, 2003</p>
+                <p><strong>QUESTION:</strong> Joe, How is the cross accepted or rejected traditionally in Judaism?</p>
+                <p><strong>ANSWER:</strong> Traditionally, Judaism fervently rejects the cross.</p>
+                <p><strong>QUESTION:</strong> Why is there such animosity against the cross of Jesus Christ?</p>
+                <p><strong>ANSWER:</strong> A. It is not so much that the cross is a symbol of crucifixion. It is not even the authenticity of the resurrection of Jesus Christ after His crucifixion. B. It is easier to explain if we go to the biblical account of the crucifixion and see the Jewish response to Jesus' punishment.</p>
+                <!-- Continue with the full text from the fetch -->
+                <p><strong>QUESTION:</strong> Why was Jesus being punished or sentenced to death on the cross?</p>
+                <p><strong>ANSWER:</strong> This deals with the rejection of Jesus' deity. First lets look at the time and place to get the picture. While Jesus was hanging on the cross dying, between the two thieves who were also being crucified, the chief priests, Jewish scribes and elders came to see Jesus' crucifixion. Matthew 27:41-44 tells the account.</p>
+                <p>Matthew 27:41-44; Likewise also the chief priests mocking him, with the scribes and elders, said, 42He saved others; himself he cannot save. If he be the King of Israel, let him now come down from the cross, and we will believe him. 43He trusted in God; let him deliver him now, if he will have him: for he said, I am the Son of God. 44 The thieves also, which were crucified with him, cast the same in his teeth.</p>
+                <p>The mocking and insults were delivered because Jesus had said, I am the "Son of God". These Jewish theologians and leaders believed that God would save Jesus if he takes pleasure in Him. Their doctrine would never allow them to crucify the Son Of God and call for His death. They truly believed Jesus had blasphemed God by saying He was the "Son of God".</p>
+                <p>They did not understand the purposes of God and concluded His death meant God's rejection. Even a resurrection would mean little since to them God had already demonstrated His disgust for Jesus' claims of deity. A man simply could not be their God, they would be pagan idol worshipers if they accepted the claims of Jesus. They therefore were fervent to stop Jesus from perverting the doctrines of the Creator of the Universe, the One true God.</p>
+                <p>Therefore, in the eyes of Judaism, the cross has become the symbol of heresy. Judaism believes that Christianity teaches that man has become God, in the man Jesus.</p>
+                <p>But Christianity has been misrepresented through the ages. Christianity does not say that man has become God. Rather, Christianity says God, the Father, the Holy Spirit, and the Son of God are one God, just as man is spirit, flesh, and soul. The distinction is that the personage of God is represented in three distinct representations of the One true God, not three god's but One God.</p>
+                <p>Jesus said again and again "I do not do my own will but the Father who sent Me" and the Father and I are one.</p>
+                <p>Matthew's account shows Jesus, the Son of God, with the Father at creation and as the creator. This is certainly not a picture of a man becoming God. More exactly, God had prepared a way to provide forgiveness of sin by sending Himself to be the perfect sacrifice since bulls, goats, and lambs are only a type or representation to demonstrate, through the Hebrew people, that will of God, that a sacrifice is required. If animals being sacrificed were enough there would have been one sacrifice and all sins would have been forgiven. But now through God giving His only Son, who is One with the Father, as a sacrifice once and for all through that crucifixion on the cross all sin comes under the subjection of God. God has not revealed Himself fully, except to those who truly believe in faith God's words through the prophets, that by faith we may enter into the forgiveness of sin.</p>
+                <p>The Son of God revealed Himself as being God, saying, (there am I) in the beginning with the Lord God, and Spirit. Now, in that prophetic time, Isaiah proclaims, this Son of God is sent as Redeemer by the Lord God and His Spirit. Again this redeemer and Sent One proclaims Himself to be God, saying, (I am the Lord thy God). There is no doubt that the intention is to reveal that this Sent One, The Spirit, and the Lord God were at the beginning and are One God. Additionally, God reveals, through Isaiah, that this unity is no secret, and the prophets have revealed this truth from the beginning.</p>
+                <p>Isaiah 48:16; 16Come ye near unto me, hear ye this; I have not spoken in secret from the beginning; from the time that it was, there am I: and now the Lord GOD, and his Spirit, hath sent me. 17Thus saith the LORD, thy Redeemer, the Holy One of Israel; I am the LORD thy God which teacheth thee to profit, which leadeth thee by the way that thou shouldest go.</p>
+                <p>Judaism has rejected these words as being prophetic of the Son of God, being God.</p>
+                <p><strong>QUESTION:</strong> I'm beginning to get the picture of how Judaism traditionally has rejected the cross and Christianity, but what next?</p>
+                <p><strong>ANSWER:</strong> Now Christianity is another concern. Christian is simply the Greek equivalent, meaning followers of the Messiah. The Jewish Priests, scribes, and leaders were not in objection to Jews following the Messiah. But, Judaism traditionally has rejected Christianity because Christians say Jesus is the "Son of God". Most Jews have not read the New Testament and believe that Jesus never claimed to be the "Son of God," and thereby deity. Judaism generally says that Jesus was a good man and it is these followers of Jesus, these Christians, who have distorted Jesus' benevolent purposes. Judaism today does not believe that the Jews truly called for His death and crucifixion, and the New Testament writings are a distortion by these Christians misrepresenting the teachings of Jesus.</p>
+                <p><strong>QUESTION:</strong> The Judaic beliefs today and the rejection of the cross then necessitate the rejection of the New Testament as a valid historical account?</p>
+                <p><strong>ANSWER:</strong> Yes, even though advanced archaeological methods today are constantly revealing the authenticity of the New Testament.</p>
+                <p>One example is the dig or tunnel at the bottom of the western wall of the Old City of Jerusalem, sometimes called the wailing wall. This wall is the western platform supporting wall of the Temple Mount. It of course is not a part of the temple itself which was destroyed in its entirety in 70 A.D. by the Romans.</p>
+                <p>I was asked in the early 80's when I was living in Israel to go on a preemptive survey with the man responsible for the tunnel, prior to bringing in an actual TV crew. We were the first and only group to see the tunnel before the fervent Jewish contingency discovered the secret of the tunnel and demanded its closure.</p>
+                <p>As we traveled down the tunnel corridor we were shown the corner stone a huge stone, I believe it is 40 or 50 feet long. Then there was a passage through the wall, which is walled up now. As we kept following the wall at its base I wondered if we were going to come all the way to the walls end the excavator in charge of the project, said yes. I then hoped that another wall would be found when we got there and to my excitement the wall was there. The excavator said it was connected to the Via Delerosa Wall inside the church where the Harold's Court Temple was. This again proved the New Testament to be true when it said that Paul was led up the stairs out of the Temple Mount area and into the Court of Herod. Many said prior to this that the New Testament was not true because there was no connecting bridge wall.</p>
+                <p>There have been so many archaeological discoveries just within the Old City of Jerusalem that demonstrate the authenticity of the New Testament and the Old Testament as well, that we could spend all day and more on this subject.</p>
+                <p><strong>QUESTION:</strong> Well then, how can we help the eyes of Judaism to see that Christianity and the cross are not in opposition to Judaism but is actually the fulfillment of Judaism?</p>
+                <p><strong>ANSWER:</strong> Pray that the Nation of Israel as a majority will have the veil removed from their eyes. It is because the Jewish Nation has had this veil that gentiles have received this good news of forgiveness of sin, the Gospel.</p>
+                <p>Isaiah 25:7; 7And he will destroy in this mountain the face of the covering cast over all people, and the vail that is spread over all nations.</p>
+                <p>II Corinthians 3:14-16 14But their minds were blinded: for until this day remaineth the same vail untaken away in the reading of the old testament; which vail is done away in Christ. 15But even unto this day, when Moses is read, the vail is upon their heart. 16Nevertheless when it shall turn to the Lord, the vail shall be taken away.</p>
+                <p><strong>QUESTION:</strong> Praying we will definitely do. How else can we help?</p>
+                <p><strong>ANSWER:</strong> The rejection of the cross goes much deeper than just the historical account 2000 years ago. There have been many accounts of persecution of the Jewish people by the church, such as the Crusades. But there is a persecution to the Jews that is much closer at hand, that really hurts Christianity or the furtherance of the Gospel. That is the holocaust of World War II.</p>
+                <p>The S.S. army of Hitler had the cross as the emblem that served as the background for the swastika. Over six million Jews were massacred with this cross emblem being a representation of the slaughter.</p>
+                <p>Even when Eikeman was being tried in an International court in Jerusalem for direct responsibility for at least three million Jewish deaths it was necessary for a protestant minister to be available. Eikeman was a professed protestant and William Hull as a favor to the Jewish state and his German-speaking wife were assigned as Eikeman's minister during the trial. The church because of its silence, it's apathy and by representation of such men as Eikeman is seen by many Jews as responsible for the Holocaust massacre.</p>
+                <p><strong>QUESTION:</strong> My, this rejection of the cross has many facets, many centuries of historical persecution; whether this persecution is real or perceived it is connected to centuries of distrust. How can we expect to see the Jewish nation turn to Jesus with such profound obstacles that are based on massacre?</p>
+                <p><strong>ANSWER:</strong> Today, Israel is a nation, and again the conflict for Jewish survival is downplayed. The questions turn most of the time in the media to the plight of these people who are calling themselves Palestinians. Although the name of Palestine was given to Israel by the Romans in 70 A.D. when the Jewish nation was removed from Israel forcibly with the intention that Judaism would cease to exist without the Temple sacrifice and without priests or a country.</p>
+                <p>Jews for centuries tried to assimilate in the countries they were transferred to as slaves under Rome. Trying to secretly hold their identity as Jews while becoming good citizens of each country.</p>
+                <p>The Pogroms of Russia and the Holocaust of World War II combined awakened many Jews that a Jewish State a Zionist State must exist. Some tried to create this state in other countries to avoid the conflict with Arab nations, but the cry in each Jewish heart was always "Next Year In Jerusalem", for almost 2000 years of Diaspora.</p>
+                <p>Just as the Hebrew Jewish people have held the Old Testament as sacred and by the design of God have kept the scriptures intact and accurate for centuries, so God has placed as well in the Jewish heart a desire to keep the promised land, the land of Israel intact as a Hebrew, Jewish, Zionist state or nation.</p>
+                <p>It is not appropriate that we as the church should ask Israel, who has suffered enough, to divide their God given land to a people named by the Romans as people of Palestine. The Romans changed the name of Israel to Palestine to wipe the name of Israel and the nation of Israel off the face of the earth. To agree that this Israel promised to Abraham and specifically to Abraham's descendent Isaac should be divided and called a Palestinian state is to agree with the annihilation of the Israeli people in principal.</p>
+                <p>When Israel left Egypt and traveled to the Promised Land they were required by God to fight for the land. Nothing has changed; Israel still must fight for the land. There were only two leaders that agreed that Israel should fight even though God had commanded it, they were Joshua and Caleb.</p>
+                <p>We as Christians today can speak out in the spirit of Joshua and Caleb or we can again be silent and apathetic, as in the Holocaust of World War II, and allow the children of Israel to walk in the desert another 40 years. The children of Israel walking in the desert were not following the ways of God and the nation of Israel today is again not following the ways of God. Not following God's ways does not stop these Jewish people, these Zionists, from being the natural Israel of God any more than walking in the desert 40 years stopped Israel from remaining to be called Israel.</p>
+                <p>God has a plan for natural Israel to be a restored nation. When the Babylonians and King Nebuchadnezzar removed the people of Israel from their land, after 70 years they were returned and the walls of Jerusalem and the Temple were rebuilt. God has called the gentile world, which in this context includes Christianity to help carry Israel, to help establish the land and bring back the sons and daughters of Israel to their God given land. Israel has again returned to their land forced by the hand of God and persecution. The walls surrounding the Temple and the Temple have not been rebuilt and the land is too narrow. Just as the prophets said it would be in Isaiah.</p>
+                <p>Isaiah 49:20-22; 20The children which thou shalt have, after thou hast lost the other, shall say again in thine ears, The place is too strait for me: give place to me that I may dwell. 21Then shalt thou say in thine heart, Who hath begotten me these, seeing I have lost my children, and am desolate, a captive, and removing to and fro? and who hath brought up these? Behold, I was left alone; these, where had they been? 22Thus saith the Lord GOD, Behold, I will lift up mine hand to the Gentiles, and set up my standard to the people: and they shall bring thy sons in their arms, and thy daughters shall be carried upon their shoulders.</p>
+                <p><strong>QUESTION:</strong> This is a difficult calling for the church today for Christianity today. I'm sure many will say how can we stand with these people who as a whole do not believe that Jesus has come to save them. Many would say, if they would only believe then they will have a right to the land.</p>
+                <p><strong>ANSWER:</strong> You are right many may say this. Or they might say, Jesus Himself will return to give the land and fight the war for them. Or even, these Palestinians have lived there so long how can Israel have a right to the land.</p>
+                <p>I can go on and on with reasons why Israel should not take the land or have a right to the land. These arguments are the same type of arguments that the children had in the desert that kept them from entering into the Promised Land with Moses as their leader. The main reason then as it is now says; how can we possible live at peace in this promised land with such giants, or in today's terms with the vastness of the surrounding Arab nations who are in opposition.</p>
+                <p><strong>QUESTION:</strong> In other words, the scriptures have told us the will of God all we have to do is line up with the examples God has given us. We do not have to have the answers as to why God has assigned us as the church to this calling to support natural Israel we only have to obey.</p>
+                <p><strong>ANSWER:</strong> Well put, we cannot stop the disdain Israel has for the cross but we can demonstrate solidarity with Israel as She aligns with the will of God. We know that the land is promised; all we must do is agree with God. God never really gave Job an answer to his questions except simply "I'm God, and I know better than you, therefore obey." Job accepted in the end this calling of denying himself the right to expect to understand why, and simple sacrificed himself to the will of God.</p>
+                <p>We will never understand why God chose Isaac and his extended Jewish/Hebrew family and nation, the seed or descendents of Abraham, to be His chosen Nation. But we can understand that we must agree with God's choosing even if we do not understand why.</p>
+                <p><strong>QUESTION:</strong> How can people find out more about your ministry "Rivers In the Desert"?</p>
+                <p><strong>ANSWER:</strong> The Web site is www.ritd.org The Email address is hebrew@ritd.org</p>
+                <p>Rivers In The Desert</p>
+                <p>1431 Hillmon Grove Rd</p>
+                <p>Cameron, NC 28326</p>
+                <img src="https://ritd.info/image/qa1.jpg" alt="Rivers In The Desert, Inc" style="max-width: 100%; height: auto;">
+            </article>
+        </div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

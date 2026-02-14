@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hebrew Lessons - RITDorg</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Ambient Background -->
+    <div class="ambient-bg">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-content">
+            <div class="logo">
+                <img src="/static/images/ritd-logo.png" alt="RITD Logo">
+                <span class="logo-text">RITDorg</span>
+            </div>
+            <div class="header-actions">
+                <form action="https://www.paypal.com/cgi-bin/webscr" method="post" style="margin: 0;">
+                    <input type="hidden" name="cmd" value="_s-xclick">
+                    <input type="hidden" name="hosted_button_id" value="9FPUAENMV9VPQ">
+                    <input type="image" src="https://www.paypal.com/en_US/i/btn/btn_donateCC_LG.gif" name="submit" alt="Donate to RITDorg with PayPal" style="vertical-align: middle;">
+                    <img alt="" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
+                </form>
+                <a href="https://www.youtube.com/@RITDorg" target="_blank" class="youtube-link" title="Visit RITDorg YouTube Channel">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                </a>
+                <button class="theme-toggle" id="themeToggle">
+                    <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/vision" class="nav-link">Vision</a>
+            <a href="/services" class="nav-link">Services</a>
+            <a href="/classes" class="nav-link">Classes</a>
+            <a href="/qa" class="nav-link">Q&A</a>
+            <a href="/newsletter" class="nav-link">Newsletter</a>
+            <a href="/founders" class="nav-link">Founders</a>
+            <a href="/contact" class="nav-link">Contact</a>
+            <a href="/hebrew-lessons" class="nav-link active">Hebrew</a>
+            <a href="/downloads" class="nav-link">Downloads</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            <article class="page-content">
+                <h1>To my wife Beverly</h1>
+                <p>Copyright © 1995 Joe Christian Grand Prairie, Texas</p>
+                <p>All Hebrew Scripture quotations are from the Hebrew New Testament, copyright 1979 by the United Bible Societies, Israel agency, and are used by permission. All English Scripture quotations are from the Good News for Modern Man in Today's English Version, copyright 1966 by the American Bible Society, and are used by permission.</p>
+                <p>PRINTED IN THE UNITED STATES OF AMERICA</p>
+                <p>Other work by Joe Christian;</p>
+                <p>The Modern Hebrew New Testament on cassette, Rivers In The Desert production, recording, compilation, duplication, editing, and world wide distribution. Text used, The Modern Hebrew New Testament, copyright 1976 by the United Bible Societies, Israel agency.</p>
+                <p>Rivers In The Desert, Inc1431 Hillmon Grove RdCameron, NC 28326Email: hebrew@ritd.orgJoe Christian, founder and president of "Rivers In The Desert" a non-profit corporation dedicated to helping make the Word Of God more accessible in the original languages.</p>
+                <h2>Introduction:</h2>
+                <p>Learning Modern Hebrew has been the goal of many of my friends and acquaintances. It is not uncommon for the study of Hebrew to become a struggle that causes many to lose heart. To obtain this goal of learning Hebrew has meant, in the past, to leave the study of the scriptures and enter "Ulpan" (Hebrew Language School). I have attended many of these schools and they certainly do help in learning Modern Hebrew. But, the goal of this book and others to follow is to remain within the Word Of God (Bible) and learn the fundamentals of Modern Hebrew. The Word of God is for the renewing of the mind, and thereby, the study of Modern Hebrew using the Word of God facilitates learning. The struggle is reduced due to the Word of God renewing the desire and joy of learning God's Word.</p>
+                <p>This is not a new idea but it is an inspired idea. God has burdened my heart with this work. While producing and editing the Modern Hebrew New Testament on cassette tape, I learned additional Hebrew and received many blessings. I would not have enjoyed these blessings outside the Word of God. The New Testament has so much to offer in the Hebrew dialect. The New Testament is full of Hebrew idioms used also in the Old Testament and language correlations that give the experience of "God With Us", leading us, guiding us, teaching us. No teacher is as capable and as moving as our own Creator.</p>
+                <p>Learning Modern Hebrew can be a joy and an inspiration. My original goal many years ago was to learn Modern Hebrew well enough to read the Old Testament in Hebrew. You may well ask, why would one spend time in Modern Hebrew when the Old Testament is written in Ancient Hebrew, which is no longer spoken as a colloquial language. Ancient Hebrew is not conversational and therefore is difficult to retain and enjoy the accomplishment of speaking. Modern Hebrew and Ancient Hebrew are so closely intertwined in their root word origins, that learning one equips one to understand the other.</p>
+                <p>The Modern Hebrew New Testament would not exist today if there was not an Ancient Hebrew Old Testament. Modern Hebrew is an adaptation of Ancient Hebrew in modern times, a revised edition of the language of the Prophets.</p>
+                <p>The main focus is to allow God, through His Son, by the power of His Holy Spirit, to renew our minds through the Word of God, while learning the language derived from the ancients. The Modern Hebrew New Testament format allows each learner to remain close to God's Word, hearing not only the word pronunciation, but a message from above.</p>
+                <h2>INDEX</h2>
+                <table>
+                    <tr><td>Page 4</td><td>THE HEBREW ALPHABET</td></tr>
+                    <tr><td>Page 5</td><td>HEBREW VOWELS</td></tr>
+                    <tr><td>Page 6</td><td>LESSON 1 | MARK 14:36 | מרקוס יד:36</td></tr>
+                    <!-- Add more rows -->
+                </table>
+                <h2>The Hebrew Alphabet</h2>
+                <table>
+                    <tr><td>א</td><td>א</td><td>א</td><td></td><td>AH-LEF</td><td>אָלֶף</td><td>1</td><td>SILENT</td></tr>
+                    <!-- Add more -->
+                </table>
+                <h2>Hebrew Vowels</h2>
+                <table>
+                    <tr><td>קָמַץ</td><td>KAH-MAHTZ</td><td>A as in father</td><td>םָ</td></tr>
+                    <!-- Add more -->
+                </table>
+                <p>Introduction Lessons: <a href="https://ritd.info/learn01.php">1</a>, <a href="https://ritd.info/learn02.php">2</a>, etc.</p>
+            </article>
+        </div>
+    </main>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

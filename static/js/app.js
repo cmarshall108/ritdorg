@@ -80,8 +80,6 @@ class BibleReader {
         // Set dropdown to match default book
         document.getElementById('bookSelect').value = this.currentBook;
         
-        this.initTheme();
-        
         // Initialize translation options to prevent same selection
         this.updateTranslationOptions();
         
@@ -204,9 +202,6 @@ class BibleReader {
                 this.setFontSize(btn.dataset.size);
             });
         });
-        
-        // Theme toggle
-        document.getElementById('themeToggle').addEventListener('click', () => this.toggleTheme());
         
         // Video controls
         document.getElementById('playPauseBtn').addEventListener('click', () => this.togglePlay());
@@ -467,19 +462,6 @@ class BibleReader {
         const parallelView = document.getElementById('parallelView');
         parallelView.classList.remove('font-small', 'font-medium', 'font-large');
         parallelView.classList.add(`font-${size}`);
-    }
-    
-    // ===== Theme =====
-    initTheme() {
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
-    }
-    
-    toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
     }
     
     // ===== Parallel Translation View =====
@@ -1409,6 +1391,30 @@ class BibleReader {
 function onYouTubeIframeAPIReady() {
     console.log('YouTube API Ready');
 }
+
+// ===== Theme Management =====
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+}
+
+// Initialize theme on all pages
+initTheme();
+
+// Theme toggle event listener
+document.addEventListener('DOMContentLoaded', () => {
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+});
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {

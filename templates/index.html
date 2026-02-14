@@ -10,6 +10,22 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="nav-link active">Home</a>
+            <a href="/vision" class="nav-link">Vision</a>
+            <a href="/services" class="nav-link">Services</a>
+            <a href="/classes" class="nav-link">Classes</a>
+            <a href="/qa" class="nav-link">Questions & Answers</a>
+            <a href="/newsletter" class="nav-link">Newsletter</a>
+            <a href="/founders" class="nav-link">Founders</a>
+            <a href="/contact" class="nav-link">Contact us</a>
+            <a href="/hebrew-lessons" class="nav-link">Hebrew Lessons</a>
+            <a href="/downloads" class="nav-link">Free Downloads</a>
+        </div>
+    </nav>
+
     <!-- Ambient Background -->
     <div class="ambient-bg">
         <div class="gradient-orb orb-1"></div>
@@ -21,12 +37,7 @@
     <header class="main-header">
         <div class="header-content">
             <div class="logo">
-                <svg class="logo-icon" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 4L4 12V28L20 36L36 28V12L20 4Z" stroke="currentColor" stroke-width="2" fill="none"/>
-                    <path d="M20 4V36" stroke="currentColor" stroke-width="1.5"/>
-                    <path d="M4 12L36 28" stroke="currentColor" stroke-width="1" opacity="0.5"/>
-                    <path d="M36 12L4 28" stroke="currentColor" stroke-width="1" opacity="0.5"/>
-                </svg>
+                <img src="/static/images/ritd-logo.png" alt="RITD Logo">
                 <span class="logo-text">RITDorg</span>
             </div>
             <nav class="main-nav">
@@ -52,6 +63,12 @@
                 </button>
             </nav>
             <div class="header-actions">
+                <form action="https://www.paypal.com/cgi-bin/webscr" method="post" style="margin: 0;">
+                    <input type="hidden" name="cmd" value="_s-xclick">
+                    <input type="hidden" name="hosted_button_id" value="9FPUAENMV9VPQ">
+                    <input type="image" src="https://www.paypal.com/en_US/i/btn/btn_donateCC_LG.gif" name="submit" alt="Donate to RITDorg with PayPal" style="vertical-align: middle;">
+                    <img alt="" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
+                </form>
                 <a href="https://www.youtube.com/@RITDorg" target="_blank" class="youtube-link" title="Visit RITDorg YouTube Channel">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>

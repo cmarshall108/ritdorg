@@ -257,5 +257,41 @@ def get_caption_languages(video_id):
             "success": False
         })
 
+@app.route('/vision')
+def vision():
+    return render_template('vision.html')
+
+@app.route('/services')
+def services():
+    return render_template('services.html')
+
+@app.route('/classes')
+def classes():
+    return render_template('classes.html')
+
+@app.route('/qa')
+def qa():
+    return render_template('qa.html')
+
+@app.route('/newsletter')
+def newsletter():
+    return render_template('newsletter.html')
+
+@app.route('/founders')
+def founders():
+    return render_template('founders.html')
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
+
+@app.route('/hebrew-lessons')
+def hebrew_lessons():
+    return render_template('hebrew-lessons.html')
+
+@app.route('/downloads')
+def downloads():
+    return render_template('downloads.html')
+
 if __name__ == '__main__':
     app.run(debug=False, port=8000, host='0.0.0.0')

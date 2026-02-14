@@ -133,6 +133,51 @@ body {
     75% { transform: translate(-30px, -20px) scale(1.02); }
 }
 
+/* ===== Top Navigation ===== */
+.top-nav {
+    position: fixed;
+    top: 70px;
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 99;
+}
+
+.nav-container {
+    max-width: 1800px;
+    margin: 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px 24px;
+}
+
+.nav-link {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+}
+
+.nav-link:hover {
+    color: var(--accent-primary);
+    background: var(--accent-light);
+}
+
+.nav-link.active {
+    color: var(--accent-primary);
+    background: var(--accent-light);
+}
+
 /* ===== Header ===== */
 .main-header {
     position: fixed;
@@ -167,6 +212,11 @@ body {
     width: 36px;
     height: 36px;
     color: var(--accent-primary);
+}
+
+.logo img {
+    width: 36px;
+    height: auto;
 }
 
 .logo-text {
@@ -250,10 +300,63 @@ body {
 /* ===== Main Layout ===== */
 .main-content {
     display: flex;
-    padding-top: var(--header-height);
+    padding-top: 120px;
     min-height: 100vh;
     position: relative;
     z-index: 1;
+}
+
+.content-wrapper {
+    flex: 1;
+    padding: 24px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.page-content {
+    background: var(--bg-secondary);
+    padding: 32px;
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+}
+
+.page-content h1 {
+    font-family: var(--font-serif);
+    font-size: 2.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+}
+
+.page-content h2 {
+    font-family: var(--font-serif);
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-top: 32px;
+    margin-bottom: 16px;
+}
+
+.page-content p {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.page-content img {
+    margin: 16px 0;
+    border-radius: 8px;
+}
+
+.page-content a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.page-content a:hover {
+    text-decoration: underline;
 }
 
 /* ===== Sidebar ===== */
