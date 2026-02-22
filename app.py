@@ -1,78 +1,94 @@
 from flask import Flask, render_template, jsonify, request
 import json
+import logging
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
 
 from translations import *
+from bible_data import NT_BOOKS, NT_TRANSLATIONS
+import bible_fetcher
+
+logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
 
 # Create YouTubeTranscriptApi instance
 ytt_api = YouTubeTranscriptApi()
 
+# On first startup, export hardcoded data from translations.py into JSON cache
+# so the dynamic fetcher can serve Matthew/Mark instantly.
+bible_fetcher.export_hardcoded_to_cache()
+
 @app.route('/')
 def index():
-    books = [b for b in BIBLE_DATA.keys() if b not in EXCLUDED_BOOKS]
-    return render_template('index.html', books=books, translations=TRANSLATIONS)
+    books = list(NT_BOOKS.keys())
+    return render_template('index.html', books=books, translations=NT_TRANSLATIONS)
 
 @app.route('/api/books')
 def get_books():
-    return jsonify([b for b in BIBLE_DATA.keys() if b not in EXCLUDED_BOOKS])
+    return jsonify(list(NT_BOOKS.keys()))
 
 @app.route('/api/translations')
 def get_translations():
-    return jsonify(TRANSLATIONS)
+    return jsonify(NT_TRANSLATIONS)
 
 @app.route('/api/chapters/<book>')
 def get_chapters(book):
-    if book in BIBLE_DATA:
-        return jsonify(list(BIBLE_DATA[book].keys()))
+    if book in NT_BOOKS:
+        return jsonify(list(range(1, NT_BOOKS[book]['chapters'] + 1)))
     return jsonify([])
 
 @app.route('/api/verses/<book>/<int:chapter>')
 def get_verses(book, chapter):
     translation = request.args.get('translation', 'NIV')
-    bible = BIBLE_TRANSLATIONS.get(translation, BIBLE_NIV)
-    
-    if book in bible and chapter in bible[book]:
-        verses = bible[book][chapter]
+
+    # 1. Try dynamic fetcher (checks cache, then fetches externally)
+    verses = bible_fetcher.get_verses(translation, book, chapter)
+    if verses:
         return jsonify({"verses": verses, "translation": translation, "fallback": False})
-    
+
+    # 2. Fall back to hardcoded data in translations.py
+    bible = BIBLE_TRANSLATIONS.get(translation)
+    if bible and book in bible and chapter in bible[book]:
+        return jsonify({"verses": bible[book][chapter], "translation": translation, "fallback": False})
+
+    # 3. Fall back to NIV (dynamic then hardcoded)
+    niv = bible_fetcher.get_verses('NIV', book, chapter)
+    if niv:
+        return jsonify({"verses": niv, "translation": "NIV", "fallback": True})
+    if book in BIBLE_NIV and chapter in BIBLE_NIV[book]:
+        return jsonify({"verses": BIBLE_NIV[book][chapter], "translation": "NIV", "fallback": True})
+
     return jsonify({"verses": {}, "translation": translation, "fallback": False})
 
 @app.route('/api/verses/parallel/<book>/<int:chapter>')
 def get_parallel_verses(book, chapter):
     """Get verses in two translations side by side"""
     trans1 = request.args.get('translation1', 'NIV')
-    trans2 = request.args.get('translation2', 'HEBREW')
-    
-    bible1 = BIBLE_TRANSLATIONS.get(trans1, BIBLE_NIV)
-    bible2 = BIBLE_TRANSLATIONS.get(trans2, BIBLE_HEBREW)
-    
-    verses1 = {}
-    verses2 = {}
-    fallback1 = False
-    fallback2 = False
-    actual_trans1 = trans1
-    actual_trans2 = trans2
-    
-    if book in bible1 and chapter in bible1[book]:
-        verses1 = bible1[book][chapter]
-    elif book in BIBLE_NIV and chapter in BIBLE_NIV[book]:
-        verses1 = BIBLE_NIV[book][chapter]
-        fallback1 = True
-        actual_trans1 = "NIV"
-        
-    if book in bible2 and chapter in bible2[book]:
-        verses2 = bible2[book][chapter]
-    elif book in BIBLE_HEBREW and chapter in BIBLE_HEBREW[book]:
-        verses2 = BIBLE_HEBREW[book][chapter]
-        fallback2 = True
-        actual_trans2 = "HEBREW"
-    
+    trans2 = request.args.get('translation2', 'Hebrew')
+
+    def _resolve(translation):
+        """Try dynamic fetch → hardcoded → NIV fallback."""
+        verses = bible_fetcher.get_verses(translation, book, chapter)
+        if verses:
+            return verses, translation, False
+        bible = BIBLE_TRANSLATIONS.get(translation, {})
+        if book in bible and chapter in bible[book]:
+            return bible[book][chapter], translation, False
+        # Fallback to NIV
+        niv = bible_fetcher.get_verses('NIV', book, chapter)
+        if niv:
+            return niv, 'NIV', True
+        if book in BIBLE_NIV and chapter in BIBLE_NIV[book]:
+            return BIBLE_NIV[book][chapter], 'NIV', True
+        return {}, translation, False
+
+    verses1, actual1, fallback1 = _resolve(trans1)
+    verses2, actual2, fallback2 = _resolve(trans2)
+
     return jsonify({
-        "translation1": {"name": trans1, "actual": actual_trans1, "verses": verses1, "fallback": fallback1},
-        "translation2": {"name": trans2, "actual": actual_trans2, "verses": verses2, "fallback": fallback2}
+        "translation1": {"name": trans1, "actual": actual1, "verses": verses1, "fallback": fallback1},
+        "translation2": {"name": trans2, "actual": actual2, "verses": verses2, "fallback": fallback2}
     })
 
 @app.route('/api/sync/<book>/<int:chapter>')

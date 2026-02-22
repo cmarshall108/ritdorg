@@ -1,4 +1,4 @@
-TRANSLATIONS = ["NIV", "Hebrew"]
+TRANSLATIONS = ["NIV", "NKJV", "KJV", "ESV", "NASB1995", "Hebrew"]
 
 # NIV - New International Version
 BIBLE_NIV = {
