@@ -36,6 +36,7 @@ TRANSLATION_SOURCES = {
     "NKJV":     "biblehub",
     "ESV":      "biblehub",
     "NASB1995": "biblehub",
+    "Hungarian": "biblegateway",
     "Hebrew":   "biblehub-hebrew",
 }
 
@@ -192,56 +193,136 @@ def fetch_from_biblehub(book: str, chapter: int, translation_code: str):
         return None
 
 # ---------------------------------------------------------------------------
-# Source: BibleHub Hebrew (Delitzsch NT – verse by verse)
+# Source: BibleHub Hebrew (Delitzsch NT – full chapter with vowel marks)
 # ---------------------------------------------------------------------------
 
+def _clean_hebrew_text(raw: str) -> str:
+    """Strip HTML tags, decode entities, normalise whitespace for Hebrew text."""
+    # Remove footnote spans
+    text = re.sub(r'<span[^>]*class="[^"]*footnote[^"]*"[^>]*>.*?</span>', '', raw, flags=re.DOTALL | re.IGNORECASE)
+    # Remove <sup> tags (cross-refs, footnotes)
+    text = re.sub(r'<sup[^>]*>.*?</sup>', '', text, flags=re.DOTALL)
+    # Remove all other HTML tags
+    text = re.sub(r"<[^>]+>", "", text)
+    text = html_module.unescape(text)
+    # Normalise whitespace but preserve Hebrew characters, nikud, and cantillation
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
 def fetch_hebrew_chapter(book: str, chapter: int, max_verses: int = 200):
-    """Fetch Hebrew (Delitzsch) NT text from BibleHub, one verse at a time."""
+    """Fetch Hebrew (Delitzsch) NT text with vowel markings from BibleHub."""
     info = NT_BOOKS.get(book)
     if not info:
         return None
     slug = info["slug"]
-    verses = {}
-    consecutive_misses = 0
+    url = f"https://biblehub.com/delitzsch/{slug}/{chapter}.htm"
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=15)
+        if resp.status_code != 200:
+            logger.error("BibleHub Hebrew %s for %s", resp.status_code, url)
+            return None
 
-    for verse_num in range(1, max_verses + 1):
-        url = f"https://biblehub.com/text/{slug}/{chapter}-{verse_num}.htm"
-        try:
-            resp = requests.get(url, headers=HEADERS, timeout=10)
-            if resp.status_code != 200:
-                consecutive_misses += 1
-                if consecutive_misses >= 3:
-                    break
-                continue
+        resp.encoding = "utf-8"
+        html = resp.text
 
-            # BibleHub reports ISO-8859-1 but content is actually UTF-8
-            resp.encoding = "utf-8"
+        # Use the same reftext pattern as English translations
+        pattern = (
+            r'<span\s+class="reftext">'
+            r'.*?<b>(\d+)</b>'
+            r'.*?</span>'
+            r'(.*?)'
+            r'(?=<span\s+class="reftext">'
+            r'|<div\s+id="botbox">'
+            r'|<div\s+class="chapterbottom">'
+            r'|<p\s+class="sectionhead">'
+            r'|<hr\b'
+            r'|</body>)'
+        )
+        matches = re.findall(pattern, html, re.DOTALL | re.IGNORECASE)
+        verses = {}
+        for m in matches:
+            num = int(m[0])
+            text = _clean_hebrew_text(m[1])
+            if text:
+                verses[num] = text
+        return verses if verses else None
+    except Exception as exc:
+        logger.error("BibleHub Hebrew fetch error (%s): %s", url, exc)
+        return None
 
-            # Extract Hebrew span
-            match = re.search(r'<span class="heb">([^<]+)</span>', resp.text)
-            if match:
-                hebrew_text = match.group(1).strip()
-                if hebrew_text:
-                    verses[verse_num] = hebrew_text
-                    consecutive_misses = 0
+# ---------------------------------------------------------------------------
+# Source: BibleGateway  (Hungarian Károli and other translations)
+# ---------------------------------------------------------------------------
+
+# BibleGateway version codes
+BIBLEGATEWAY_CODES = {
+    "Hungarian": "KAR",
+}
+
+
+def _clean_biblegateway_text(raw: str) -> str:
+    """Strip HTML tags, verse/chapter markers, decode entities, normalise."""
+    # Remove chapternum spans (verse 1 marker)
+    text = re.sub(r'<span[^>]*class="chapternum"[^>]*>.*?</span>', '', raw, flags=re.DOTALL)
+    # Remove versenum sups
+    text = re.sub(r'<sup[^>]*class="versenum"[^>]*>.*?</sup>', '', text, flags=re.DOTALL)
+    # Remove footnote sups and spans
+    text = re.sub(r'<sup[^>]*>.*?</sup>', '', text, flags=re.DOTALL)
+    text = re.sub(r'<span[^>]*class="[^"]*footnote[^"]*"[^>]*>.*?</span>', '', text, flags=re.DOTALL)
+    # Remove all other HTML tags
+    text = re.sub(r"<[^>]+>", "", text)
+    text = html_module.unescape(text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def fetch_from_biblegateway(book: str, chapter: int, version_code: str):
+    """Fetch a full chapter from BibleGateway for a given translation."""
+    info = NT_BOOKS.get(book)
+    if not info:
+        return None
+    bg_book = book.replace(" ", "+")
+    url = f"https://www.biblegateway.com/passage/?search={bg_book}+{chapter}&version={version_code}"
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=15)
+        if resp.status_code != 200:
+            logger.error("BibleGateway %s for %s", resp.status_code, url)
+            return None
+
+        page = resp.text
+
+        # Find the passage-text block
+        start_idx = page.find('class="passage-text"')
+        if start_idx < 0:
+            logger.error("BibleGateway: no passage-text found for %s", url)
+            return None
+        end_idx = page.find('class="publisher-info', start_idx)
+        block = page[start_idx:end_idx if end_idx > 0 else start_idx + 50000]
+
+        # BibleGateway wraps each verse in:
+        # <span class="text OSIS-CH-VN">..text..</span></p>
+        # Use greedy match to get full content including nested spans
+        pattern = (
+            r'class="text\s+[A-Za-z0-9]+-\d+-(\d+)"[^>]*>'
+            r'(.*?)'
+            r'</span>\s*</p>'
+        )
+        matches = re.findall(pattern, block, re.DOTALL)
+
+        verses = {}
+        for vn, txt in matches:
+            num = int(vn)
+            text = _clean_biblegateway_text(txt)
+            if text:
+                if num in verses:
+                    verses[num] += ' ' + text
                 else:
-                    consecutive_misses += 1
-            else:
-                consecutive_misses += 1
-
-            if consecutive_misses >= 3:
-                break
-
-            # Rate-limit to be polite
-            time.sleep(0.3)
-
-        except Exception as exc:
-            logger.error("Hebrew verse error (%s %d:%d): %s", book, chapter, verse_num, exc)
-            consecutive_misses += 1
-            if consecutive_misses >= 3:
-                break
-
-    return verses if verses else None
+                    verses[num] = text
+        return verses if verses else None
+    except Exception as exc:
+        logger.error("BibleGateway fetch error (%s): %s", url, exc)
+        return None
 
 # ---------------------------------------------------------------------------
 # Public API
@@ -279,6 +360,10 @@ def get_verses(translation: str, book: str, chapter: int):
             verses = fetch_from_biblehub(book, chapter, code)
     elif source == "biblehub-hebrew":
         verses = fetch_hebrew_chapter(book, chapter)
+    elif source == "biblegateway":
+        code = BIBLEGATEWAY_CODES.get(translation)
+        if code:
+            verses = fetch_from_biblegateway(book, chapter, code)
 
     # 3. Cache the result
     if verses:

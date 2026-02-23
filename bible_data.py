@@ -35,7 +35,7 @@ NT_BOOKS = {
 }
 
 # Available translations (English + Hebrew)
-NT_TRANSLATIONS = ["NIV", "NKJV", "KJV", "ESV", "NASB1995", "Hebrew"]
+NT_TRANSLATIONS = ["NIV", "NKJV", "KJV", "ESV", "NASB1995", "Hungarian", "Hebrew"]
 
 # Total chapters in the New Testament
 NT_TOTAL_CHAPTERS = sum(info["chapters"] for info in NT_BOOKS.values())  # 260

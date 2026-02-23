@@ -1,5 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 import json
+import os
+import re
 import logging
 from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.formatters import JSONFormatter
@@ -89,6 +91,98 @@ def get_parallel_verses(book, chapter):
     return jsonify({
         "translation1": {"name": trans1, "actual": actual1, "verses": verses1, "fallback": fallback1},
         "translation2": {"name": trans2, "actual": actual2, "verses": verses2, "fallback": fallback2}
+    })
+
+@app.route('/api/search')
+def search_bible():
+    """
+    Full-text search across cached Bible translations.
+
+    Query params:
+        q            – search term (required, min 2 chars)
+        translation  – comma-separated list, or 'all' (default: all)
+        limit        – max results to return (default: 100)
+    """
+    query = request.args.get('q', '').strip()
+    if len(query) < 2:
+        return jsonify({"error": "Query must be at least 2 characters", "results": []})
+
+    translations_param = request.args.get('translation', 'all')
+    limit = min(int(request.args.get('limit', 100)), 500)
+
+    # Determine which translations to search
+    if translations_param == 'all':
+        search_translations = list(bible_fetcher.TRANSLATION_SOURCES.keys())
+    else:
+        search_translations = [t.strip() for t in translations_param.split(',')
+                               if t.strip() in bible_fetcher.TRANSLATION_SOURCES]
+        if not search_translations:
+            search_translations = list(bible_fetcher.TRANSLATION_SOURCES.keys())
+
+    results = []
+    query_lower = query.lower()
+    # For Hebrew searches, match the raw query (no lowercasing)
+    is_hebrew_query = any('\u0590' <= ch <= '\u05FF' for ch in query)
+
+    for translation in search_translations:
+        trans_dir = os.path.join(bible_fetcher.CACHE_DIR, translation.lower())
+        if not os.path.isdir(trans_dir):
+            continue
+
+        for book_name, info in NT_BOOKS.items():
+            slug = info["slug"]
+            book_dir = os.path.join(trans_dir, slug)
+            if not os.path.isdir(book_dir):
+                continue
+
+            for ch in range(1, info["chapters"] + 1):
+                chapter_file = os.path.join(book_dir, f"{ch}.json")
+                if not os.path.exists(chapter_file):
+                    continue
+                try:
+                    with open(chapter_file, "r", encoding="utf-8") as fh:
+                        verses = json.load(fh)
+                except Exception:
+                    continue
+
+                for verse_num, verse_text in verses.items():
+                    if is_hebrew_query:
+                        match = query in verse_text
+                    else:
+                        match = query_lower in verse_text.lower()
+
+                    if match:
+                        # Build a snippet with context around the match
+                        if is_hebrew_query:
+                            idx = verse_text.find(query)
+                        else:
+                            idx = verse_text.lower().find(query_lower)
+                        start = max(0, idx - 40)
+                        end = min(len(verse_text), idx + len(query) + 40)
+                        snippet = ('…' if start > 0 else '') + verse_text[start:end] + ('…' if end < len(verse_text) else '')
+
+                        results.append({
+                            "translation": translation,
+                            "book": book_name,
+                            "chapter": ch,
+                            "verse": int(verse_num),
+                            "text": verse_text,
+                            "snippet": snippet,
+                        })
+
+                        if len(results) >= limit:
+                            return jsonify({
+                                "query": query,
+                                "count": len(results),
+                                "truncated": True,
+                                "results": results,
+                            })
+
+    return jsonify({
+        "query": query,
+        "count": len(results),
+        "truncated": False,
+        "results": results,
     })
 
 @app.route('/api/sync/<book>/<int:chapter>')
@@ -273,17 +367,20 @@ def get_caption_languages(video_id):
             "success": False
         })
 
-@app.route('/vision')
-def vision():
-    return render_template('vision.html')
+@app.route('/videos')
+def videos():
+    import glob
+    video_dir = os.path.join(app.static_folder, 'videos')
+    video_files = []
+    for ext in ('*.mp4', '*.mov', '*.webm'):
+        video_files.extend(glob.glob(os.path.join(video_dir, ext)))
+    video_files.sort(key=lambda f: os.path.getmtime(f), reverse=True)
+    video_names = [os.path.basename(f) for f in video_files]
+    return render_template('videos.html', videos=video_names)
 
 @app.route('/services')
 def services():
     return render_template('services.html')
-
-@app.route('/classes')
-def classes():
-    return render_template('classes.html')
 
 @app.route('/qa')
 def qa():

@@ -34,6 +34,7 @@
     /* Fonts */
     --font-serif: 'Cormorant Garamond', Georgia, serif;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-reader: 'Lucida Grande', 'Lucida Sans Unicode', 'Lucida Sans', Geneva, Verdana, sans-serif;
     
     /* Sizing */
     --header-height: 70px;
@@ -359,6 +360,184 @@ body {
     text-decoration: underline;
 }
 
+/* ===== Videos Page ===== */
+.videos-page-wrapper {
+    flex: 1;
+    padding: 32px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.videos-page-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.videos-page-header h1 {
+    font-family: var(--font-serif);
+    font-size: 2.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.videos-page-header p {
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+}
+
+.video-card {
+    background: var(--bg-secondary);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    transition: transform var(--transition-medium), box-shadow var(--transition-medium);
+}
+
+.video-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.video-player-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    overflow: hidden;
+}
+
+.video-player-wrap video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.video-play-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    transition: background var(--transition-fast);
+}
+
+.video-card:hover .video-play-overlay {
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.video-play-overlay svg {
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+    transition: transform var(--transition-fast);
+}
+
+.video-card:hover .video-play-overlay svg {
+    transform: scale(1.12);
+}
+
+.video-card-info {
+    padding: 14px 16px;
+}
+
+.video-card-name {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    word-break: break-all;
+}
+
+.videos-empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-muted);
+}
+
+.videos-empty svg {
+    margin-bottom: 16px;
+    opacity: 0.4;
+}
+
+.videos-empty p {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+}
+
+/* Video Lightbox */
+.video-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+.video-lightbox.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.lightbox-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+}
+
+.lightbox-content {
+    position: relative;
+    width: 90vw;
+    max-width: 1100px;
+    max-height: 85vh;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.lightbox-content video {
+    width: 100%;
+    max-height: 85vh;
+    display: block;
+    background: #000;
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 10;
+    background: rgba(0,0,0,0.5);
+    border: none;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #fff;
+    transition: background var(--transition-fast);
+}
+
+.lightbox-close:hover {
+    background: rgba(0,0,0,0.8);
+}
+
 /* ===== Sidebar ===== */
 .sidebar {
     width: var(--sidebar-width);
@@ -479,6 +658,211 @@ body {
     box-shadow: 0 0 0 3px var(--accent-light);
 }
 
+/* ===== Bible Search ===== */
+.bible-search {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.bible-search label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.search-input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.styled-input {
+    width: 100%;
+    padding: 10px 32px 10px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    transition: all var(--transition-fast);
+}
+
+.styled-input::placeholder {
+    color: var(--text-muted);
+}
+
+.styled-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.search-clear-btn {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    line-height: 1;
+    border-radius: 4px;
+}
+
+.search-clear-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.search-clear-btn.hidden {
+    display: none;
+}
+
+.search-options {
+    display: flex;
+    gap: 8px;
+}
+
+.search-options .styled-select.mini {
+    flex: 1;
+    font-size: 0.8rem;
+    padding: 6px 10px;
+}
+
+.search-results-container {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    max-height: 400px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+}
+
+.search-results-container.hidden {
+    display: none;
+}
+
+.search-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+}
+
+.search-results-header span {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.search-close-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 2px 6px;
+    line-height: 1;
+    border-radius: 4px;
+}
+
+.search-close-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+.search-results-list {
+    overflow-y: auto;
+    max-height: 350px;
+    padding: 4px;
+}
+
+.search-result-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: var(--accent-light);
+}
+
+.search-result-ref {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.search-result-book {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.search-result-trans {
+    font-family: var(--font-sans);
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.search-result-text {
+    font-family: var(--font-reader);
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.search-result-text mark,
+mark.search-term {
+    background: #ffe082;
+    color: var(--text-primary);
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-weight: 600;
+}
+
+.search-loading,
+.search-no-results {
+    padding: 20px 12px;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* Search result verse highlight */
+.search-highlight {
+    background: rgba(255, 235, 59, 0.35) !important;
+    border-left: 3px solid #f9a825 !important;
+    border-radius: 8px;
+    transition: background 0.3s ease;
+}
+
 .quick-nav h3,
 .reading-settings h3 {
     font-size: 0.8rem;
@@ -538,9 +922,10 @@ body {
     transition: all var(--transition-fast);
 }
 
-.size-btn:nth-child(1) { font-size: 0.8rem; }
-.size-btn:nth-child(2) { font-size: 1rem; }
-.size-btn:nth-child(3) { font-size: 1.2rem; }
+.size-btn:nth-child(1) { font-size: 0.75rem; }
+.size-btn:nth-child(2) { font-size: 0.95rem; }
+.size-btn:nth-child(3) { font-size: 1.15rem; }
+.size-btn:nth-child(4) { font-size: 1.4rem; }
 
 .size-btn:hover {
     border-color: var(--accent-primary);
@@ -757,7 +1142,7 @@ body {
 .verse {
     margin-bottom: 16px;
     line-height: 1.8;
-    font-family: var(--font-serif);
+    font-family: var(--font-reader);
     font-size: 1.1rem;
     color: var(--text-primary);
     text-align: justify;
@@ -1554,7 +1939,7 @@ body {
 }
 
 .parallel-verse .verse-text {
-    font-family: var(--font-serif);
+    font-family: var(--font-reader);
     font-size: 1.1rem;
     line-height: 1.8;
     color: var(--text-primary);
@@ -1572,6 +1957,11 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+}
+
+/* Hebrew column (right) — same width, text only is larger */
+.sync-column:last-child {
+    flex: 1;
 }
 
 .sync-column:first-child {
@@ -1597,7 +1987,7 @@ body {
     flex: 1;
     padding: 20px;
     overflow-y: auto;
-    font-family: var(--font-serif);
+    font-family: var(--font-reader);
     font-size: 1.15rem;
     line-height: 1.9;
 }
@@ -1724,6 +2114,10 @@ body {
     font-size: 1.3rem;
 }
 
+.reader-view.font-xlarge .verse {
+    font-size: 1.6rem;
+}
+
 /* Video view font sizes */
 .video-view.font-small .sync-verses {
     font-size: 0.95rem;
@@ -1737,6 +2131,10 @@ body {
     font-size: 1.4rem;
 }
 
+.video-view.font-xlarge .sync-verses {
+    font-size: 1.75rem;
+}
+
 /* Parallel view font sizes */
 .parallel-view.font-small .column-verses {
     font-size: 0.95rem;
@@ -1748,6 +2146,10 @@ body {
 
 .parallel-view.font-large .column-verses {
     font-size: 1.4rem;
+}
+
+.parallel-view.font-xlarge .column-verses {
+    font-size: 1.75rem;
 }
 
 /* ===== Responsive ===== */
@@ -1873,6 +2275,20 @@ body {
     
     .page-nav.next {
         right: 24px;
+    }
+
+    .video-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .videos-page-header h1 {
+        font-size: 2rem;
+    }
+
+    .lightbox-content {
+        width: 98vw;
+        border-radius: 8px;
     }
 }
 

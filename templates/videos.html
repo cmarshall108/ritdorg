@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Videos - RITDorg</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <!-- Ambient Background -->
+    <div class="ambient-bg">
+        <div class="gradient-orb orb-1"></div>
+        <div class="gradient-orb orb-2"></div>
+        <div class="gradient-orb orb-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-content">
+            <div class="logo">
+                <img src="/static/images/ritd-logo.png" alt="RITD Logo">
+                <span class="logo-text">RITDorg</span>
+            </div>
+            <div class="header-actions">
+                <form action="https://www.paypal.com/cgi-bin/webscr" method="post" style="margin: 0;">
+                    <input type="hidden" name="cmd" value="_s-xclick">
+                    <input type="hidden" name="hosted_button_id" value="9FPUAENMV9VPQ">
+                    <input type="image" src="https://www.paypal.com/en_US/i/btn/btn_donateCC_LG.gif" name="submit" alt="Donate to RITDorg with PayPal" style="vertical-align: middle;">
+                    <img alt="" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1">
+                </form>
+                <a href="https://www.youtube.com/@RITDorg" target="_blank" class="youtube-link" title="Visit RITDorg YouTube Channel">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                    </svg>
+                </a>
+                <button class="theme-toggle" id="themeToggle">
+                    <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <line x1="12" y1="1" x2="12" y2="3"/>
+                        <line x1="12" y1="21" x2="12" y2="23"/>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                        <line x1="1" y1="12" x2="3" y2="12"/>
+                        <line x1="21" y1="12" x2="23" y2="12"/>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+                    </svg>
+                    <svg class="moon-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <a href="/" class="nav-link">Home</a>
+            <a href="/videos" class="nav-link active">Videos</a>
+            <a href="/services" class="nav-link">Services</a>
+            <a href="/qa" class="nav-link">Q&A</a>
+            <a href="/newsletter" class="nav-link">Newsletter</a>
+            <a href="/founders" class="nav-link">Founders</a>
+            <a href="/contact" class="nav-link">Contact</a>
+            <a href="/hebrew-lessons" class="nav-link">Hebrew</a>
+            <a href="/downloads" class="nav-link">Downloads</a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="videos-page-wrapper">
+            <div class="videos-page-header">
+                <h1>Videos</h1>
+                <p>Watch recordings from RITDorg services, teachings, and events.</p>
+            </div>
+
+            <div class="video-grid">
+                {% for video in videos %}
+                <div class="video-card" data-video="{{ video }}">
+                    <div class="video-player-wrap">
+                        <video preload="metadata" playsinline>
+                            <source src="{{ url_for('static', filename='videos/' + video) }}" type="video/{{ 'mp4' if video.endswith('.mp4') else 'quicktime' }}">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="video-play-overlay">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="rgba(255,255,255,0.95)">
+                                <path d="M8 5v14l11-7z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="video-card-info">
+                        <span class="video-card-name">{{ video }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            {% if not videos %}
+            <div class="videos-empty">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+                    <line x1="7" y1="2" x2="7" y2="22"/>
+                    <line x1="17" y1="2" x2="17" y2="22"/>
+                    <line x1="2" y1="12" x2="22" y2="12"/>
+                    <line x1="2" y1="7" x2="7" y2="7"/>
+                    <line x1="2" y1="17" x2="7" y2="17"/>
+                    <line x1="17" y1="7" x2="22" y2="7"/>
+                    <line x1="17" y1="17" x2="22" y2="17"/>
+                </svg>
+                <p>No videos available yet.</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Video Lightbox -->
+    <div class="video-lightbox" id="videoLightbox">
+        <div class="lightbox-backdrop"></div>
+        <div class="lightbox-content">
+            <button class="lightbox-close" id="lightboxClose">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+            </button>
+            <video id="lightboxVideo" controls playsinline autoplay>
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // Theme toggle
+        (function() {
+            const toggle = document.getElementById('themeToggle');
+            const saved = localStorage.getItem('theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', saved);
+            toggle.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme');
+                const next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('theme', next);
+            });
+        })();
+
+        // Video card click → open lightbox
+        document.querySelectorAll('.video-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const videoFile = card.dataset.video;
+                const lightbox = document.getElementById('videoLightbox');
+                const lbVideo = document.getElementById('lightboxVideo');
+                const ext = videoFile.split('.').pop().toLowerCase();
+                const mimeType = ext === 'mp4' ? 'video/mp4' : 'video/quicktime';
+
+                lbVideo.innerHTML = `<source src="/static/videos/${videoFile}" type="${mimeType}">`;
+                lbVideo.load();
+                lbVideo.play();
+                lightbox.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+        });
+
+        // Close lightbox
+        function closeLightbox() {
+            const lightbox = document.getElementById('videoLightbox');
+            const lbVideo = document.getElementById('lightboxVideo');
+            lbVideo.pause();
+            lbVideo.removeAttribute('src');
+            lbVideo.innerHTML = '';
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+        document.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeLightbox();
+        });
+    </script>
+</body>
+</html>

@@ -67,6 +67,7 @@ class BibleReader {
     }
     
     init() {
+        this.searchDebounceTimer = null;
         this.bindEvents();
 
         // Initialize playback rate UI
@@ -222,6 +223,34 @@ class BibleReader {
         // Chapter navigation
         document.getElementById('prevChapterBtn').addEventListener('click', () => this.prevChapter());
         document.getElementById('nextChapterBtn').addEventListener('click', () => this.nextChapter());
+
+        // Search
+        const searchInput = document.getElementById('searchInput');
+        const searchClear = document.getElementById('searchClear');
+        const searchClose = document.getElementById('searchClose');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => this.onSearchInput());
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.performSearch();
+                }
+                if (e.key === 'Escape') {
+                    this.closeSearch();
+                }
+            });
+        }
+        if (searchClear) {
+            searchClear.addEventListener('click', () => this.clearSearch());
+        }
+        if (searchClose) {
+            searchClose.addEventListener('click', () => this.closeSearch());
+        }
+        document.getElementById('searchTranslation')?.addEventListener('change', () => {
+            if (document.getElementById('searchInput').value.trim().length >= 2) {
+                this.performSearch();
+            }
+        });
     }
     
     prevChapter() {
@@ -314,8 +343,11 @@ class BibleReader {
             
             // Update video view if active
             if (document.getElementById('videoView').classList.contains('active')) {
-                this.loadVideoSync();
+                await this.loadVideoSync();
             }
+
+            // Highlight verse from search navigation
+            this.highlightPendingVerse();
             
         } catch (error) {
             console.error('Failed to load verses:', error);
@@ -372,6 +404,7 @@ class BibleReader {
     
     nextPage() {
         if (this.isAnimating || this.currentPage >= this.pagesContent.length - 2) return;
+        this.clearSearchHighlight();
         
         this.isAnimating = true;
         const turningPage = document.getElementById('pageTurning');
@@ -409,6 +442,7 @@ class BibleReader {
     
     prevPage() {
         if (this.isAnimating || this.currentPage === 0) return;
+        this.clearSearchHighlight();
         
         this.isAnimating = true;
         const turningPage = document.getElementById('pageTurning');
@@ -450,17 +484,17 @@ class BibleReader {
         this.fontSize = size;
         // Apply to reader view
         const readerView = document.getElementById('readerView');
-        readerView.classList.remove('font-small', 'font-medium', 'font-large');
+        readerView.classList.remove('font-small', 'font-medium', 'font-large', 'font-xlarge');
         readerView.classList.add(`font-${size}`);
         
         // Apply to video view (Watch & Listen)
         const videoView = document.getElementById('videoView');
-        videoView.classList.remove('font-small', 'font-medium', 'font-large');
+        videoView.classList.remove('font-small', 'font-medium', 'font-large', 'font-xlarge');
         videoView.classList.add(`font-${size}`);
         
         // Apply to parallel view
         const parallelView = document.getElementById('parallelView');
-        parallelView.classList.remove('font-small', 'font-medium', 'font-large');
+        parallelView.classList.remove('font-small', 'font-medium', 'font-large', 'font-xlarge');
         parallelView.classList.add(`font-${size}`);
     }
     
@@ -848,21 +882,27 @@ class BibleReader {
         // If player exists, load new video or playlist
         if (this.player && this.isPlayerReady) {
             if (playlistId) {
-                // Use cuePlaylist then playVideoAt for better control
                 this.player.cuePlaylist({
                     list: playlistId,
                     listType: 'playlist',
                     index: playlistIndex
                 });
-                // Give it a moment then start playing
-                setTimeout(() => {
-                    if (this.player) {
-                        this.player.playVideoAt(playlistIndex);
-                    }
-                }, 500);
+                // Only auto-play if not navigating from search
+                if (!this.suppressAutoPlay) {
+                    setTimeout(() => {
+                        if (this.player) {
+                            this.player.playVideoAt(playlistIndex);
+                        }
+                    }, 500);
+                }
             } else if (videoId) {
-                this.player.loadVideoById(videoId);
+                if (this.suppressAutoPlay) {
+                    this.player.cueVideoById(videoId);
+                } else {
+                    this.player.loadVideoById(videoId);
+                }
             }
+            this.suppressAutoPlay = false;
             return;
         }
         
@@ -877,8 +917,11 @@ class BibleReader {
             'playsinline': 1,
             'controls': 1,  // Enable controls for playlist navigation
             'modestbranding': 1,
-            'rel': 0
+            'rel': 0,
+            'autoplay': this.suppressAutoPlay ? 0 : 1
         };
+        // Clear the flag after using it for new player creation
+        if (this.suppressAutoPlay) this.suppressAutoPlay = false;
         
         // If playlist ID provided, use playlist mode
         if (playlistId) {
@@ -936,6 +979,7 @@ class BibleReader {
     
     togglePlay() {
         if (!this.player || !this.isPlayerReady) return;
+        this.clearSearchHighlight();
         
         const state = this.player.getPlayerState();
         if (state === YT.PlayerState.PLAYING) {
@@ -1353,7 +1397,171 @@ class BibleReader {
         document.getElementById('timeDisplay').textContent = 
             `${formatTime(current)} / ${formatTime(duration)}`;
     }
-    
+
+    // ===== Bible Search =====
+    onSearchInput() {
+        const input = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('searchClear');
+        const query = input.value.trim();
+
+        clearBtn.classList.toggle('hidden', query.length === 0);
+
+        clearTimeout(this.searchDebounceTimer);
+        if (query.length >= 2) {
+            this.searchDebounceTimer = setTimeout(() => this.performSearch(), 400);
+        } else {
+            this.closeSearch();
+        }
+    }
+
+    async performSearch() {
+        const query = document.getElementById('searchInput').value.trim();
+        if (query.length < 2) return;
+
+        const translation = document.getElementById('searchTranslation').value;
+        const container = document.getElementById('searchResultsContainer');
+        const list = document.getElementById('searchResultsList');
+        const countEl = document.getElementById('searchResultsCount');
+
+        // Show loading
+        container.classList.remove('hidden');
+        list.innerHTML = '<div class="search-loading">Searching…</div>';
+        countEl.textContent = '';
+
+        try {
+            const url = `/api/search?q=${encodeURIComponent(query)}&translation=${encodeURIComponent(translation)}&limit=100`;
+            const resp = await fetch(url);
+            const data = await resp.json();
+
+            if (data.error) {
+                list.innerHTML = `<div class="search-no-results">${data.error}</div>`;
+                countEl.textContent = '';
+                return;
+            }
+
+            if (data.count === 0) {
+                list.innerHTML = '<div class="search-no-results">No results found</div>';
+                countEl.textContent = '0 results';
+                return;
+            }
+
+            countEl.textContent = `${data.count}${data.truncated ? '+' : ''} results`;
+
+            list.innerHTML = '';
+            data.results.forEach(r => {
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                item.dataset.book = r.book;
+                item.dataset.chapter = r.chapter;
+                item.dataset.verse = r.verse;
+
+                // Highlight the query in the snippet
+                const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${escapedQuery})`, 'gi');
+                const highlighted = r.snippet.replace(regex, '<mark>$1</mark>');
+
+                item.innerHTML = `
+                    <div class="search-result-ref">
+                        <span class="search-result-book">${r.book} ${r.chapter}:${r.verse}</span>
+                        <span class="search-result-trans">${r.translation}</span>
+                    </div>
+                    <div class="search-result-text">${highlighted}</div>
+                `;
+
+                item.addEventListener('click', () => {
+                    this.navigateToVerse(r.book, r.chapter, r.verse, query);
+                });
+
+                list.appendChild(item);
+            });
+        } catch (err) {
+            list.innerHTML = '<div class="search-no-results">Search failed. Please try again.</div>';
+            console.error('Search error:', err);
+        }
+    }
+
+    navigateToVerse(book, chapter, verse, searchQuery = '') {
+        this.currentBook = book;
+        this.currentChapter = chapter;
+        this.pendingHighlightVerse = verse;
+        this.pendingSearchQuery = searchQuery;
+        this.suppressAutoPlay = true;
+        document.getElementById('bookSelect').value = book;
+        this.loadChapters(book, chapter);
+        this.closeSearch();
+    }
+
+    highlightPendingVerse() {
+        const verse = this.pendingHighlightVerse;
+        if (!verse) return;
+        this.pendingHighlightVerse = null;
+
+        // Small delay to ensure DOM is rendered
+        setTimeout(() => {
+            // Clear any existing search highlights
+            document.querySelectorAll('.search-highlight').forEach(el => el.classList.remove('search-highlight'));
+
+            // Find and highlight the verse in all visible views
+            const selectors = [
+                `.sync-verse[data-verse="${verse}"]`,
+                `.verse[data-verse="${verse}"]`,
+                `.parallel-verse[data-verse="${verse}"]`
+            ];
+
+            const query = this.pendingSearchQuery || '';
+            this.pendingSearchQuery = null;
+
+            let scrolled = false;
+            selectors.forEach(sel => {
+                document.querySelectorAll(sel).forEach(el => {
+                    el.classList.add('search-highlight');
+
+                    // Highlight the matched search text within the verse
+                    if (query) {
+                        const escapedQ = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const re = new RegExp(`(${escapedQ})`, 'gi');
+                        // Only process text nodes to avoid breaking HTML structure
+                        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+                        const textNodes = [];
+                        while (walker.nextNode()) textNodes.push(walker.currentNode);
+                        textNodes.forEach(node => {
+                            if (re.test(node.nodeValue)) {
+                                const span = document.createElement('span');
+                                span.innerHTML = node.nodeValue.replace(re, '<mark class="search-term">$1</mark>');
+                                node.parentNode.replaceChild(span, node);
+                            }
+                        });
+                    }
+
+                    if (!scrolled) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        scrolled = true;
+                    }
+                });
+            });
+        }, 300);
+    }
+
+    clearSearchHighlight() {
+        document.querySelectorAll('.search-highlight').forEach(el => {
+            // Remove inline <mark> tags, restoring original text
+            el.querySelectorAll('mark.search-term').forEach(mark => {
+                mark.replaceWith(mark.textContent);
+            });
+            el.classList.remove('search-highlight');
+        });
+    }
+
+    clearSearch() {
+        const input = document.getElementById('searchInput');
+        input.value = '';
+        document.getElementById('searchClear').classList.add('hidden');
+        this.closeSearch();
+    }
+
+    closeSearch() {
+        document.getElementById('searchResultsContainer').classList.add('hidden');
+    }
 
     
     // ===== Toast Notifications =====

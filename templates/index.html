@@ -14,9 +14,8 @@
     <nav class="top-nav">
         <div class="nav-container">
             <a href="/" class="nav-link active">Home</a>
-            <a href="/vision" class="nav-link">Vision</a>
+            <a href="/videos" class="nav-link">Videos</a>
             <a href="/services" class="nav-link">Services</a>
-            <a href="/classes" class="nav-link">Classes</a>
             <a href="/qa" class="nav-link">Questions & Answers</a>
             <a href="/newsletter" class="nav-link">Newsletter</a>
             <a href="/founders" class="nav-link">Founders</a>
@@ -107,6 +106,31 @@
                 <div class="sidebar-header">
                     <h2>Scripture</h2>
                 </div>
+
+            <!-- Search -->
+            <div class="bible-search">
+                <label for="searchInput">Search</label>
+                <div class="search-input-wrap">
+                    <input type="text" id="searchInput" class="styled-input" placeholder="Search the Bible…" autocomplete="off" />
+                    <button class="search-clear-btn hidden" id="searchClear" title="Clear search">&times;</button>
+                </div>
+                <div class="search-options">
+                    <select id="searchTranslation" class="styled-select mini">
+                        <option value="all">All Translations</option>
+                        {% for trans in translations %}
+                        <option value="{{ trans }}">{{ trans }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="search-results-container hidden" id="searchResultsContainer">
+                    <div class="search-results-header">
+                        <span id="searchResultsCount"></span>
+                        <button class="search-close-btn" id="searchClose" title="Close results">&times;</button>
+                    </div>
+                    <div class="search-results-list" id="searchResultsList"></div>
+                </div>
+            </div>
+
             <div class="book-selector">
                 <label for="bookSelect">Book</label>
                 <select id="bookSelect" class="styled-select">
@@ -135,6 +159,7 @@
                         <button class="size-btn" data-size="small">A</button>
                         <button class="size-btn active" data-size="medium">A</button>
                         <button class="size-btn" data-size="large">A</button>
+                        <button class="size-btn" data-size="xlarge">A</button>
                     </div>
                 </div>
             </div>
