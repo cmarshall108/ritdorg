@@ -4,8 +4,8 @@ set -e
 cd "$(dirname "$0")"
 
 echo "Installing dependencies..."
-pip install -r requirements.txt
-pip install uvicorn asgiref
+pip install -r requirements.txt --break-system-packages
+pip install uvicorn asgiref --break-system-packages
 
 echo "Starting server on 0.0.0.0:80 with uvicorn..."
 sudo $(which python) -c "
