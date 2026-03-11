@@ -4,8 +4,8 @@ set -e
 cd "$(dirname "$0")"
 
 echo "Installing dependencies..."
-pip install -r requirements.txt --break-system-packages
-pip install uvicorn asgiref --break-system-packages
+sudo python3 -m pip install -r requirements.txt --break-system-packages
+sudo python3 -m pip install uvicorn asgiref --break-system-packages
 
 echo "Starting server on 0.0.0.0:80 with uvicorn..."
 PYTHON_BIN=$(which python3 || which python)
