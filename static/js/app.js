@@ -1511,7 +1511,10 @@ class BibleReader {
             const query = this.pendingSearchQuery || '';
             this.pendingSearchQuery = null;
 
-            let scrolled = false;
+            // Track which scroll containers we've already scrolled so we
+            // scroll once per container (each side of the reader).
+            const scrolledContainers = new Set();
+
             selectors.forEach(sel => {
                 document.querySelectorAll(sel).forEach(el => {
                     el.classList.add('search-highlight');
@@ -1533,9 +1536,13 @@ class BibleReader {
                         });
                     }
 
-                    if (!scrolled) {
+                    // Scroll each scrollable container to the highlighted verse
+                    // independently, so both sides of the reader stay in sync.
+                    const scrollParent = el.closest('.sync-verses, .parallel-column, .verses, .page-content');
+                    const containerId = scrollParent ? (scrollParent.id || scrollParent.className) : '__default__';
+                    if (!scrolledContainers.has(containerId)) {
+                        scrolledContainers.add(containerId);
                         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        scrolled = true;
                     }
                 });
             });
