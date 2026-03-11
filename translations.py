@@ -3711,7 +3711,7 @@ RITDORG_PLAYLISTS = {
     "2 Thessalonians": "PL7FCA5D557C77621C",
     "1 Timothy": "PL508DD75524DAEBF3",
     "2 Timothy": "PL508DD75524DAEBF3",
-    "Titus": "PLD76DCB5F9C21F55B",
+    "Titus": "PL918EB912FE698947",
     "Philemon": "PL9365ED30D7B1B20B",
     "Hebrews": "PL9723FF3C7686CB9D",
     "James": "PL2804B8E3A8F22208",
@@ -3788,8 +3788,8 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "John_1": {
-        "video_id": "GQI72THyO5I",  # Replace with actual RITDorg video ID for John 1
-        "playlist_id": "PL5C9F7E5D8A2B1E46",
+        "video_id": "6sF0lGB3m8k",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
         "playlist_index": 0,  # Chapter 1 = index 0
         "channel": "RITDorg",
         "title": "John Chapter 1 - Bible Reading",
@@ -3845,8 +3845,8 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "John_3": {
-        "video_id": "GQI72THyO5I",  # Replace with actual RITDorg video ID for John 3
-        "playlist_id": "PL5C9F7E5D8A2B1E46",
+        "video_id": "n5sdcayXC90",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
         "playlist_index": 2,  # John 3 position in playlist
         "channel": "RITDorg",
         "title": "John Chapter 3 - Bible Reading",
@@ -4047,7 +4047,7 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Matthew_5": {
-        "video_id": "placeholder_video_id",
+        "video_id": "Zt8snQtce7s",
         "playlist_id": "PLE4CE9660EAE8B8A4",
         "playlist_index": 4,
         "channel": "RITDorg",
@@ -4104,7 +4104,7 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Matthew_6": {
-        "video_id": "placeholder_video_id",
+        "video_id": "qFwzrTNnD10",
         "playlist_id": "PLE4CE9660EAE8B8A4",
         "playlist_index": 5,
         "channel": "RITDorg",
@@ -4147,7 +4147,7 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Matthew_7": {
-        "video_id": "placeholder_video_id",
+        "video_id": "HYT0NMoAXaM",
         "playlist_id": "PLE4CE9660EAE8B8A4",
         "playlist_index": 6,
         "channel": "RITDorg",
@@ -4185,7 +4185,7 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Matthew_8": {
-        "video_id": "placeholder_video_id",
+        "video_id": "KNRhrd3Pieg",
         "playlist_id": "PLE4CE9660EAE8B8A4",
         "playlist_index": 7,
         "channel": "RITDorg",
@@ -4228,7 +4228,7 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Matthew_9": {
-        "video_id": "placeholder_video_id",
+        "video_id": "6piz4pBs2xw",
         "playlist_id": "PLE4CE9660EAE8B8A4",
         "playlist_index": 8,
         "channel": "RITDorg",
@@ -4275,7 +4275,7 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Matthew_10": {
-        "video_id": "placeholder_video_id",
+        "video_id": "c2fL5ca85oA",
         "playlist_id": "PLE4CE9660EAE8B8A4",
         "playlist_index": 9,
         "channel": "RITDorg",
@@ -4326,7 +4326,7 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Matthew_11": {
-        "video_id": "placeholder_video_id",
+        "video_id": "9IeAankAl0U",
         "playlist_id": "PLE4CE9660EAE8B8A4",
         "playlist_index": 10,
         "channel": "RITDorg",
@@ -4365,7 +4365,7 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Matthew_12": {
-        "video_id": "placeholder_video_id",
+        "video_id": "XWnWEDvtDZY",
         "playlist_id": "PLE4CE9660EAE8B8A4",
         "playlist_index": 11,
         "channel": "RITDorg",
@@ -4424,9 +4424,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_1": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 12,
+        "video_id": "OEse0oVoMhY",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 0,
         "channel": "RITDorg",
         "title": "Mark Chapter 1 - Bible Reading",
         "timestamps": [
@@ -4478,9 +4478,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_2": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 13,
+        "video_id": "T_epjDnpldE",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 1,
         "channel": "RITDorg",
         "title": "Mark Chapter 2 - Bible Reading",
         "timestamps": [
@@ -4515,9 +4515,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_3": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 14,
+        "video_id": "krZB7c6pK8Y",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 2,
         "channel": "RITDorg",
         "title": "Mark Chapter 3 - Bible Reading",
         "timestamps": [
@@ -4559,9 +4559,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_4": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 15,
+        "video_id": "5d90y3MrV9U",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 3,
         "channel": "RITDorg",
         "title": "Mark Chapter 4 - Bible Reading",
         "timestamps": [
@@ -4609,9 +4609,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_5": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 16,
+        "video_id": "v8WmrmBXVm4",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 4,
         "channel": "RITDorg",
         "title": "Mark Chapter 5 - Bible Reading",
         "timestamps": [
@@ -4661,9 +4661,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_6": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 17,
+        "video_id": "g8YYSXW7ib4",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 5,
         "channel": "RITDorg",
         "title": "Mark Chapter 6 - Bible Reading",
         "timestamps": [
@@ -4726,9 +4726,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_7": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 18,
+        "video_id": "EFk0-T9tGtY",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 6,
         "channel": "RITDorg",
         "title": "Mark Chapter 7 - Bible Reading",
         "timestamps": [
@@ -4772,9 +4772,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_8": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 19,
+        "video_id": "pMrM_U1iPTw",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 7,
         "channel": "RITDorg",
         "title": "Mark Chapter 8 - Bible Reading",
         "timestamps": [
@@ -4819,9 +4819,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_9": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 20,
+        "video_id": "PXGH6JI7LNo",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 8,
         "channel": "RITDorg",
         "title": "Mark Chapter 9 - Bible Reading",
         "timestamps": [
@@ -4878,9 +4878,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_10": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 21,
+        "video_id": "M2gg9gQEi1o",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 9,
         "channel": "RITDorg",
         "title": "Mark Chapter 10 - Bible Reading",
         "timestamps": [
@@ -4939,9 +4939,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_11": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 22,
+        "video_id": "-yXJu7UEtok",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 10,
         "channel": "RITDorg",
         "title": "Mark Chapter 11 - Bible Reading",
         "timestamps": [
@@ -4981,9 +4981,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_12": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 23,
+        "video_id": "0ow_EuCUwyw",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 11,
         "channel": "RITDorg",
         "title": "Mark Chapter 12 - Bible Reading",
         "timestamps": [
@@ -5034,9 +5034,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_13": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 24,
+        "video_id": "yQl4K_d1iVE",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 12,
         "channel": "RITDorg",
         "title": "Mark Chapter 13 - Bible Reading",
         "timestamps": [
@@ -5080,9 +5080,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_14": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 25,
+        "video_id": "y5Rkaf8WI1Y",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 13,
         "channel": "RITDorg",
         "title": "Mark Chapter 14 - Bible Reading",
         "timestamps": [
@@ -5161,9 +5161,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_15": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 26,
+        "video_id": "DTR29so9JOY",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 14,
         "channel": "RITDorg",
         "title": "Mark Chapter 15 - Bible Reading",
         "timestamps": [
@@ -5217,9 +5217,9 @@ VIDEO_SYNC_DATA = {
         ]
     },
     "Mark_16": {
-        "video_id": "placeholder_video_id",
-        "playlist_id": "PLE4CE9660EAE8B8A4",
-        "playlist_index": 27,
+        "video_id": "qLa3gHwL9f0",
+        "playlist_id": "PLA91B16AF9E13CAB9",
+        "playlist_index": 15,
         "channel": "RITDorg",
         "title": "Mark Chapter 16 - Bible Reading",
         "timestamps": [
@@ -5245,6 +5245,1839 @@ VIDEO_SYNC_DATA = {
             {"verse": 20, "start": 285, "end": 300}
         ]
     },
+    "Matthew_13": {
+        "video_id": "h163Cp1NHrU",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 12,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 13",
+        "timestamps": []
+    },
+    "Matthew_14": {
+        "video_id": "owJ2HwZs4lw",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 13,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 14",
+        "timestamps": []
+    },
+    "Matthew_15": {
+        "video_id": "2QnKG2TFouw",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 14,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 15",
+        "timestamps": []
+    },
+    "Matthew_16": {
+        "video_id": "V6Zafux2KCE",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 15,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 16",
+        "timestamps": []
+    },
+    "Matthew_17": {
+        "video_id": "oZi6vSgCzdI",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 16,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 17",
+        "timestamps": []
+    },
+    "Matthew_18": {
+        "video_id": "Jhq0RS_GJmI",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 17,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 18",
+        "timestamps": []
+    },
+    "Matthew_19": {
+        "video_id": "mZu9Vwi4ctU",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 18,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 19",
+        "timestamps": []
+    },
+    "Matthew_20": {
+        "video_id": "BV7BypSUWdw",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 19,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 20",
+        "timestamps": []
+    },
+    "Matthew_21": {
+        "video_id": "qMPe3rCzNAU",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 20,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 21",
+        "timestamps": []
+    },
+    "Matthew_22": {
+        "video_id": "sOJ-WpJGe6Y",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 21,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 22",
+        "timestamps": []
+    },
+    "Matthew_23": {
+        "video_id": "x6yfikhJFJE",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 22,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 23",
+        "timestamps": []
+    },
+    "Matthew_24": {
+        "video_id": "Qi00HSfV1EM",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 23,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 24",
+        "timestamps": []
+    },
+    "Matthew_25": {
+        "video_id": "7RpWN_TQ1w0",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 24,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 25",
+        "timestamps": []
+    },
+    "Matthew_26": {
+        "video_id": "rn_OvJxIjqc",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 25,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 26",
+        "timestamps": []
+    },
+    "Matthew_27": {
+        "video_id": "Srh5s2oWjDw",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 26,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 27",
+        "timestamps": []
+    },
+    "Matthew_28": {
+        "video_id": "9_CMRJhvWn8",
+        "playlist_id": "PLE4CE9660EAE8B8A4",
+        "playlist_index": 27,
+        "channel": "RITDorg",
+        "title": "Matthew Chapter 28",
+        "timestamps": []
+    },
+    "Luke_1": {
+        "video_id": "jA81MbugMko",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 1",
+        "timestamps": []
+    },
+    "Luke_2": {
+        "video_id": "1tq04n_szWA",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 2",
+        "timestamps": []
+    },
+    "Luke_3": {
+        "video_id": "uEveGkcuZgU",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 3",
+        "timestamps": []
+    },
+    "Luke_4": {
+        "video_id": "5c7MKV_n6n8",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 4",
+        "timestamps": []
+    },
+    "Luke_5": {
+        "video_id": "y3YrMwnkUxE",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 5",
+        "timestamps": []
+    },
+    "Luke_6": {
+        "video_id": "ZnKEKvA7nyA",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 6",
+        "timestamps": []
+    },
+    "Luke_7": {
+        "video_id": "GMcSkAPzbQU",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 7",
+        "timestamps": []
+    },
+    "Luke_8": {
+        "video_id": "MW0ZkQo0c_E",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 8",
+        "timestamps": []
+    },
+    "Luke_9": {
+        "video_id": "J_JqFL5THfI",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 8,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 9",
+        "timestamps": []
+    },
+    "Luke_10": {
+        "video_id": "Isg_aMnYdkw",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 9,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 10",
+        "timestamps": []
+    },
+    "Luke_11": {
+        "video_id": "YRLE7jAJ9N0",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 10,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 11",
+        "timestamps": []
+    },
+    "Luke_12": {
+        "video_id": "Wo5x9ZvzTuM",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 11,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 12",
+        "timestamps": []
+    },
+    "Luke_13": {
+        "video_id": "jiR3VtXZnxE",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 12,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 13",
+        "timestamps": []
+    },
+    "Luke_14": {
+        "video_id": "RxatQzto9jQ",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 13,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 14",
+        "timestamps": []
+    },
+    "Luke_15": {
+        "video_id": "A4aM0lingfc",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 14,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 15",
+        "timestamps": []
+    },
+    "Luke_16": {
+        "video_id": "3wHYr6nFVME",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 15,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 16",
+        "timestamps": []
+    },
+    "Luke_17": {
+        "video_id": "DU2fv13msNQ",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 16,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 17",
+        "timestamps": []
+    },
+    "Luke_18": {
+        "video_id": "u1o7YgxxXgw",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 17,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 18",
+        "timestamps": []
+    },
+    "Luke_19": {
+        "video_id": "BbJr7vsMLo0",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 18,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 19",
+        "timestamps": []
+    },
+    "Luke_20": {
+        "video_id": "KFNGZ3SoQCw",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 19,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 20",
+        "timestamps": []
+    },
+    "Luke_21": {
+        "video_id": "-RG-ghkhwRc",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 20,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 21",
+        "timestamps": []
+    },
+    "Luke_22": {
+        "video_id": "_rxpS2U6DS8",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 21,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 22",
+        "timestamps": []
+    },
+    "Luke_23": {
+        "video_id": "DWT9FwePXOk",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 22,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 23",
+        "timestamps": []
+    },
+    "Luke_24": {
+        "video_id": "YSuuQL8Y7Gg",
+        "playlist_id": "PL2632F0F056E39454",
+        "playlist_index": 23,
+        "channel": "RITDorg",
+        "title": "Luke Chapter 24",
+        "timestamps": []
+    },
+    "John_2": {
+        "video_id": "3XM7-GtAh9o",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "John Chapter 2",
+        "timestamps": []
+    },
+    "John_4": {
+        "video_id": "hQ_3abXuXO8",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "John Chapter 4",
+        "timestamps": []
+    },
+    "John_5": {
+        "video_id": "-eXmCquFDU0",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "John Chapter 5",
+        "timestamps": []
+    },
+    "John_6": {
+        "video_id": "ADUvWaJgCWE",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "John Chapter 6",
+        "timestamps": []
+    },
+    "John_7": {
+        "video_id": "dl1XJgRmsVE",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "John Chapter 7",
+        "timestamps": []
+    },
+    "John_8": {
+        "video_id": "Huk7vrhQY2U",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "John Chapter 8",
+        "timestamps": []
+    },
+    "John_9": {
+        "video_id": "mcn020L8nmw",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 8,
+        "channel": "RITDorg",
+        "title": "John Chapter 9",
+        "timestamps": []
+    },
+    "John_10": {
+        "video_id": "c8oX-mV2fXk",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 9,
+        "channel": "RITDorg",
+        "title": "John Chapter 10",
+        "timestamps": []
+    },
+    "John_11": {
+        "video_id": "znOnetDYxIE",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 10,
+        "channel": "RITDorg",
+        "title": "John Chapter 11",
+        "timestamps": []
+    },
+    "John_12": {
+        "video_id": "aK_bf7IrVSs",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 11,
+        "channel": "RITDorg",
+        "title": "John Chapter 12",
+        "timestamps": []
+    },
+    "John_13": {
+        "video_id": "WD5FcQaNCh8",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 12,
+        "channel": "RITDorg",
+        "title": "John Chapter 13",
+        "timestamps": []
+    },
+    "John_14": {
+        "video_id": "WQgzP500N10",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 13,
+        "channel": "RITDorg",
+        "title": "John Chapter 14",
+        "timestamps": []
+    },
+    "John_15": {
+        "video_id": "MNk_Jz6vfJU",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 14,
+        "channel": "RITDorg",
+        "title": "John Chapter 15",
+        "timestamps": []
+    },
+    "John_16": {
+        "video_id": "kbXO_eYIcuA",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 15,
+        "channel": "RITDorg",
+        "title": "John Chapter 16",
+        "timestamps": []
+    },
+    "John_17": {
+        "video_id": "UkOrbqBqGqU",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 16,
+        "channel": "RITDorg",
+        "title": "John Chapter 17",
+        "timestamps": []
+    },
+    "John_18": {
+        "video_id": "i1_jEUht3jg",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 17,
+        "channel": "RITDorg",
+        "title": "John Chapter 18",
+        "timestamps": []
+    },
+    "John_19": {
+        "video_id": "0mFC2lZeaZ4",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 18,
+        "channel": "RITDorg",
+        "title": "John Chapter 19",
+        "timestamps": []
+    },
+    "John_20": {
+        "video_id": "JyP_63ljU2s",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 19,
+        "channel": "RITDorg",
+        "title": "John Chapter 20",
+        "timestamps": []
+    },
+    "John_21": {
+        "video_id": "eMLdgVRIj-k",
+        "playlist_id": "PLFAFEBA158ECCFEAB",
+        "playlist_index": 20,
+        "channel": "RITDorg",
+        "title": "John Chapter 21",
+        "timestamps": []
+    },
+    "Acts_1": {
+        "video_id": "lvFWaKzTwa4",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 1",
+        "timestamps": []
+    },
+    "Acts_2": {
+        "video_id": "HaypneUgiok",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 2",
+        "timestamps": []
+    },
+    "Acts_3": {
+        "video_id": "xpqxH8u0vaQ",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 3",
+        "timestamps": []
+    },
+    "Acts_4": {
+        "video_id": "1rNppnNshCY",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 4",
+        "timestamps": []
+    },
+    "Acts_5": {
+        "video_id": "gluuE328dAc",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 5",
+        "timestamps": []
+    },
+    "Acts_6": {
+        "video_id": "1iygm-8zuiQ",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 6",
+        "timestamps": []
+    },
+    "Acts_7": {
+        "video_id": "5NYbW1D39uY",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 7",
+        "timestamps": []
+    },
+    "Acts_8": {
+        "video_id": "fBODe2L8KxY",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 8",
+        "timestamps": []
+    },
+    "Acts_9": {
+        "video_id": "vLdHTvVmTlg",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 8,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 9",
+        "timestamps": []
+    },
+    "Acts_10": {
+        "video_id": "xsN5vthIPB0",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 9,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 10",
+        "timestamps": []
+    },
+    "Acts_11": {
+        "video_id": "iND3tqWehik",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 10,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 11",
+        "timestamps": []
+    },
+    "Acts_12": {
+        "video_id": "SaiqezlHtII",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 11,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 12",
+        "timestamps": []
+    },
+    "Acts_13": {
+        "video_id": "jxVc7Q2pG60",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 12,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 13",
+        "timestamps": []
+    },
+    "Acts_14": {
+        "video_id": "_X1ynJC_aSQ",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 13,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 14",
+        "timestamps": []
+    },
+    "Acts_15": {
+        "video_id": "FKFXwTRUOVE",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 14,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 15",
+        "timestamps": []
+    },
+    "Acts_16": {
+        "video_id": "K10qWlmdw48",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 15,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 16",
+        "timestamps": []
+    },
+    "Acts_17": {
+        "video_id": "vHp3G43-t3w",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 16,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 17",
+        "timestamps": []
+    },
+    "Acts_18": {
+        "video_id": "b6Pv67JxLh0",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 17,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 18",
+        "timestamps": []
+    },
+    "Acts_19": {
+        "video_id": "DFyn4ONsCUg",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 18,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 19",
+        "timestamps": []
+    },
+    "Acts_20": {
+        "video_id": "i4_jG1GGxRc",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 19,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 20",
+        "timestamps": []
+    },
+    "Acts_21": {
+        "video_id": "Hm2vclfWyso",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 20,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 21",
+        "timestamps": []
+    },
+    "Acts_22": {
+        "video_id": "fQMpJOPBdQw",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 21,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 22",
+        "timestamps": []
+    },
+    "Acts_23": {
+        "video_id": "OoUp27719oI",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 22,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 23",
+        "timestamps": []
+    },
+    "Acts_24": {
+        "video_id": "XvChM8PeRxY",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 23,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 24",
+        "timestamps": []
+    },
+    "Acts_25": {
+        "video_id": "gquooh_9JK0",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 24,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 25",
+        "timestamps": []
+    },
+    "Acts_26": {
+        "video_id": "p9zDymCvPR4",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 25,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 26",
+        "timestamps": []
+    },
+    "Acts_27": {
+        "video_id": "MPecfggjBxU",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 26,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 27",
+        "timestamps": []
+    },
+    "Acts_28": {
+        "video_id": "T2QebLOv7Po",
+        "playlist_id": "PLF3BAE2BB6D5312E4",
+        "playlist_index": 27,
+        "channel": "RITDorg",
+        "title": "Acts Chapter 28",
+        "timestamps": []
+    },
+    "Romans_1": {
+        "video_id": "GUAetnSOBEs",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 1",
+        "timestamps": []
+    },
+    "Romans_2": {
+        "video_id": "38qPckmsc3I",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 2",
+        "timestamps": []
+    },
+    "Romans_3": {
+        "video_id": "bICaEK1YPTM",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 3",
+        "timestamps": []
+    },
+    "Romans_4": {
+        "video_id": "23XQFiNpHt4",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 4",
+        "timestamps": []
+    },
+    "Romans_5": {
+        "video_id": "ggLB0x5kjUg",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 5",
+        "timestamps": []
+    },
+    "Romans_6": {
+        "video_id": "vgawVPlBvjI",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 6",
+        "timestamps": []
+    },
+    "Romans_7": {
+        "video_id": "kMGa56DwWA0",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 7",
+        "timestamps": []
+    },
+    "Romans_8": {
+        "video_id": "q1cLts7kJUM",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 8",
+        "timestamps": []
+    },
+    "Romans_9": {
+        "video_id": "XUyVO35Tv08",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 8,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 9",
+        "timestamps": []
+    },
+    "Romans_10": {
+        "video_id": "ExrLnUeLEJo",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 9,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 10",
+        "timestamps": []
+    },
+    "Romans_11": {
+        "video_id": "o28f5P3og8I",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 10,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 11",
+        "timestamps": []
+    },
+    "Romans_12": {
+        "video_id": "nlzozVpsceU",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 11,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 12",
+        "timestamps": []
+    },
+    "Romans_13": {
+        "video_id": "nnp-TXhqakY",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 12,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 13",
+        "timestamps": []
+    },
+    "Romans_14": {
+        "video_id": "8fdZu3nz_OQ",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 13,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 14",
+        "timestamps": []
+    },
+    "Romans_15": {
+        "video_id": "AV3CT7GQaNw",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 14,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 15",
+        "timestamps": []
+    },
+    "Romans_16": {
+        "video_id": "2Sw-DX9zWT8",
+        "playlist_id": "PLC9EA52FD9074F211",
+        "playlist_index": 15,
+        "channel": "RITDorg",
+        "title": "Romans Chapter 16",
+        "timestamps": []
+    },
+    "1_Corinthians_1": {
+        "video_id": "ZxafON1kd_Q",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 1",
+        "timestamps": []
+    },
+    "1_Corinthians_2": {
+        "video_id": "2YffdDdJa5o",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 2",
+        "timestamps": []
+    },
+    "1_Corinthians_3": {
+        "video_id": "mdchVprqjfQ",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 3",
+        "timestamps": []
+    },
+    "1_Corinthians_4": {
+        "video_id": "Fa_zJQZv1JM",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 4",
+        "timestamps": []
+    },
+    "1_Corinthians_5": {
+        "video_id": "Sj1Q0pe7iYE",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 5",
+        "timestamps": []
+    },
+    "1_Corinthians_6": {
+        "video_id": "WxVKfPQzTOk",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 6",
+        "timestamps": []
+    },
+    "1_Corinthians_7": {
+        "video_id": "JAUkLv6n5MM",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 7",
+        "timestamps": []
+    },
+    "1_Corinthians_8": {
+        "video_id": "-Hw4rE0Gcuk",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 8",
+        "timestamps": []
+    },
+    "1_Corinthians_9": {
+        "video_id": "ob4gnqx8EO0",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 8,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 9",
+        "timestamps": []
+    },
+    "1_Corinthians_10": {
+        "video_id": "D61PBmYAOu0",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 9,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 10",
+        "timestamps": []
+    },
+    "1_Corinthians_11": {
+        "video_id": "0MSoPuySxAA",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 10,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 11",
+        "timestamps": []
+    },
+    "1_Corinthians_12": {
+        "video_id": "Pwu61dRpKCY",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 11,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 12",
+        "timestamps": []
+    },
+    "1_Corinthians_13": {
+        "video_id": "0NzGmtjZW0s",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 12,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 13",
+        "timestamps": []
+    },
+    "1_Corinthians_14": {
+        "video_id": "uvpC6qyK_BA",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 13,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 14",
+        "timestamps": []
+    },
+    "1_Corinthians_15": {
+        "video_id": "fUPkKp4YDe4",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 14,
+        "channel": "RITDorg",
+        "title": "1 Corinthians Chapter 15",
+        "timestamps": []
+    },
+    "2_Corinthians_1": {
+        "video_id": "AtemynLc_lY",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 15,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 1",
+        "timestamps": []
+    },
+    "2_Corinthians_2": {
+        "video_id": "tCj9aAnjhWA",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 16,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 2",
+        "timestamps": []
+    },
+    "2_Corinthians_3": {
+        "video_id": "0da1LRa0TGo",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 17,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 3",
+        "timestamps": []
+    },
+    "2_Corinthians_4": {
+        "video_id": "lNpfU7KdmvM",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 18,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 4",
+        "timestamps": []
+    },
+    "2_Corinthians_5": {
+        "video_id": "1s_1zBRQGvQ",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 19,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 5",
+        "timestamps": []
+    },
+    "2_Corinthians_6": {
+        "video_id": "_BH1wfDx9hc",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 20,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 6",
+        "timestamps": []
+    },
+    "2_Corinthians_7": {
+        "video_id": "F6wgMNX2VXM",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 21,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 7",
+        "timestamps": []
+    },
+    "2_Corinthians_8": {
+        "video_id": "Vx-vmd3Ao0k",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 22,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 8",
+        "timestamps": []
+    },
+    "2_Corinthians_9": {
+        "video_id": "cuTrhJUVOpM",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 23,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 9",
+        "timestamps": []
+    },
+    "2_Corinthians_10": {
+        "video_id": "FRnoFTyAunQ",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 24,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 10",
+        "timestamps": []
+    },
+    "2_Corinthians_11": {
+        "video_id": "ZCWIDQ81PQ0",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 25,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 11",
+        "timestamps": []
+    },
+    "2_Corinthians_12": {
+        "video_id": "BkKIO3J8AWA",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 26,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 12",
+        "timestamps": []
+    },
+    "2_Corinthians_13": {
+        "video_id": "soHuBwbk-xo",
+        "playlist_id": "PL5F42D680197DC055",
+        "playlist_index": 27,
+        "channel": "RITDorg",
+        "title": "2 Corinthians Chapter 13",
+        "timestamps": []
+    },
+    "Galatians_1": {
+        "video_id": "IHtoGMYlnbI",
+        "playlist_id": "PL9B8DF43889D35D48",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Galatians Chapter 1",
+        "timestamps": []
+    },
+    "Galatians_2": {
+        "video_id": "yK_WeH17r2I",
+        "playlist_id": "PL9B8DF43889D35D48",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Galatians Chapter 2",
+        "timestamps": []
+    },
+    "Galatians_3": {
+        "video_id": "iEEMU50P0HI",
+        "playlist_id": "PL9B8DF43889D35D48",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Galatians Chapter 3",
+        "timestamps": []
+    },
+    "Galatians_4": {
+        "video_id": "0uB2MHzJDF4",
+        "playlist_id": "PL9B8DF43889D35D48",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Galatians Chapter 4",
+        "timestamps": []
+    },
+    "Galatians_5": {
+        "video_id": "SLRAs4Rh5vM",
+        "playlist_id": "PL9B8DF43889D35D48",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "Galatians Chapter 5",
+        "timestamps": []
+    },
+    "Galatians_6": {
+        "video_id": "3zwosN6GruA",
+        "playlist_id": "PL9B8DF43889D35D48",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "Galatians Chapter 6",
+        "timestamps": []
+    },
+    "Ephesians_1": {
+        "video_id": "mOOxIEZ1pQo",
+        "playlist_id": "PL65D1E1FBD3766A2E",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Ephesians Chapter 1",
+        "timestamps": []
+    },
+    "Ephesians_2": {
+        "video_id": "Ng2vXVTS528",
+        "playlist_id": "PL65D1E1FBD3766A2E",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Ephesians Chapter 2",
+        "timestamps": []
+    },
+    "Ephesians_3": {
+        "video_id": "KJOqj2B7Dko",
+        "playlist_id": "PL65D1E1FBD3766A2E",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Ephesians Chapter 3",
+        "timestamps": []
+    },
+    "Ephesians_4": {
+        "video_id": "B7PhmpIJghc",
+        "playlist_id": "PL65D1E1FBD3766A2E",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Ephesians Chapter 4",
+        "timestamps": []
+    },
+    "Ephesians_5": {
+        "video_id": "KGu8o7C4oqQ",
+        "playlist_id": "PL65D1E1FBD3766A2E",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "Ephesians Chapter 5",
+        "timestamps": []
+    },
+    "Ephesians_6": {
+        "video_id": "MZAl9rqu_5g",
+        "playlist_id": "PL65D1E1FBD3766A2E",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "Ephesians Chapter 6",
+        "timestamps": []
+    },
+    "Philippians_1": {
+        "video_id": "NitZHwgj3vI",
+        "playlist_id": "PL3857553F2AC1D8F8",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Philippians Chapter 1",
+        "timestamps": []
+    },
+    "Philippians_2": {
+        "video_id": "WbjzQ2iTBCg",
+        "playlist_id": "PL3857553F2AC1D8F8",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Philippians Chapter 2",
+        "timestamps": []
+    },
+    "Philippians_3": {
+        "video_id": "_tT1fzX4VEo",
+        "playlist_id": "PL3857553F2AC1D8F8",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Philippians Chapter 3",
+        "timestamps": []
+    },
+    "Philippians_4": {
+        "video_id": "HEi-a6qm258",
+        "playlist_id": "PL3857553F2AC1D8F8",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Philippians Chapter 4",
+        "timestamps": []
+    },
+    "Colossians_1": {
+        "video_id": "Gmqs6q9D3tI",
+        "playlist_id": "PLC1EC000484E603B8",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Colossians Chapter 1",
+        "timestamps": []
+    },
+    "Colossians_2": {
+        "video_id": "pb2jBzF8yPU",
+        "playlist_id": "PLC1EC000484E603B8",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Colossians Chapter 2",
+        "timestamps": []
+    },
+    "Colossians_3": {
+        "video_id": "CGe5wtkcihc",
+        "playlist_id": "PLC1EC000484E603B8",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Colossians Chapter 3",
+        "timestamps": []
+    },
+    "Colossians_4": {
+        "video_id": "QzL8vQcdaPE",
+        "playlist_id": "PLC1EC000484E603B8",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Colossians Chapter 4",
+        "timestamps": []
+    },
+    "1_Thessalonians_1": {
+        "video_id": "Qju8F0YRrFw",
+        "playlist_id": "PL7FCA5D557C77621C",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "1 Thessalonians Chapter 1",
+        "timestamps": []
+    },
+    "1_Thessalonians_2": {
+        "video_id": "EZXrBLRZ2q0",
+        "playlist_id": "PL7FCA5D557C77621C",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "1 Thessalonians Chapter 2",
+        "timestamps": []
+    },
+    "1_Thessalonians_3": {
+        "video_id": "tHDNDjU6tGs",
+        "playlist_id": "PL7FCA5D557C77621C",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "1 Thessalonians Chapter 3",
+        "timestamps": []
+    },
+    "1_Thessalonians_4": {
+        "video_id": "jP2raf1ElkQ",
+        "playlist_id": "PL7FCA5D557C77621C",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "1 Thessalonians Chapter 4",
+        "timestamps": []
+    },
+    "1_Thessalonians_5": {
+        "video_id": "057W4Qg_ZIc",
+        "playlist_id": "PL7FCA5D557C77621C",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "1 Thessalonians Chapter 5",
+        "timestamps": []
+    },
+    "2_Thessalonians_1": {
+        "video_id": "PUdVSWu3Lvw",
+        "playlist_id": "PL7FCA5D557C77621C",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "2 Thessalonians Chapter 1",
+        "timestamps": []
+    },
+    "2_Thessalonians_2": {
+        "video_id": "U1PqFvZ2ivI",
+        "playlist_id": "PL7FCA5D557C77621C",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "2 Thessalonians Chapter 2",
+        "timestamps": []
+    },
+    "2_Thessalonians_3": {
+        "video_id": "1KVdNl4f1ag",
+        "playlist_id": "PL7FCA5D557C77621C",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "2 Thessalonians Chapter 3",
+        "timestamps": []
+    },
+    "1_Timothy_1": {
+        "video_id": "w66V4nrcNEU",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "1 Timothy Chapter 1",
+        "timestamps": []
+    },
+    "1_Timothy_2": {
+        "video_id": "TZjfxYxzyvo",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "1 Timothy Chapter 2",
+        "timestamps": []
+    },
+    "1_Timothy_3": {
+        "video_id": "Uk9X6QaYB5g",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "1 Timothy Chapter 3",
+        "timestamps": []
+    },
+    "1_Timothy_4": {
+        "video_id": "0JIO_NHzTDk",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "1 Timothy Chapter 4",
+        "timestamps": []
+    },
+    "1_Timothy_5": {
+        "video_id": "RiPmRwQarBo",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "1 Timothy Chapter 5",
+        "timestamps": []
+    },
+    "1_Timothy_6": {
+        "video_id": "yvtLVeBaAcI",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "1 Timothy Chapter 6",
+        "timestamps": []
+    },
+    "2_Timothy_1": {
+        "video_id": "tmI9zjt84rk",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "2 Timothy Chapter 1",
+        "timestamps": []
+    },
+    "2_Timothy_2": {
+        "video_id": "IvHoGKYMC-o",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "2 Timothy Chapter 2",
+        "timestamps": []
+    },
+    "2_Timothy_3": {
+        "video_id": "rNA-SfqXuME",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 8,
+        "channel": "RITDorg",
+        "title": "2 Timothy Chapter 3",
+        "timestamps": []
+    },
+    "2_Timothy_4": {
+        "video_id": "iarDi0J_aM0",
+        "playlist_id": "PL508DD75524DAEBF3",
+        "playlist_index": 9,
+        "channel": "RITDorg",
+        "title": "2 Timothy Chapter 4",
+        "timestamps": []
+    },
+    "Titus_1": {
+        "video_id": "-hXJZm9p0Is",
+        "playlist_id": "PL918EB912FE698947",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Titus Chapter 1",
+        "timestamps": []
+    },
+    "Titus_2": {
+        "video_id": "OA9XQxe6Mzo",
+        "playlist_id": "PL918EB912FE698947",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Titus Chapter 2",
+        "timestamps": []
+    },
+    "Titus_3": {
+        "video_id": "7rSa5CmaFuU",
+        "playlist_id": "PL918EB912FE698947",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Titus Chapter 3",
+        "timestamps": []
+    },
+    "Philemon_1": {
+        "video_id": "r1Fn1mkJPIk",
+        "playlist_id": "PL9365ED30D7B1B20B",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Philemon Chapter 1",
+        "timestamps": []
+    },
+    "Hebrews_1": {
+        "video_id": "vfIJ4ZcGUp0",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 1",
+        "timestamps": []
+    },
+    "Hebrews_2": {
+        "video_id": "M2B_EcEcax0",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 2",
+        "timestamps": []
+    },
+    "Hebrews_3": {
+        "video_id": "v8MPKziIgk4",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 3",
+        "timestamps": []
+    },
+    "Hebrews_4": {
+        "video_id": "LXpDHAK65eA",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 4",
+        "timestamps": []
+    },
+    "Hebrews_5": {
+        "video_id": "X0awEFxI1v4",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 5",
+        "timestamps": []
+    },
+    "Hebrews_6": {
+        "video_id": "88RZ51nMDJc",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 6",
+        "timestamps": []
+    },
+    "Hebrews_7": {
+        "video_id": "nr1eLb_XHso",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 7",
+        "timestamps": []
+    },
+    "Hebrews_8": {
+        "video_id": "Svz49W2RwnM",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 8",
+        "timestamps": []
+    },
+    "Hebrews_9": {
+        "video_id": "JbQpHZfGpjs",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 8,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 9",
+        "timestamps": []
+    },
+    "Hebrews_10": {
+        "video_id": "8P_ftgiX364",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 9,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 10",
+        "timestamps": []
+    },
+    "Hebrews_11": {
+        "video_id": "tiap5lwObiI",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 10,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 11",
+        "timestamps": []
+    },
+    "Hebrews_12": {
+        "video_id": "u2EA59qL64Y",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 11,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 12",
+        "timestamps": []
+    },
+    "Hebrews_13": {
+        "video_id": "iAUDWyg_knw",
+        "playlist_id": "PL9723FF3C7686CB9D",
+        "playlist_index": 12,
+        "channel": "RITDorg",
+        "title": "Hebrews Chapter 13",
+        "timestamps": []
+    },
+    "James_1": {
+        "video_id": "IpJlccXiycA",
+        "playlist_id": "PL2804B8E3A8F22208",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "James Chapter 1",
+        "timestamps": []
+    },
+    "James_2": {
+        "video_id": "DUd-SpGjkJw",
+        "playlist_id": "PL2804B8E3A8F22208",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "James Chapter 2",
+        "timestamps": []
+    },
+    "James_3": {
+        "video_id": "KcUuMSWQFZc",
+        "playlist_id": "PL2804B8E3A8F22208",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "James Chapter 3",
+        "timestamps": []
+    },
+    "James_4": {
+        "video_id": "yStJSQ4I68k",
+        "playlist_id": "PL2804B8E3A8F22208",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "James Chapter 4",
+        "timestamps": []
+    },
+    "James_5": {
+        "video_id": "yWBdpdn_oVM",
+        "playlist_id": "PL2804B8E3A8F22208",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "James Chapter 5",
+        "timestamps": []
+    },
+    "1_Peter_1": {
+        "video_id": "3uH8FKgUuGM",
+        "playlist_id": "PL7585F51A078BE9F2",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "1 Peter Chapter 1",
+        "timestamps": []
+    },
+    "1_Peter_2": {
+        "video_id": "8X6d3OjPpnA",
+        "playlist_id": "PL7585F51A078BE9F2",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "1 Peter Chapter 2",
+        "timestamps": []
+    },
+    "1_Peter_3": {
+        "video_id": "LHAWiM4Aces",
+        "playlist_id": "PL7585F51A078BE9F2",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "1 Peter Chapter 3",
+        "timestamps": []
+    },
+    "1_Peter_4": {
+        "video_id": "LtJbgmf5gA8",
+        "playlist_id": "PL7585F51A078BE9F2",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "1 Peter Chapter 4",
+        "timestamps": []
+    },
+    "1_Peter_5": {
+        "video_id": "zif4oIidjNg",
+        "playlist_id": "PL7585F51A078BE9F2",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "1 Peter Chapter 5",
+        "timestamps": []
+    },
+    "2_Peter_1": {
+        "video_id": "ED1AfwB9zX4",
+        "playlist_id": "PL7585F51A078BE9F2",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "2 Peter Chapter 1",
+        "timestamps": []
+    },
+    "2_Peter_2": {
+        "video_id": "fVUcYxwFT3I",
+        "playlist_id": "PL7585F51A078BE9F2",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "2 Peter Chapter 2",
+        "timestamps": []
+    },
+    "2_Peter_3": {
+        "video_id": "jzZCbVXNm3U",
+        "playlist_id": "PL7585F51A078BE9F2",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "2 Peter Chapter 3",
+        "timestamps": []
+    },
+    "1_John_1": {
+        "video_id": "O5NKL9YmLFs",
+        "playlist_id": "PL2AAB41D5C6A4EB52",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "1 John Chapter 1",
+        "timestamps": []
+    },
+    "1_John_2": {
+        "video_id": "fF20njXwtvQ",
+        "playlist_id": "PL2AAB41D5C6A4EB52",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "1 John Chapter 2",
+        "timestamps": []
+    },
+    "1_John_3": {
+        "video_id": "-QHuPr_JSw0",
+        "playlist_id": "PL2AAB41D5C6A4EB52",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "1 John Chapter 3",
+        "timestamps": []
+    },
+    "1_John_4": {
+        "video_id": "J9SXXOUmJas",
+        "playlist_id": "PL2AAB41D5C6A4EB52",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "1 John Chapter 4",
+        "timestamps": []
+    },
+    "1_John_5": {
+        "video_id": "rZgZTwSAwvs",
+        "playlist_id": "PL2AAB41D5C6A4EB52",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "1 John Chapter 5",
+        "timestamps": []
+    },
+    "2_John_1": {
+        "video_id": "KaD0Ym4a2EQ",
+        "playlist_id": "PL2AAB41D5C6A4EB52",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "2 John Chapter 1",
+        "timestamps": []
+    },
+    "3_John_1": {
+        "video_id": "5VfxDVFkMt0",
+        "playlist_id": "PL2AAB41D5C6A4EB52",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "3 John Chapter 1",
+        "timestamps": []
+    },
+    "Jude_1": {
+        "video_id": "1ixXiYaaHIg",
+        "playlist_id": "PL40E77F9CD37A9CCE",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Jude Chapter 1",
+        "timestamps": []
+    },
+    "Revelation_1": {
+        "video_id": "QpTkVs6tDXw",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 0,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 1",
+        "timestamps": []
+    },
+    "Revelation_2": {
+        "video_id": "XSzqFTYwPBw",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 1,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 2",
+        "timestamps": []
+    },
+    "Revelation_3": {
+        "video_id": "VqbYgYiI1ZI",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 2,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 3",
+        "timestamps": []
+    },
+    "Revelation_4": {
+        "video_id": "4l2oJBI1Clg",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 3,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 4",
+        "timestamps": []
+    },
+    "Revelation_5": {
+        "video_id": "dxyBOgPdiSI",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 4,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 5",
+        "timestamps": []
+    },
+    "Revelation_6": {
+        "video_id": "Clt2MrpqQyE",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 5,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 6",
+        "timestamps": []
+    },
+    "Revelation_7": {
+        "video_id": "PdtGv4-eZcA",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 6,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 7",
+        "timestamps": []
+    },
+    "Revelation_8": {
+        "video_id": "rNdl4mPuD4E",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 7,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 8",
+        "timestamps": []
+    },
+    "Revelation_9": {
+        "video_id": "n2LqzgBggfg",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 8,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 9",
+        "timestamps": []
+    },
+    "Revelation_10": {
+        "video_id": "10_fzQM51vk",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 9,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 10",
+        "timestamps": []
+    },
+    "Revelation_11": {
+        "video_id": "P28LENQ8Vmc",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 10,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 11",
+        "timestamps": []
+    },
+    "Revelation_12": {
+        "video_id": "k-1QTdPxH1k",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 11,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 12",
+        "timestamps": []
+    },
+    "Revelation_13": {
+        "video_id": "E2jTa6AeWwk",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 12,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 13",
+        "timestamps": []
+    },
+    "Revelation_14": {
+        "video_id": "fOvcrcX6YaA",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 13,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 14",
+        "timestamps": []
+    },
+    "Revelation_15": {
+        "video_id": "fQzGcFKGAxM",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 14,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 15",
+        "timestamps": []
+    },
+    "Revelation_16": {
+        "video_id": "B7Kz8yu7uBc",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 15,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 16",
+        "timestamps": []
+    },
+    "Revelation_17": {
+        "video_id": "0GTuyEai4O8",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 16,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 17",
+        "timestamps": []
+    },
+    "Revelation_18": {
+        "video_id": "aoNc_iCu510",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 17,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 18",
+        "timestamps": []
+    },
+    "Revelation_19": {
+        "video_id": "w6sr_fbhtc0",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 18,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 19",
+        "timestamps": []
+    },
+    "Revelation_20": {
+        "video_id": "6dSQbiLEyTM",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 19,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 20",
+        "timestamps": []
+    },
+    "Revelation_21": {
+        "video_id": "57_AliWzE-Q",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 20,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 21",
+        "timestamps": []
+    },
+    "Revelation_22": {
+        "video_id": "-AuUAby3bU8",
+        "playlist_id": "PL270CE99B618892B8",
+        "playlist_index": 21,
+        "channel": "RITDorg",
+        "title": "Revelation Chapter 22",
+        "timestamps": []
+    },
+
 }
 
 EXCLUDED_BOOKS = {}

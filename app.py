@@ -188,7 +188,8 @@ def search_bible():
 @app.route('/api/sync/<book>/<int:chapter>')
 def get_sync_data(book, chapter):
     """Get video sync data for a chapter, supporting playlists"""
-    key = f"{book}_{chapter}"
+    # Normalize: spaces to underscores so "1 Corinthians" -> "1_Corinthians_1"
+    key = f"{book.replace(' ', '_')}_{chapter}"
     
     # Check if we have specific sync data for this chapter
     if key in VIDEO_SYNC_DATA:

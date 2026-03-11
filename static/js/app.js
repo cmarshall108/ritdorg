@@ -717,22 +717,27 @@ class BibleReader {
             document.getElementById('syncColName2').textContent = this.syncTrans2;
             
             if (this.syncData.video_id || this.syncData.playlist_id) {
-                // Use playlist if available, otherwise fall back to video_id
+                const videoId = this.syncData.video_id || null;
                 const playlistId = this.syncData.playlist_id || null;
                 const playlistIndex = this.syncData.playlist_index || 0;
-                this.initYouTubePlayer(this.syncData.video_id, playlistId, playlistIndex);
+                
+                // If we have an explicit video_id, load it directly for best caption support
+                // Otherwise fall back to playlist-based loading
+                if (videoId && videoId !== 'placeholder_video_id') {
+                    this.initYouTubePlayer(videoId, null, 0);
+                } else if (playlistId) {
+                    this.initYouTubePlayer(null, playlistId, playlistIndex);
+                }
+                
                 this.renderSyncText();
                 document.querySelector('.video-placeholder').style.display = 'none';
                 
-                // Fetch dynamic captions from YouTube
-                if (this.syncData.video_id) {
-                    this.fetchCaptions(this.syncData.video_id);
+                // Fetch dynamic captions from YouTube for verse sync
+                if (videoId && videoId !== 'placeholder_video_id') {
+                    this.fetchCaptions(videoId);
                 }
                 
-                // Show playlist info if available
-                if (playlistId) {
-                    console.log(`Loading from RITDorg playlist: ${playlistId}, video index: ${playlistIndex}`);
-                }
+                console.log(`Loading video: ${videoId || 'playlist'}, playlist: ${playlistId}, index: ${playlistIndex}`);
             } else {
                 document.querySelector('.video-placeholder').style.display = 'flex';
                 document.getElementById('syncStatusText').textContent = 'No video available';
