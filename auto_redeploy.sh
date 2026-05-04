@@ -7,6 +7,7 @@ CHECK_INTERVAL_SECONDS="${CHECK_INTERVAL_SECONDS:-10800}" # 3 hours
 APP_PORT="${APP_PORT:-80}"
 APP_HOST="${APP_HOST:-0.0.0.0}"
 APP_PID=""
+FORCE_KILL_PORT_PROCESS="${FORCE_KILL_PORT_PROCESS:-0}"
 
 PYTHON_BIN="$(command -v python3 || command -v python || true)"
 if [ -z "$PYTHON_BIN" ]; then
@@ -52,7 +53,33 @@ install_dependencies() {
   fi
 }
 
+check_port_available() {
+  if ! command -v lsof >/dev/null 2>&1; then
+    return 0
+  fi
+
+  LISTEN_PIDS="$(lsof -t -iTCP:"$APP_PORT" -sTCP:LISTEN 2>/dev/null | tr '\n' ' ')"
+  if [ -z "$LISTEN_PIDS" ]; then
+    return 0
+  fi
+
+  echo "Port $APP_PORT is already in use by PID(s): $LISTEN_PIDS"
+  lsof -nP -iTCP:"$APP_PORT" -sTCP:LISTEN || true
+
+  if [ "$FORCE_KILL_PORT_PROCESS" = "1" ]; then
+    echo "FORCE_KILL_PORT_PROCESS=1 set; stopping PID(s) on port $APP_PORT"
+    for pid in $LISTEN_PIDS; do
+      kill "$pid" 2>/dev/null || true
+    done
+    return 0
+  fi
+
+  echo "Set FORCE_KILL_PORT_PROCESS=1 to stop current listener(s), or use a different APP_PORT."
+  exit 1
+}
+
 start_app() {
+  check_port_available
   echo "Starting app from app.py on $APP_HOST:$APP_PORT"
   "$PYTHON_BIN" -c "from asgiref.wsgi import WsgiToAsgi; from app import app; import uvicorn; uvicorn.run(WsgiToAsgi(app), host='$APP_HOST', port=$APP_PORT)" &
   APP_PID=$!
