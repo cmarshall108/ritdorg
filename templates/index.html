@@ -373,6 +373,21 @@
                             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                         </svg>
                     </button>
+                    <button class="focus-mode-btn" id="focusModeBtn" title="Focus mode: hide top bars" aria-pressed="false">
+                        <svg class="focus-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
+                            <path d="M16 3h3a2 2 0 0 1 2 2v3"/>
+                            <path d="M8 21H5a2 2 0 0 1-2-2v-3"/>
+                            <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                        </svg>
+                        <svg class="focus-on-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 4l16 16"/>
+                            <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
+                            <path d="M16 3h3a2 2 0 0 1 2 2v3"/>
+                            <path d="M8 21H5a2 2 0 0 1-2-2v-3"/>
+                            <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </section>
@@ -384,5 +399,6 @@
     <!-- YouTube API -->
     <script src="https://www.youtube.com/iframe_api"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% include "_email_prompt.html" %}
 </body>
 </html>

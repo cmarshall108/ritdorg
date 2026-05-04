@@ -1,0 +1,21 @@
+{# Dismissible, optional email-capture banner. Shown only when:
+   - the visitor isn't already recognised (no session cookie), AND
+   - they haven't dismissed it recently (no DISMISS cookie), AND
+   - we're not in the /admin section.
+   Rendered server-side via show_email_prompt; hides itself instantly with JS. #}
+{% if show_email_prompt %}
+<div id="emailPrompt" class="email-prompt" role="dialog" aria-label="Stay in touch">
+    <button type="button" class="email-prompt__close" aria-label="Dismiss" data-action="dismiss">&times;</button>
+    <div class="email-prompt__body">
+        <strong class="email-prompt__title">Stay in touch</strong>
+        <p class="email-prompt__msg">Drop your email to get occasional updates from RITDorg. Totally optional &mdash; you can keep browsing without it.</p>
+        <form id="emailPromptForm" class="email-prompt__form" autocomplete="email">
+            <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
+            <button type="submit">Save</button>
+        </form>
+        <button type="button" class="email-prompt__skip" data-action="dismiss">No thanks</button>
+        <div class="email-prompt__status" aria-live="polite"></div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/email-prompt.js') }}" defer></script>
+{% endif %}

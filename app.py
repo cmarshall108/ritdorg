@@ -1,25 +1,50 @@
-from flask import Flask, render_template, jsonify, request
+from flask import (
+    Flask, render_template, jsonify, request,
+    redirect, url_for, session, flash, g, make_response,
+)
 import json
 import os
-import re
 import logging
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api.formatters import JSONFormatter
 
 from translations import *
 from bible_data import NT_BOOKS, NT_TRANSLATIONS
 import bible_fetcher
+import auth
 
 logging.basicConfig(level=logging.INFO)
 
 app = Flask(__name__)
-
-# Create YouTubeTranscriptApi instance
-ytt_api = YouTubeTranscriptApi()
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
 # On first startup, export hardcoded data from translations.py into JSON cache
 # so the dynamic fetcher can serve Matthew/Mark instantly.
 bible_fetcher.export_hardcoded_to_cache()
+
+# Initialize the auth database (users, sessions).
+auth.init_db()
+
+
+# ---------------------------------------------------------------------------
+# Auth: load any logged-in user, but never gate access. Email is optional.
+# ---------------------------------------------------------------------------
+
+@app.before_request
+def _load_user():
+    auth.load_current_user()
+
+
+@app.context_processor
+def _inject_user():
+    user = g.get("current_user")
+    show_prompt = (
+        user is None
+        and not request.cookies.get(auth.DISMISS_COOKIE_NAME)
+        and not (request.path or "/").startswith("/admin")
+    )
+    return {
+        "current_user": user,
+        "show_email_prompt": show_prompt,
+    }
 
 @app.route('/')
 def index():
@@ -224,150 +249,6 @@ def get_playlist_for_book(book):
         })
     return jsonify({"error": f"No playlist found for {book}"}), 404
 
-@app.route('/api/captions/<video_id>')
-def get_video_captions(video_id):
-    """Fetch captions/subtitles from a YouTube video for dynamic sync"""
-    try:
-        transcript_list = ytt_api.list(video_id)
-        
-        # Try to find a transcript
-        transcript = None
-        transcript_language = None
-        
-        # Priority 1: Try manually created English transcripts
-        english_langs = ['en', 'en-US', 'en-GB']
-        try:
-            for lang in english_langs:
-                try:
-                    transcript = transcript_list.find_manually_created_transcript([lang])
-                    transcript_language = lang
-                    break
-                except:
-                    continue
-        except:
-            pass
-        
-        # Priority 2: Try auto-generated English
-        if not transcript:
-            try:
-                for lang in english_langs:
-                    try:
-                        transcript = transcript_list.find_generated_transcript([lang])
-                        transcript_language = lang
-                        break
-                    except:
-                        continue
-            except:
-                pass
-        
-        # Priority 3: Try to translate any available transcript to English
-        if not transcript:
-            try:
-                available = list(transcript_list)
-                for t in available:
-                    if t.is_translatable:
-                        try:
-                            transcript = t.translate('en')
-                            transcript_language = 'en (translated from ' + t.language_code + ')'
-                            break
-                        except:
-                            continue
-            except:
-                pass
-        
-        # Priority 4: Fall back to any available transcript
-        if not transcript:
-            try:
-                available = list(transcript_list)
-                if available:
-                    transcript = available[0]
-                    transcript_language = transcript.language_code
-            except:
-                pass
-        
-        if transcript:
-            # Fetch the actual transcript data
-            captions = transcript.fetch()
-            
-            # Format for our sync system
-            formatted_captions = []
-            for caption in captions:
-                # New API uses object attributes instead of dict keys
-                start = caption.start
-                duration = caption.duration
-                text = caption.text
-                end = start + duration
-                
-                # Split text into words and calculate word timings
-                words = text.split()
-                word_timings = []
-                if words:
-                    word_duration = duration / len(words)
-                    for i, word in enumerate(words):
-                        word_start = start + (i * word_duration)
-                        word_end = word_start + word_duration
-                        word_timings.append({
-                            "text": word,
-                            "start": word_start,
-                            "end": word_end
-                        })
-                
-                formatted_captions.append({
-                    "text": text,
-                    "start": start,
-                    "duration": duration,
-                    "end": end,
-                    "words": word_timings
-                })
-            
-            return jsonify({
-                "video_id": video_id,
-                "language": transcript_language,
-                "is_generated": transcript.is_generated,
-                "captions": formatted_captions,
-                "success": True
-            })
-        else:
-            return jsonify({
-                "video_id": video_id,
-                "error": "No captions available for this video",
-                "success": False
-            })
-            
-    except Exception as e:
-        return jsonify({
-            "video_id": video_id,
-            "error": str(e),
-            "success": False
-        })
-
-@app.route('/api/captions/<video_id>/languages')
-def get_caption_languages(video_id):
-    """Get available caption languages for a video"""
-    try:
-        transcript_list = ytt_api.list(video_id)
-        
-        languages = []
-        for transcript in transcript_list:
-            languages.append({
-                "code": transcript.language_code,
-                "name": transcript.language,
-                "is_generated": transcript.is_generated,
-                "is_translatable": transcript.is_translatable
-            })
-        
-        return jsonify({
-            "video_id": video_id,
-            "languages": languages,
-            "success": True
-        })
-    except Exception as e:
-        return jsonify({
-            "video_id": video_id,
-            "error": str(e),
-            "success": False
-        })
-
 @app.route('/videos')
 def videos():
     import glob
@@ -406,6 +287,131 @@ def hebrew_lessons():
 @app.route('/downloads')
 def downloads():
     return render_template('downloads.html')
+
+# ---------------------------------------------------------------------------
+# Optional email capture (encouraged, not required)
+# ---------------------------------------------------------------------------
+
+@app.route("/auth/save-email", methods=["POST"])
+def save_email():
+    """Save a visitor's email and create a 7-day session cookie.
+
+    Accepts JSON ({"email": "..."}) or form-encoded.
+    Returns JSON for fetch() callers; redirects for plain-form submissions.
+    """
+    data = request.get_json(silent=True) or request.form
+    email = auth.normalize_email((data.get("email") or "").strip())
+
+    wants_json = (
+        request.is_json
+        or request.headers.get("X-Requested-With") == "fetch"
+        or "application/json" in (request.headers.get("Accept") or "")
+    )
+
+    if not email:
+        if wants_json:
+            return jsonify({"ok": False, "error": "Please enter a valid email."}), 400
+        flash("Please enter a valid email.", "error")
+        return redirect(request.referrer or url_for("index"))
+
+    user_id = auth.get_or_create_user(email)
+    session_token, expires = auth.create_session(
+        user_id,
+        ip=request.headers.get("X-Forwarded-For", request.remote_addr or ""),
+        user_agent=(request.headers.get("User-Agent") or "")[:255],
+    )
+
+    if wants_json:
+        resp = make_response(jsonify({"ok": True, "email": email}))
+    else:
+        resp = make_response(redirect(request.referrer or url_for("index")))
+    resp.set_cookie(
+        auth.SESSION_COOKIE_NAME,
+        session_token,
+        expires=expires,
+        httponly=True,
+        secure=request.is_secure,
+        samesite="Lax",
+        path="/",
+    )
+    return resp
+
+
+@app.route("/auth/dismiss-email-prompt", methods=["POST"])
+def dismiss_email_prompt():
+    """Set a cookie so the email prompt isn't shown again for a while."""
+    resp = make_response(jsonify({"ok": True}))
+    resp.set_cookie(
+        auth.DISMISS_COOKIE_NAME,
+        "1",
+        max_age=int(auth.DISMISS_DURATION.total_seconds()),
+        httponly=False,  # so JS can also see it
+        secure=request.is_secure,
+        samesite="Lax",
+        path="/",
+    )
+    return resp
+
+
+@app.route("/logout", methods=["GET", "POST"])
+def logout():
+    token = request.cookies.get(auth.SESSION_COOKIE_NAME)
+    auth.delete_session(token)
+    resp = make_response(redirect(url_for("index")))
+    resp.delete_cookie(auth.SESSION_COOKIE_NAME, path="/")
+    return resp
+
+
+# ---------------------------------------------------------------------------
+# Admin panel (separate username + password auth, env-configured)
+# ---------------------------------------------------------------------------
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    error = None
+    next_url = request.args.get("next") or request.form.get("next") or url_for("admin_dashboard")
+    if request.method == "POST":
+        username = request.form.get("username", "")
+        password = request.form.get("password", "")
+        if auth.verify_admin(username, password):
+            session[auth.ADMIN_SESSION_KEY] = True
+            session.permanent = False
+            target = next_url if next_url.startswith("/") and not next_url.startswith("//") else url_for("admin_dashboard")
+            return redirect(target)
+        error = "Invalid username or password."
+    return render_template("admin/login.html", error=error, next_url=next_url)
+
+
+@app.route("/admin/logout", methods=["GET", "POST"])
+def admin_logout():
+    session.pop(auth.ADMIN_SESSION_KEY, None)
+    return redirect(url_for("admin_login"))
+
+
+@app.route("/admin")
+@auth.admin_required
+def admin_dashboard():
+    return render_template(
+        "admin/dashboard.html",
+        stats=auth.stats(),
+    )
+
+
+@app.route("/admin/users")
+@auth.admin_required
+def admin_users():
+    q = request.args.get("q", "").strip()
+    users = auth.list_users(search=q)
+    return render_template("admin/users.html", users=users, q=q)
+
+
+@app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
+@auth.admin_required
+def admin_delete_user(user_id: int):
+    auth.delete_user(user_id)
+    flash("User deleted.", "info")
+    return redirect(url_for("admin_users"))
+
 
 if __name__ == '__main__':
     app.run(debug=False, port=80, host='0.0.0.0')

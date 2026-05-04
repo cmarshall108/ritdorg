@@ -1,31 +1,6 @@
 // ===== RITDorg - Interactive Bible Reader =====
 
 class BibleReader {
-        // Get the match score for a specific verse number and caption text
-        getVerseMatchScore(verseNum, captionText) {
-            if (!captionText || !verseNum) return 0;
-            const allVerses = [
-                ...document.querySelectorAll('#syncVerses1 .sync-verse'),
-                ...document.querySelectorAll('#syncVerses2 .sync-verse')
-            ];
-            let combinedText = '';
-            allVerses.forEach(verse => {
-                if (verse.dataset.verse === verseNum) {
-                    combinedText += ' ' + verse.textContent;
-                }
-            });
-            if (!combinedText) return 0;
-            const verseWords = this.normalizeText(combinedText).split(/\s+/).filter(w => w.length > 1);
-            const captionWords = this.normalizeText(captionText).split(/\s+/).filter(w => w.length > 1);
-            if (captionWords.length === 0) return 0;
-            let matchCount = 0;
-            captionWords.forEach(cw => {
-                if (verseWords.some(vw => this.looseWordMatch(cw, vw))) {
-                    matchCount++;
-                }
-            });
-            return matchCount / captionWords.length;
-        }
     constructor() {
         this.currentBook = 'Matthew';
         this.currentChapter = 1;
@@ -58,10 +33,16 @@ class BibleReader {
         // Dynamic caption sync
         this.captions = null;
         this.currentCaptionIndex = -1;
-        this.captionSyncEnabled = true;
         this.lastHighlightedVerse = null;
         this.lastCaptionText = null;
         this.verseStartTimes = new Map();
+        this.lastCaptionVideoId = null;
+        this.captionFetchToken = 0;
+        this.focusModeEnabled = localStorage.getItem('focusReadingMode') === 'true';
+
+        // Caption→verse matching helpers
+        this.verseIndex = null;          // { byVerse, idf, verseNums }
+        this.recentVerseMatches = [];    // last few verse matches for smoothing
         
         this.init();
     }
@@ -77,6 +58,8 @@ class BibleReader {
             const rateLabel = document.getElementById('rateLabel');
             if (rateLabel) rateLabel.textContent = `${this.playbackRate}×`;
         }
+
+        this.applyFocusMode(this.focusModeEnabled);
         
         // Set dropdown to match default book
         document.getElementById('bookSelect').value = this.currentBook;
@@ -219,6 +202,11 @@ class BibleReader {
         
         // Video visibility toggle
         document.getElementById('videoToggleBtn').addEventListener('click', () => this.toggleVideoVisibility());
+
+        const focusModeBtn = document.getElementById('focusModeBtn');
+        if (focusModeBtn) {
+            focusModeBtn.addEventListener('click', () => this.toggleFocusMode());
+        }
         
         // Chapter navigation
         document.getElementById('prevChapterBtn').addEventListener('click', () => this.prevChapter());
@@ -289,6 +277,24 @@ class BibleReader {
             contentArea.classList.remove('side-by-side');
             toggleBtn.classList.remove('active');
         }
+    }
+
+    toggleFocusMode() {
+        this.focusModeEnabled = !this.focusModeEnabled;
+        this.applyFocusMode(this.focusModeEnabled);
+    }
+
+    applyFocusMode(enabled) {
+        document.body.classList.toggle('focus-reading-mode', enabled);
+
+        const focusBtn = document.getElementById('focusModeBtn');
+        if (focusBtn) {
+            focusBtn.classList.toggle('active', enabled);
+            focusBtn.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+            focusBtn.title = enabled ? 'Exit focus mode' : 'Focus mode: hide top bars';
+        }
+
+        localStorage.setItem('focusReadingMode', enabled ? 'true' : 'false');
     }
     
     async loadChapters(book, selectChapter = 1) {
@@ -708,6 +714,8 @@ class BibleReader {
             // Reset sync tracking for new chapter
             this.lastHighlightedVerse = null;
             this.verseStartTimes.clear();
+            this.recentVerseMatches = [];
+            this.verseIndex = null;
             
             const response = await fetch(`/api/sync/${this.currentBook}/${this.currentChapter}`);
             this.syncData = await response.json();
@@ -720,6 +728,10 @@ class BibleReader {
                 const videoId = this.syncData.video_id || null;
                 const playlistId = this.syncData.playlist_id || null;
                 const playlistIndex = this.syncData.playlist_index || 0;
+                this.captions = null;
+                this.lastCaptionVideoId = null;
+                this.currentCaptionIndex = -1;
+                this.lastCaptionText = null;
                 
                 // If we have an explicit video_id, load it directly for best caption support
                 // Otherwise fall back to playlist-based loading
@@ -782,6 +794,9 @@ class BibleReader {
         // Render second translation 
         syncVerses2.innerHTML = this.renderSyncVerses(verses2, false);
         
+        // Build the searchable verse index used by caption matching
+        this.buildVerseIndex(verses1);
+
         // Setup synchronized scrolling between sync columns
         this.setupSyncColumnScroll();
     }
@@ -946,8 +961,10 @@ class BibleReader {
                     this.updateTimeDisplay();
                     // Apply user-selected playback rate (if supported)
                     try { this.setPlaybackRate(this.playbackRate); } catch (err) { /* ignore */ }
+                    this.fetchCaptionsForCurrentVideo();
                 },
-                'onStateChange': (e) => this.onPlayerStateChange(e)
+                'onStateChange': (e) => this.onPlayerStateChange(e),
+                'onApiChange': () => this.fetchCaptionsForCurrentVideo()
             }
         };
         
@@ -961,6 +978,13 @@ class BibleReader {
     
     onPlayerStateChange(event) {
         const playBtn = document.getElementById('playPauseBtn');
+
+        if (
+            event.data === YT.PlayerState.PLAYING ||
+            event.data === YT.PlayerState.CUED
+        ) {
+            this.fetchCaptionsForCurrentVideo();
+        }
         
         if (event.data === YT.PlayerState.PLAYING) {
             playBtn.classList.add('playing');
@@ -1063,35 +1087,170 @@ class BibleReader {
         if (videoId === 'placeholder_video_id' || !videoId) {
             console.log('Skipping caption fetch for placeholder video ID');
             this.captions = null;
+            this.lastCaptionVideoId = null;
             this.showToast('No video available for this chapter - captions disabled', 'info');
             document.getElementById('syncStatusText').textContent = 'No video available';
             return;
         }
+
+        if (this.lastCaptionVideoId === videoId && Array.isArray(this.captions) && this.captions.length > 0) {
+            return;
+        }
+
+        const fetchToken = ++this.captionFetchToken;
+        this.lastCaptionVideoId = videoId;
         
         try {
-            const response = await fetch(`/api/captions/${videoId}`);
-            const data = await response.json();
-            
-            if (data.success && data.captions) {
-                this.captions = data.captions;
-                console.log(`Loaded ${data.captions.length} captions for video (${data.language}, ${data.is_generated ? 'auto-generated' : 'manual'})`);
-                this.showToast(`Captions loaded: ${data.captions.length} segments`, 'success');
+            const tracks = this.getCaptionTracksFromPlayer();
+            const selectedTrack = this.pickCaptionTrack(tracks);
+
+            if (!selectedTrack) {
+                if (fetchToken !== this.captionFetchToken) return;
+                console.log('No caption tracks available for this video');
+                this.captions = null;
+                this.showToast('No captions available for this video', 'info');
+                document.getElementById('syncStatusText').textContent = 'No captions available';
+                return;
+            }
+
+            const captions = await this.loadTimedTextTrack(videoId, selectedTrack);
+            if (fetchToken !== this.captionFetchToken) return;
+
+            if (captions.length > 0) {
+                this.captions = captions;
+                console.log(`Loaded ${captions.length} captions for video (${selectedTrack.languageCode || 'unknown'})`);
+                this.showToast(`Captions loaded: ${captions.length} segments`, 'success');
                 document.getElementById('syncStatusText').textContent = 'Ready to sync';
-                
+
                 // Render caption display area
                 this.renderCaptionDisplay();
             } else {
-                console.log('No captions available:', data.error);
+                console.log('Caption track was found but had no usable segments');
                 this.captions = null;
                 this.showToast('No captions available for this video', 'info');
                 document.getElementById('syncStatusText').textContent = 'No captions available';
             }
         } catch (error) {
+            if (fetchToken !== this.captionFetchToken) return;
             console.error('Failed to fetch captions:', error);
             this.captions = null;
             this.showToast('Failed to load captions', 'error');
             document.getElementById('syncStatusText').textContent = 'Caption error';
         }
+    }
+
+    async fetchCaptionsForCurrentVideo() {
+        if (!this.player || !this.isPlayerReady) return;
+        const videoData = this.player.getVideoData ? this.player.getVideoData() : null;
+        const videoId = videoData?.video_id;
+        if (!videoId || videoId === 'placeholder_video_id') return;
+        await this.fetchCaptions(videoId);
+    }
+
+    getCaptionTracksFromPlayer() {
+        if (!this.player || !this.isPlayerReady) return [];
+        try {
+            if (typeof this.player.loadModule === 'function') {
+                this.player.loadModule('captions');
+            }
+            if (typeof this.player.getOption === 'function') {
+                const tracks = this.player.getOption('captions', 'tracklist');
+                return Array.isArray(tracks) ? tracks : [];
+            }
+        } catch (error) {
+            console.warn('Unable to access YouTube caption track list', error);
+        }
+        return [];
+    }
+
+    pickCaptionTrack(tracks) {
+        if (!Array.isArray(tracks) || tracks.length === 0) return null;
+
+        const englishCodes = ['en', 'en-US', 'en-GB'];
+        const isEnglish = (track) => englishCodes.includes(track.languageCode);
+        const isGenerated = (track) => track.kind === 'asr';
+
+        const manualEnglish = tracks.find(track => isEnglish(track) && !isGenerated(track));
+        if (manualEnglish) return manualEnglish;
+
+        const generatedEnglish = tracks.find(track => isEnglish(track));
+        if (generatedEnglish) return generatedEnglish;
+
+        const manualAny = tracks.find(track => !isGenerated(track));
+        if (manualAny) return manualAny;
+
+        return tracks[0];
+    }
+
+    async loadTimedTextTrack(videoId, track) {
+        const params = new URLSearchParams();
+        params.set('v', videoId);
+        params.set('fmt', 'json3');
+
+        if (track.languageCode) {
+            params.set('lang', track.languageCode);
+        }
+        if (track.kind) {
+            params.set('kind', track.kind);
+        }
+        if (track.name) {
+            params.set('name', track.name);
+        }
+
+        const timedTextUrl = `https://www.youtube.com/api/timedtext?${params.toString()}`;
+        const response = await fetch(timedTextUrl);
+        if (!response.ok) {
+            throw new Error(`Caption request failed with status ${response.status}`);
+        }
+
+        const json = await response.json();
+        return this.parseJson3Captions(json);
+    }
+
+    parseJson3Captions(json) {
+        if (!json || !Array.isArray(json.events)) return [];
+
+        const formattedCaptions = [];
+        for (const event of json.events) {
+            const startMs = Number(event.tStartMs);
+            const durationMs = Number(event.dDurationMs);
+            const segments = Array.isArray(event.segs) ? event.segs : [];
+
+            if (!Number.isFinite(startMs) || startMs < 0) continue;
+
+            const text = segments
+                .map(seg => (seg && typeof seg.utf8 === 'string' ? seg.utf8 : ''))
+                .join('')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            if (!text) continue;
+
+            const start = startMs / 1000;
+            const duration = Number.isFinite(durationMs) && durationMs > 0 ? durationMs / 1000 : 2;
+            const end = start + duration;
+
+            const words = text.split(/\s+/).filter(Boolean);
+            const wordDuration = words.length > 0 ? duration / words.length : 0;
+            const wordTimings = words.map((word, idx) => {
+                const wordStart = start + (idx * wordDuration);
+                return {
+                    text: word,
+                    start: wordStart,
+                    end: wordStart + wordDuration
+                };
+            });
+
+            formattedCaptions.push({
+                text,
+                start,
+                duration,
+                end,
+                words: wordTimings
+            });
+        }
+
+        return formattedCaptions;
     }
     
     renderCaptionDisplay() {
@@ -1166,8 +1325,8 @@ class BibleReader {
             this.scrollToVerse(matchedVerse);
         }
 
-        // Highlight words in the active verse
-        this.highlightActiveWords(matchedVerse, caption);
+        // Highlight words in the active verse using the precise audio position
+        this.highlightActiveWords(matchedVerse, caption, currentTime);
     }
     
     // Get verse based on time progression with dynamic adjustment
@@ -1231,77 +1390,193 @@ class BibleReader {
         return Math.max(1, Math.min(estimatedVerse, totalVerses)).toString();
     }
     
-    // Highlight matching words in the active verse
-    highlightActiveWords(verseNum, caption) {
-        // Clear previous highlights
+    // Highlight matching words in the active verse, using per-word audio timings when present
+    highlightActiveWords(verseNum, caption, currentTime) {
         document.querySelectorAll('.sync-word.caption-match, .sync-word.caption-match-strong').forEach(el => {
             el.classList.remove('caption-match', 'caption-match-strong');
         });
-        
+
         if (!verseNum || !caption) return;
-        
-        // Get caption words
-        let captionWords = [];
-        if (caption.words && caption.words.length > 0) {
-            captionWords = caption.words.map(w => w.text);
-        } else {
-            captionWords = this.normalizeText(caption.text).split(/\s+/).filter(w => w.length > 1);
+
+        // Build the set of caption words spoken so far (uses per-word timings when available)
+        const cumulative = [];
+        let currentNorm = null;
+        const hasTimings = Array.isArray(caption.words) && caption.words.length > 0 && Number.isFinite(currentTime);
+
+        if (hasTimings) {
+            for (const w of caption.words) {
+                const norm = this.normalizeText(w.text);
+                if (!norm || norm.length < 2) continue;
+                if (w.start <= currentTime + 0.1) {
+                    cumulative.push(norm);
+                    if (currentTime >= w.start && currentTime <= w.end + 0.05) {
+                        currentNorm = norm;
+                    }
+                }
+            }
         }
-        
-        if (captionWords.length === 0) return;
-        
-        // Highlight matching words in the active verse
-        document.querySelectorAll('.sync-word').forEach(wordEl => {
+        if (cumulative.length === 0) {
+            const all = this.normalizeText(caption.text).split(/\s+/).filter(w => w.length > 1);
+            cumulative.push(...all);
+        }
+        if (cumulative.length === 0) return;
+
+        const cumulativeSet = new Set(cumulative);
+        const activeWordEls = document.querySelectorAll(`.sync-verse[data-verse="${verseNum}"] .sync-word`);
+
+        activeWordEls.forEach(wordEl => {
             const wordText = this.normalizeText(wordEl.textContent);
-            const parentVerse = wordEl.closest('.sync-verse');
-            const isActiveVerse = parentVerse?.dataset.verse === verseNum;
-            
-            if (!isActiveVerse) return;
-            
-            if (captionWords.some(cw => this.looseWordMatch(cw, wordText))) {
+            if (!wordText || wordText.length < 2) return;
+            if (cumulativeSet.has(wordText)) {
                 wordEl.classList.add('caption-match');
+                return;
+            }
+            for (const cw of cumulative) {
+                if (this.looseWordMatch(cw, wordText)) {
+                    wordEl.classList.add('caption-match');
+                    break;
+                }
             }
         });
+
+        if (currentNorm) {
+            for (const wordEl of activeWordEls) {
+                const wordText = this.normalizeText(wordEl.textContent);
+                if (!wordText) continue;
+                if (wordText === currentNorm || this.looseWordMatch(wordText, currentNorm)) {
+                    wordEl.classList.add('caption-match-strong');
+                    break;
+                }
+            }
+        }
     }
     
-    // Find the verse that best matches the caption text
+    // Build a normalized, IDF-weighted index of verses for the current chapter (English column)
+    buildVerseIndex(versesObj) {
+        const byVerse = new Map();
+        const docFreq = new Map();
+        const verseNums = [];
+
+        const ingest = (num, text) => {
+            if (!Number.isFinite(num) || !text) return;
+            const words = this.normalizeText(text).split(/\s+/).filter(w => w.length > 1);
+            if (words.length === 0) return;
+            const wordSet = new Set(words);
+            byVerse.set(num, { words, wordSet });
+            verseNums.push(num);
+            wordSet.forEach(w => docFreq.set(w, (docFreq.get(w) || 0) + 1));
+        };
+
+        if (versesObj && typeof versesObj === 'object') {
+            for (const [k, v] of Object.entries(versesObj)) {
+                ingest(parseInt(k, 10), String(v));
+            }
+        } else {
+            document.querySelectorAll('#syncVerses1 .sync-verse').forEach(el => {
+                const num = parseInt(el.dataset.verse, 10);
+                const text = el.textContent.replace(/^\s*\d+\s*/, '');
+                ingest(num, text);
+            });
+        }
+
+        if (verseNums.length === 0) {
+            this.verseIndex = null;
+            return;
+        }
+
+        const N = byVerse.size;
+        const idf = new Map();
+        docFreq.forEach((df, w) => {
+            // Smoothed IDF; very common words trend toward ~0
+            idf.set(w, Math.log(1 + N / df));
+        });
+        verseNums.sort((a, b) => a - b);
+        this.verseIndex = { byVerse, idf, verseNums };
+    }
+
+    // Find the verse that best matches the caption text using IDF + locality + smoothing
     findBestMatchingVerse(captionText) {
         if (!captionText) return null;
-        const captionWords = this.normalizeText(captionText).split(/\s+/).filter(w => w.length > 1);
+        if (!this.verseIndex) this.buildVerseIndex();
+        if (!this.verseIndex) return null;
+
+        const captionWords = this.normalizeText(captionText)
+            .split(/\s+/)
+            .filter(w => w.length > 1);
         if (captionWords.length === 0) return null;
-        let bestMatch = null;
-        let bestScore = 0;
-        // Check BOTH columns - NIV (syncVerses1) and Hebrew (syncVerses2)
-        const allVerses = [
-            ...document.querySelectorAll('#syncVerses1 .sync-verse'),
-            ...document.querySelectorAll('#syncVerses2 .sync-verse')
-        ];
-        // Group by verse number
-        const verseTexts = new Map();
-        allVerses.forEach(verse => {
-            const verseNum = verse.dataset.verse;
-            if (!verseTexts.has(verseNum)) {
-                verseTexts.set(verseNum, '');
-            }
-            verseTexts.set(verseNum, verseTexts.get(verseNum) + ' ' + verse.textContent);
-        });
-        verseTexts.forEach((combinedText, verseNum) => {
-            const verseWords = this.normalizeText(combinedText).split(/\s+/).filter(w => w.length > 1);
-            // Calculate match score
-            let matchCount = 0;
-            captionWords.forEach(cw => {
-                if (verseWords.some(vw => this.looseWordMatch(cw, vw))) {
-                    matchCount++;
+
+        const { byVerse, idf, verseNums } = this.verseIndex;
+        if (verseNums.length === 0) return null;
+
+        // Locality window around the last matched verse (audio progresses forward)
+        const lastNum = parseInt(this.lastHighlightedVerse, 10);
+        let candidates = verseNums;
+        if (Number.isFinite(lastNum)) {
+            const windowed = verseNums.filter(n => n >= lastNum - 2 && n <= lastNum + 6);
+            if (windowed.length >= 3) candidates = windowed;
+        }
+
+        const weightOf = (w) => idf.get(w) ?? 0.4;
+        const totalWeight = captionWords.reduce((s, w) => s + weightOf(w), 0) || 1;
+
+        const scoreVerse = (num) => {
+            const entry = byVerse.get(num);
+            if (!entry) return 0;
+            let matched = 0;
+            for (const cw of captionWords) {
+                const weight = weightOf(cw);
+                if (entry.wordSet.has(cw)) {
+                    matched += weight;
+                } else if (this.fuzzyVerseHas(cw, entry.wordSet)) {
+                    matched += weight * 0.4;
                 }
-            });
-            const score = matchCount / captionWords.length;
-            // Require at least 50% match for closer sync
-            if (score > bestScore && score > 0.5) {
-                bestScore = score;
-                bestMatch = verseNum;
             }
-        });
-        return bestMatch;
+            return matched / totalWeight;
+        };
+
+        let bestNum = null;
+        let bestScore = 0;
+        for (const num of candidates) {
+            let score = scoreVerse(num);
+            if (Number.isFinite(lastNum)) {
+                const delta = num - lastNum;
+                if (delta === 0) score *= 1.10;
+                else if (delta === 1) score *= 1.06;
+                else if (delta === 2) score *= 1.02;
+                else if (delta < 0) score *= 0.80;
+                else if (delta > 4) score *= 0.90;
+            }
+            if (score > bestScore) {
+                bestScore = score;
+                bestNum = num;
+            }
+        }
+
+        if (bestNum === null || bestScore < 0.18) return null;
+
+        // Smoothing: keep recent matches and resist single-frame jumps
+        this.recentVerseMatches.push(bestNum);
+        if (this.recentVerseMatches.length > 4) this.recentVerseMatches.shift();
+
+        if (Number.isFinite(lastNum) && bestNum !== lastNum) {
+            const lastTwo = this.recentVerseMatches.slice(-2);
+            const consistent = lastTwo.length === 2 && lastTwo[0] === lastTwo[1];
+            if (bestScore < 0.42 && !consistent) {
+                return this.lastHighlightedVerse;
+            }
+        }
+
+        return bestNum.toString();
+    }
+
+    // Lightweight stem-prefix check for caption→verse fuzzy matching
+    fuzzyVerseHas(captionWord, verseWordSet) {
+        if (!captionWord || captionWord.length < 5) return false;
+        const stem = captionWord.substring(0, 4);
+        for (const vw of verseWordSet) {
+            if (vw.length >= 4 && vw.startsWith(stem)) return true;
+        }
+        return false;
     }
     
     // Normalize text for matching (remove punctuation, lowercase)

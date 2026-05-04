@@ -1467,6 +1467,89 @@ mark.search-term {
     display: block;
 }
 
+.focus-mode-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+
+.focus-mode-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.focus-mode-btn .focus-on-icon {
+    display: none;
+}
+
+.focus-mode-btn.active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
+.focus-mode-btn.active .focus-off-icon {
+    display: none;
+}
+
+.focus-mode-btn.active .focus-on-icon {
+    display: block;
+}
+
+/* Focus mode: maximize dual Bible columns by hiding global chrome */
+body.focus-reading-mode .top-nav,
+body.focus-reading-mode .main-header {
+    transform: translateY(-120%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+body.focus-reading-mode .main-content {
+    padding-top: 0;
+}
+
+body.focus-reading-mode .sidebar {
+    transform: translateX(-120%);
+    pointer-events: none;
+}
+
+body.focus-reading-mode .video-view.active,
+body.focus-reading-mode .parallel-view.active,
+body.focus-reading-mode .reader-view.active {
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+body.focus-reading-mode .video-content-area {
+    gap: 12px;
+}
+
+body.focus-reading-mode .video-player-wrapper {
+    display: none !important;
+}
+
+body.focus-reading-mode .sync-header {
+    display: none;
+}
+
+body.focus-reading-mode .video-container {
+    height: calc(100vh - 24px);
+}
+
+body.focus-reading-mode .audio-controls-bar {
+    position: sticky;
+    bottom: 0;
+}
+
 /* Video player visible state - side by side with text */
 .video-player-wrapper.visible-player {
     position: relative !important;
@@ -2234,6 +2317,80 @@ mark.search-term {
     .page-nav.next {
         right: -50px;
     }
+
+    .header-content {
+        padding: 0 12px;
+        gap: 8px;
+    }
+
+    .logo-text {
+        font-size: 1.25rem;
+    }
+
+    .header-actions form {
+        display: none;
+    }
+
+    .main-content {
+        padding-top: 132px;
+    }
+
+    .nav-container {
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 8px;
+        padding: 10px 12px;
+        scrollbar-width: none;
+    }
+
+    .nav-container::-webkit-scrollbar {
+        display: none;
+    }
+
+    .video-view,
+    .parallel-view,
+    .reader-view {
+        padding: 16px;
+    }
+
+    .video-container {
+        height: calc(100vh - var(--header-height) - 150px);
+        gap: 12px;
+    }
+
+    .sync-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 14px;
+    }
+
+    .sync-controls {
+        width: 100%;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .audio-controls-bar {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .progress-bar {
+        order: 10;
+        flex-basis: 100%;
+    }
+
+    .time-display {
+        min-width: 80px;
+    }
+
+    .playback-rate {
+        margin-left: 0;
+    }
 }
 
 @media (max-width: 600px) {
@@ -2290,6 +2447,69 @@ mark.search-term {
         width: 98vw;
         border-radius: 8px;
     }
+
+    .video-view,
+    .parallel-view,
+    .reader-view {
+        padding: 10px;
+    }
+
+    .video-container {
+        height: calc(100vh - var(--header-height) - 140px);
+    }
+
+    .sync-text-dual {
+        overflow-x: auto;
+    }
+
+    .sync-column {
+        min-width: 50%;
+    }
+
+    .sync-column-header {
+        padding: 10px 12px;
+    }
+
+    .sync-verses {
+        padding: 12px;
+        font-size: 1rem;
+        line-height: 1.65;
+    }
+
+    .audio-controls-bar {
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .audio-controls-bar .now-playing {
+        display: none;
+    }
+
+    .chapter-nav-btn,
+    .control-btn,
+    .video-toggle-btn,
+    .focus-mode-btn {
+        width: 36px;
+        height: 36px;
+    }
+
+    .playback-rate {
+        min-width: 96px;
+        gap: 6px;
+    }
+
+    .playback-rate input[type="range"] {
+        width: 76px;
+    }
+
+    body.focus-reading-mode .video-container {
+        height: calc(100vh - 12px);
+    }
+
+    body.focus-reading-mode .audio-controls-bar {
+        border-radius: 10px;
+        padding: 8px;
+    }
 }
 
 /* ===== Scrollbar Styling ===== */
@@ -2316,4 +2536,55 @@ mark.search-term {
 ::selection {
     background: var(--accent-light);
     color: var(--accent-secondary);
+}
+
+/* ===== Optional email-capture prompt ===== */
+.email-prompt {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    max-width: calc(100vw - 24px);
+    background: #111c33;
+    color: #e2e8f0;
+    border: 1px solid #1e293b;
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    padding: 18px 18px 16px;
+    z-index: 9999;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.email-prompt--hidden { opacity: 0; transform: translateY(20px); pointer-events: none; }
+.email-prompt__close {
+    position: absolute; top: 8px; right: 10px;
+    background: transparent; border: 0; color: #94a3b8;
+    font-size: 1.4rem; line-height: 1; cursor: pointer; padding: 4px 8px;
+}
+.email-prompt__close:hover { color: #fff; }
+.email-prompt__title { display: block; font-size: 1rem; margin-bottom: 6px; }
+.email-prompt__msg { margin: 0 0 12px; font-size: 0.88rem; line-height: 1.45; color: #cbd5e1; }
+.email-prompt__form { display: flex; gap: 6px; }
+.email-prompt__form input {
+    flex: 1; min-width: 0;
+    padding: 8px 10px; border-radius: 6px;
+    border: 1px solid #334155; background: #0b1220; color: #e2e8f0;
+    font-size: 0.92rem;
+}
+.email-prompt__form button {
+    padding: 8px 14px; border-radius: 6px; border: 0;
+    background: #2563eb; color: #fff; font-weight: 600; cursor: pointer; font-size: 0.92rem;
+}
+.email-prompt__form button:hover { background: #1d4ed8; }
+.email-prompt__skip {
+    margin-top: 8px; background: transparent; border: 0; color: #94a3b8;
+    font-size: 0.82rem; cursor: pointer; padding: 4px 0;
+}
+.email-prompt__skip:hover { color: #cbd5e1; text-decoration: underline; }
+.email-prompt__status { margin-top: 8px; font-size: 0.82rem; min-height: 1em; }
+.email-prompt__status.ok  { color: #34d399; }
+.email-prompt__status.err { color: #f87171; }
+
+@media (max-width: 600px) {
+    .email-prompt { left: 12px; right: 12px; bottom: 12px; width: auto; }
 }

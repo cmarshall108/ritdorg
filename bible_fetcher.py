@@ -372,11 +372,6 @@ def get_verses(translation: str, book: str, chapter: int):
     return verses
 
 
-def get_all_translations():
-    """Return the list of supported translation codes."""
-    return list(TRANSLATION_SOURCES.keys())
-
-
 # ---------------------------------------------------------------------------
 # Migration helper – export hardcoded translations.py data to JSON cache
 # ---------------------------------------------------------------------------

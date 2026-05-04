@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+{% block title %}Dashboard · Admin{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="card">
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="num">{{ stats.users }}</div>
+            <div class="lbl">Total users</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ stats.active_sessions }}</div>
+            <div class="lbl">Active sessions</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ stats.active_last_7d }}</div>
+            <div class="lbl">Active last 7 days</div>
+        </div>
+    </div>
+</div>
+<div class="card">
+    <p style="margin:0;color:#94a3b8;">Use the sidebar to manage users.</p>
+</div>
+{% endblock %}
