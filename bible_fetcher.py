@@ -18,7 +18,7 @@ import time
 import logging
 import requests
 
-from bible_data import NT_BOOKS
+from bible_data import ALL_BOOKS
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +37,7 @@ TRANSLATION_SOURCES = {
     "ESV":      "biblehub",
     "NASB1995": "biblehub",
     "Hungarian": "biblegateway",
+    "Hungarian-Revised": "local",
     "Hebrew":   "biblehub-hebrew",
 }
 
@@ -63,7 +64,7 @@ HEADERS = {
 
 def _cache_path(translation: str, book: str, chapter: int) -> str:
     """Return the filesystem path for a cached chapter."""
-    info = NT_BOOKS.get(book)
+    info = ALL_BOOKS.get(book)
     slug = info["slug"] if info else book.lower().replace(" ", "_")
     return os.path.join(CACHE_DIR, translation.lower(), slug, f"{chapter}.json")
 
@@ -152,7 +153,7 @@ def _clean_biblehub_text(raw: str) -> str:
 
 def fetch_from_biblehub(book: str, chapter: int, translation_code: str):
     """Fetch a full chapter from BibleHub for a given translation."""
-    info = NT_BOOKS.get(book)
+    info = ALL_BOOKS.get(book)
     if not info:
         return None
     slug = info["slug"]
@@ -212,7 +213,7 @@ def _clean_hebrew_text(raw: str) -> str:
 
 def fetch_hebrew_chapter(book: str, chapter: int, max_verses: int = 200):
     """Fetch Hebrew (Delitzsch) NT text with vowel markings from BibleHub."""
-    info = NT_BOOKS.get(book)
+    info = ALL_BOOKS.get(book)
     if not info:
         return None
     slug = info["slug"]
@@ -279,7 +280,7 @@ def _clean_biblegateway_text(raw: str) -> str:
 
 def fetch_from_biblegateway(book: str, chapter: int, version_code: str):
     """Fetch a full chapter from BibleGateway for a given translation."""
-    info = NT_BOOKS.get(book)
+    info = ALL_BOOKS.get(book)
     if not info:
         return None
     bg_book = book.replace(" ", "+")
@@ -337,9 +338,9 @@ def get_verses(translation: str, book: str, chapter: int):
     Returns: dict  {verse_number(int): verse_text(str)}  or  None
     """
     # Validate inputs
-    if book not in NT_BOOKS:
+    if book not in ALL_BOOKS:
         return None
-    max_ch = NT_BOOKS[book]["chapters"]
+    max_ch = ALL_BOOKS[book]["chapters"]
     if chapter < 1 or chapter > max_ch:
         return None
 

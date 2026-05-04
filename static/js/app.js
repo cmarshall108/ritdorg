@@ -146,6 +146,9 @@ class BibleReader {
                 this.scrollToVerse(parseInt(verseNum));
             });
         }
+
+        // Bottom-bar verse selector (visible in focus mode and on mobile)
+        this.setupNavJumpPopover();
         
         // Page navigation
         document.getElementById('prevPage').addEventListener('click', () => this.prevPage());
@@ -1917,6 +1920,86 @@ class BibleReader {
             .sort((a, b) => a - b);
         sel.innerHTML = '<option value="">Verse</option>' +
             verseNums.map(n => `<option value="${n}">v${n}</option>`).join('');
+        // Mirror into the bottom-bar nav jump verse select if present
+        const navSel = document.getElementById('navVerseSelect');
+        if (navSel) {
+            navSel.innerHTML = '<option value="">Verse</option>' +
+                verseNums.map(n => `<option value="${n}">v${n}</option>`).join('');
+        }
+        this.updateNavJumpLabel();
+    }
+
+    setupNavJumpPopover() {
+        const btn = document.getElementById('navJumpBtn');
+        const pop = document.getElementById('navJumpPopover');
+        const bookSel = document.getElementById('navBookSelect');
+        const chapSel = document.getElementById('navChapterSelect');
+        const verseSel = document.getElementById('navVerseSelect');
+        if (!btn || !pop) return;
+
+        const open = () => {
+            // Sync chapter options from the mobile chapter select
+            const mobileChap = document.getElementById('mobileChapterSelect');
+            if (mobileChap && chapSel) {
+                chapSel.innerHTML = mobileChap.innerHTML;
+                chapSel.value = String(this.currentChapter || mobileChap.value || '1');
+            }
+            if (bookSel) bookSel.value = this.currentBook || bookSel.value;
+            if (verseSel) verseSel.value = '';
+            pop.classList.remove('hidden');
+            btn.setAttribute('aria-expanded', 'true');
+        };
+        const close = () => {
+            pop.classList.add('hidden');
+            btn.setAttribute('aria-expanded', 'false');
+        };
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (pop.classList.contains('hidden')) open(); else close();
+        });
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        document.addEventListener('click', () => {
+            if (!pop.classList.contains('hidden')) close();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !pop.classList.contains('hidden')) close();
+        });
+
+        if (bookSel) {
+            bookSel.addEventListener('change', (e) => {
+                const mobileBook = document.getElementById('mobileBookSelect');
+                if (mobileBook) {
+                    mobileBook.value = e.target.value;
+                    mobileBook.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+        if (chapSel) {
+            chapSel.addEventListener('change', (e) => {
+                const mobileChap = document.getElementById('mobileChapterSelect');
+                if (mobileChap) {
+                    mobileChap.value = e.target.value;
+                    mobileChap.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+        if (verseSel) {
+            verseSel.addEventListener('change', (e) => {
+                const v = e.target.value;
+                if (!v) return;
+                this.scrollToVerse(parseInt(v));
+                close();
+            });
+        }
+    }
+
+    updateNavJumpLabel() {
+        const label = document.getElementById('navJumpLabel');
+        if (!label) return;
+        if (this.currentBook && this.currentChapter) {
+            label.textContent = `${this.currentBook} ${this.currentChapter}`;
+        }
     }
 
     scrollToVerse(verseNum) {

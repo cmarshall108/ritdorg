@@ -17,7 +17,7 @@ import sys
 import time
 import logging
 
-from bible_data import NT_BOOKS, NT_TRANSLATIONS
+from bible_data import ALL_BOOKS, NT_TRANSLATIONS
 import bible_fetcher
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -28,7 +28,7 @@ def prefetch(translations=None):
     if translations is None:
         translations = NT_TRANSLATIONS
 
-    total_chapters = sum(info["chapters"] for info in NT_BOOKS.values())
+    total_chapters = sum(info["chapters"] for info in ALL_BOOKS.values())
     total = total_chapters * len(translations)
     done = 0
     cached = 0
@@ -40,7 +40,7 @@ def prefetch(translations=None):
         print(f"  Fetching: {translation}")
         print(f"{'=' * 60}")
 
-        for book, info in NT_BOOKS.items():
+        for book, info in ALL_BOOKS.items():
             for chapter in range(1, info["chapters"] + 1):
                 done += 1
                 label = f"[{done}/{total}] {translation} — {book} {chapter}"

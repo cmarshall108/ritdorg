@@ -398,6 +398,37 @@
                             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                         </svg>
                     </button>
+                    <div class="nav-jump-wrap">
+                        <button class="nav-jump-btn" id="navJumpBtn" title="Jump to book / chapter / verse" aria-haspopup="true" aria-expanded="false">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                            </svg>
+                            <span class="nav-jump-label" id="navJumpLabel">Verse</span>
+                        </button>
+                        <div class="nav-jump-popover hidden" id="navJumpPopover" role="dialog" aria-label="Jump to verse">
+                            <div class="nav-jump-row">
+                                <label for="navBookSelect">Book</label>
+                                <select id="navBookSelect" class="styled-select mini">
+                                    {% for book in books %}
+                                    <option value="{{ book }}" {% if book == 'Matthew' %}selected{% endif %}>{{ book }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="nav-jump-row">
+                                <label for="navChapterSelect">Chapter</label>
+                                <select id="navChapterSelect" class="styled-select mini">
+                                    <option value="1">1</option>
+                                </select>
+                            </div>
+                            <div class="nav-jump-row">
+                                <label for="navVerseSelect">Verse</label>
+                                <select id="navVerseSelect" class="styled-select mini">
+                                    <option value="">Verse</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                     <button class="focus-mode-btn" id="focusModeBtn" title="Focus mode: hide top bars" aria-pressed="false">
                         <svg class="focus-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3H5a2 2 0 0 0-2 2v3"/>

@@ -7,7 +7,7 @@ import os
 import logging
 
 from translations import *
-from bible_data import NT_BOOKS, NT_TRANSLATIONS
+from bible_data import NT_BOOKS, ALL_BOOKS, NT_TRANSLATIONS
 import bible_fetcher
 import auth
 
@@ -48,12 +48,12 @@ def _inject_user():
 
 @app.route('/')
 def index():
-    books = list(NT_BOOKS.keys())
+    books = list(ALL_BOOKS.keys())
     return render_template('index.html', books=books, translations=NT_TRANSLATIONS)
 
 @app.route('/api/books')
 def get_books():
-    return jsonify(list(NT_BOOKS.keys()))
+    return jsonify(list(ALL_BOOKS.keys()))
 
 @app.route('/api/translations')
 def get_translations():
@@ -61,8 +61,8 @@ def get_translations():
 
 @app.route('/api/chapters/<book>')
 def get_chapters(book):
-    if book in NT_BOOKS:
-        return jsonify(list(range(1, NT_BOOKS[book]['chapters'] + 1)))
+    if book in ALL_BOOKS:
+        return jsonify(list(range(1, ALL_BOOKS[book]['chapters'] + 1)))
     return jsonify([])
 
 @app.route('/api/verses/<book>/<int:chapter>')
@@ -154,7 +154,7 @@ def search_bible():
         if not os.path.isdir(trans_dir):
             continue
 
-        for book_name, info in NT_BOOKS.items():
+        for book_name, info in ALL_BOOKS.items():
             slug = info["slug"]
             book_dir = os.path.join(trans_dir, slug)
             if not os.path.isdir(book_dir):
