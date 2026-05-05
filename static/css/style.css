@@ -1507,6 +1507,7 @@ mark.search-term {
 
 /* Focus mode: maximize dual Bible columns by hiding global chrome */
 body.focus-reading-mode .top-nav,
+body.focus-reading-mode .mobile-top-bar,
 body.focus-reading-mode .main-header {
     transform: translateY(-120%);
     opacity: 0;
@@ -2235,6 +2236,76 @@ body.focus-reading-mode .audio-controls-bar {
     font-size: 1.75rem;
 }
 
+/* ===== Mobile Top Bar ===== */
+.mobile-top-bar {
+    display: none;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    z-index: 99;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 8px 12px;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.mobile-menu-toggle:hover {
+    background: var(--accent-light);
+    color: var(--accent-primary);
+}
+
+.mobile-menu-toggle-label {
+    line-height: 1;
+}
+
+.mobile-nav-controls {
+    display: flex;
+    flex: 1;
+    gap: 6px;
+    min-width: 0;
+}
+
+.mobile-nav-controls .styled-select {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.85rem;
+    padding: 6px 8px;
+}
+
+/* ===== Hebrew RTL alignment ===== */
+#syncCol2 .sync-verses,
+#parallelCol2 .column-verses {
+    direction: rtl;
+    text-align: right;
+}
+
+#syncCol2 .sync-verse,
+#parallelCol2 .verse-line,
+#parallelCol2 .parallel-verse {
+    direction: rtl;
+    text-align: right;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1400px) {
     .book-3d {
@@ -2332,16 +2403,33 @@ body.focus-reading-mode .audio-controls-bar {
     }
 
     .main-content {
-        padding-top: 132px;
+        padding-top: 124px;
+    }
+
+    /* Show mobile bar, collapse the page-link top-nav into a hamburger menu */
+    .mobile-top-bar {
+        display: flex;
+    }
+
+    .top-nav {
+        top: calc(var(--header-height) + 50px);
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height var(--transition-medium) ease;
+        border-bottom: 0;
+    }
+
+    .top-nav.open {
+        max-height: 60vh;
+        overflow-y: auto;
+        border-bottom: 1px solid var(--border-color);
     }
 
     .nav-container {
         justify-content: flex-start;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        gap: 8px;
-        padding: 10px 12px;
-        scrollbar-width: none;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 12px;
     }
 
     .nav-container::-webkit-scrollbar {

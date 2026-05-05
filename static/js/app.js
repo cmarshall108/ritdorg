@@ -99,6 +99,53 @@ class BibleReader {
             this.currentChapter = parseInt(e.target.value);
             this.loadChapter(this.currentBook, this.currentChapter);
         });
+
+        // Mobile top-bar controls (mirror sidebar selectors)
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const topNav = document.getElementById('topNav');
+        if (mobileMenuToggle && topNav) {
+            mobileMenuToggle.addEventListener('click', () => {
+                const isOpen = topNav.classList.toggle('open');
+                mobileMenuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+            topNav.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    topNav.classList.remove('open');
+                    mobileMenuToggle.setAttribute('aria-expanded', 'false');
+                });
+            });
+        }
+
+        const mobileBookSelect = document.getElementById('mobileBookSelect');
+        if (mobileBookSelect) {
+            mobileBookSelect.addEventListener('change', (e) => {
+                const book = e.target.value;
+                this.currentBook = book;
+                const sidebarSel = document.getElementById('bookSelect');
+                if (sidebarSel) sidebarSel.value = book;
+                this.loadChapters(book);
+            });
+        }
+
+        const mobileChapterSelect = document.getElementById('mobileChapterSelect');
+        if (mobileChapterSelect) {
+            mobileChapterSelect.addEventListener('change', (e) => {
+                const chapter = parseInt(e.target.value);
+                this.currentChapter = chapter;
+                const sidebarSel = document.getElementById('chapterSelect');
+                if (sidebarSel) sidebarSel.value = String(chapter);
+                this.loadChapter(this.currentBook, chapter);
+            });
+        }
+
+        const mobileVerseSelect = document.getElementById('mobileVerseSelect');
+        if (mobileVerseSelect) {
+            mobileVerseSelect.addEventListener('change', (e) => {
+                const verseNum = e.target.value;
+                if (!verseNum) return;
+                this.scrollToVerse(parseInt(verseNum));
+            });
+        }
         
         // Page navigation
         document.getElementById('prevPage').addEventListener('click', () => this.prevPage());
@@ -306,6 +353,15 @@ class BibleReader {
             select.innerHTML = chapters.map(ch => 
                 `<option value="${ch}" ${ch === selectChapter ? 'selected' : ''}>Chapter ${ch}</option>`
             ).join('');
+
+            const mobileSelect = document.getElementById('mobileChapterSelect');
+            if (mobileSelect) {
+                mobileSelect.innerHTML = chapters.map(ch =>
+                    `<option value="${ch}" ${ch === selectChapter ? 'selected' : ''}>Ch ${ch}</option>`
+                ).join('');
+            }
+            const mobileBook = document.getElementById('mobileBookSelect');
+            if (mobileBook && mobileBook.value !== book) mobileBook.value = book;
             
             this.currentChapter = selectChapter;
             this.loadChapter(book, selectChapter);
@@ -335,6 +391,7 @@ class BibleReader {
             this.paginateVerses();
             this.renderCurrentPages();
             this.updateNavigation();
+            this.populateMobileVerseSelect();
             
             // Update headers
             document.getElementById('leftBookName').textContent = book;
@@ -1848,6 +1905,37 @@ class BibleReader {
 
     closeSearch() {
         document.getElementById('searchResultsContainer').classList.add('hidden');
+    }
+
+    // ===== Mobile verse jump =====
+    populateMobileVerseSelect() {
+        const sel = document.getElementById('mobileVerseSelect');
+        if (!sel) return;
+        const verseNums = Object.keys(this.verses || {})
+            .map(n => parseInt(n))
+            .filter(n => !isNaN(n))
+            .sort((a, b) => a - b);
+        sel.innerHTML = '<option value="">Verse</option>' +
+            verseNums.map(n => `<option value="${n}">v${n}</option>`).join('');
+    }
+
+    scrollToVerse(verseNum) {
+        if (!verseNum) return;
+        const selectors = [
+            `#syncVerses1 .sync-verse[data-verse="${verseNum}"]`,
+            `#syncVerses2 .sync-verse[data-verse="${verseNum}"]`,
+            `#col1Verses .parallel-verse[data-verse="${verseNum}"]`,
+            `.verses .verse[data-verse="${verseNum}"]`
+        ];
+        for (const sel of selectors) {
+            const el = document.querySelector(sel);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                el.classList.add('active');
+                setTimeout(() => el.classList.remove('active'), 1800);
+                return;
+            }
+        }
     }
 
     

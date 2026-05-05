@@ -10,8 +10,33 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    <!-- Mobile Top Bar (visible on small screens) -->
+    <div class="mobile-top-bar">
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle menu" aria-expanded="false">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <line x1="3" y1="12" x2="21" y2="12"/>
+                <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+            <span class="mobile-menu-toggle-label">Menu</span>
+        </button>
+        <div class="mobile-nav-controls">
+            <select id="mobileBookSelect" class="styled-select mini" aria-label="Book">
+                {% for book in books %}
+                <option value="{{ book }}" {% if book == 'Matthew' %}selected{% endif %}>{{ book }}</option>
+                {% endfor %}
+            </select>
+            <select id="mobileChapterSelect" class="styled-select mini" aria-label="Chapter">
+                <option value="1">Ch 1</option>
+            </select>
+            <select id="mobileVerseSelect" class="styled-select mini" aria-label="Verse">
+                <option value="">Verse</option>
+            </select>
+        </div>
+    </div>
+
     <!-- Top Navigation -->
-    <nav class="top-nav">
+    <nav class="top-nav" id="topNav">
         <div class="nav-container">
             <a href="/" class="nav-link active">Home</a>
             <a href="/videos" class="nav-link">Videos</a>
