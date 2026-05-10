@@ -5,12 +5,12 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'ritd_tutorial_seen_v1';
+    const STORAGE_KEY = 'ritd_tutorial_seen_v2';
 
     const STEPS = [
         {
             title: 'Welcome to RITDorg',
-            body:  'A quick 30-second tour to show you how to read, listen and compare Scripture. You can replay this tour anytime from the “?” button in the header.',
+            body:  'A quick tour to show you how to read, listen and compare Scripture. You can replay this anytime from the “?” button in the header.',
             target: null,
         },
         {
@@ -25,18 +25,38 @@
         },
         {
             title: 'Choose translations',
-            body:  'Read two translations side-by-side. Use the swap buttons to flip them — either column can show Hebrew, NIV, ESV and more.',
+            body:  'Read two translations side-by-side. Use the swap button to flip them — either column can show Hebrew, NIV, ESV and more.',
             target: '.sync-translations',
         },
         {
             title: 'Listen along',
-            body:  'Press play to hear the chapter narrated. Verses highlight in time with the audio.',
+            body:  'Press play to hear the chapter narrated. Verses highlight in time with the audio, and the opposite column follows along automatically.',
             target: '#playPauseBtn',
         },
         {
+            title: 'Adjust the pace',
+            body:  'Drag the speed slider to slow the narration down or speed it up — handy for study or listening on the go.',
+            target: '.playback-rate',
+        },
+        {
+            title: 'Auto-continue chapters',
+            body:  'When this is lit up, the next chapter starts playing automatically as soon as the current one ends. Tap to turn it off if you’d rather pause between chapters.',
+            target: '#autoAdvanceBtn',
+        },
+        {
+            title: 'Jump anywhere',
+            body:  'Tap the bookmark-style button to jump to any book, chapter, or verse without losing your place.',
+            target: '.nav-jump-btn',
+        },
+        {
             title: 'Hide the Hebrew column',
-            body:  'Tap the eye icon to hide or show the Hebrew column at any time.',
+            body:  'Tap the eye icon to hide or show the Hebrew column at any time. With Hebrew hidden, the play button reads the other translation aloud.',
             target: '#hebrewToggleBtn',
+        },
+        {
+            title: 'Highlights, notes & bookmarks',
+            body:  'Tap any verse to highlight it, attach a note, or bookmark it. Sign in (top-right) and your annotations and last-read spot follow you across devices.',
+            target: '.user-menu, #userMenuBtn, #signInBtn',
         },
         {
             title: 'Focus mode',
