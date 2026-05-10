@@ -65,20 +65,6 @@
                 <span class="logo-text">RITDorg</span>
             </div>
             <nav class="main-nav">
-                <!--<button class="nav-btn active" data-view="reader">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                    </svg>
-                    Read
-                </button>
-                <button class="nav-btn" data-view="parallel">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="18" rx="1"/>
-                        <rect x="14" y="3" width="7" height="18" rx="1"/>
-                    </svg>
-                    Compare
-                </button>-->
                 <button class="nav-btn active" data-view="video">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"/>
@@ -98,7 +84,19 @@
                         <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
                     </svg>
                 </a>
-                <button class="theme-toggle" id="themeToggle">
+                <button class="help-btn" id="helpBtn" aria-label="Show tutorial" title="Show tutorial">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </button>
+                <button class="help-btn" id="bookmarksBtn" aria-label="Show bookmarks" title="Bookmarks">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                    </svg>
+                </button>
+                <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle theme">
                     <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="5"/>
                         <line x1="12" y1="1" x2="12" y2="3"/>
@@ -122,7 +120,7 @@
     <main class="main-content">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
-            <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar">
+            <button class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar" aria-label="Toggle sidebar">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="15 18 9 12 15 6"/>
                 </svg>
@@ -232,12 +230,12 @@
                     </div>
                     
                     <!-- Navigation Arrows -->
-                    <button class="page-nav prev" id="prevPage">
+                    <button class="page-nav prev" id="prevPage" aria-label="Previous page">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="15 18 9 12 15 6"/>
                         </svg>
                     </button>
-                    <button class="page-nav next" id="nextPage">
+                    <button class="page-nav next" id="nextPage" aria-label="Next page">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="9 18 15 12 9 6"/>
                         </svg>
@@ -263,7 +261,7 @@
                                 {% endfor %}
                             </select>
                         </div>
-                        <button class="swap-btn" id="swapTranslations" title="Swap translations">
+                        <button class="swap-btn" id="swapTranslations" title="Swap translations" aria-label="Swap translations">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M7 16V4M7 4L3 8M7 4l4 4M17 8v12M17 20l4-4M17 20l-4-4"/>
                             </svg>
@@ -322,8 +320,12 @@
                                         <option value="{{ trans }}" {% if trans == 'NIV' %}selected{% endif %}>{{ trans }}</option>
                                         {% endfor %}
                                     </select>
-                                    <span class="trans-separator">|</span>
-                                    <select id="syncTrans2" class="styled-select mini" disabled>
+                                    <button class="swap-btn swap-btn-mini" id="swapSyncTranslations" title="Swap translations" aria-label="Swap translations">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                            <path d="M7 16V4M7 4L3 8M7 4l4 4M17 8v12M17 20l4-4M17 20l-4-4"/>
+                                        </svg>
+                                    </button>
+                                    <select id="syncTrans2" class="styled-select mini">
                                         {% for trans in translations %}
                                         <option value="{{ trans }}" {% if trans == 'Hebrew' %}selected{% endif %}>{{ trans }}</option>
                                         {% endfor %}
@@ -350,12 +352,27 @@
                             <div class="sync-column" id="syncCol1">
                                 <div class="sync-column-header">
                                     <span id="syncColName1">NIV</span>
+                                    <span class="sync-role-badge" id="syncRole1" title="This column follows along with what is being read">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/>
+                                            <circle cx="12" cy="12" r="3"/>
+                                        </svg>
+                                        Follow along
+                                    </span>
                                 </div>
                                 <div class="sync-verses" id="syncVerses1"></div>
                             </div>
                             <div class="sync-column" id="syncCol2">
                                 <div class="sync-column-header">
                                     <span id="syncColName2">Hebrew</span>
+                                    <span class="sync-role-badge primary" id="syncRole2" title="Audio is being read from this column">
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+                                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                                        </svg>
+                                        Read aloud
+                                    </span>
                                 </div>
                                 <div class="sync-verses" id="syncVerses2"></div>
                             </div>
@@ -364,12 +381,12 @@
                 </div>
                 <!-- Audio player controls bar -->
                 <div class="audio-controls-bar">
-                    <button class="chapter-nav-btn" id="prevChapterBtn" title="Previous Chapter">
+                    <button class="chapter-nav-btn" id="prevChapterBtn" title="Previous Chapter" aria-label="Previous chapter">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
                         </svg>
                     </button>
-                    <button class="control-btn" id="playPauseBtn">
+                    <button class="control-btn" id="playPauseBtn" aria-label="Play or pause">
                         <svg class="play-icon" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
                             <polygon points="5 3 19 12 5 21 5 3"/>
                         </svg>
@@ -378,7 +395,7 @@
                             <rect x="14" y="4" width="4" height="16"/>
                         </svg>
                     </button>
-                    <button class="chapter-nav-btn" id="nextChapterBtn" title="Next Chapter">
+                    <button class="chapter-nav-btn" id="nextChapterBtn" title="Next Chapter" aria-label="Next chapter">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
                         </svg>
@@ -463,9 +480,91 @@
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
+    <!-- Mobile sidebar backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
+    <!-- Tutorial overlay (populated by tutorial.js) -->
+    <div class="tutorial-overlay" id="tutorialOverlay" aria-hidden="true">
+        <svg class="tutorial-mask" id="tutorialMask" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <mask id="tutorialSpotlight">
+                    <rect width="100%" height="100%" fill="white"/>
+                    <rect id="tutorialSpotRect" x="0" y="0" width="0" height="0" rx="12" fill="black"/>
+                </mask>
+            </defs>
+            <rect width="100%" height="100%" fill="rgba(10, 12, 20, 0.72)" mask="url(#tutorialSpotlight)"/>
+        </svg>
+        <div class="tutorial-card" id="tutorialCard" role="dialog" aria-labelledby="tutorialTitle" aria-modal="true">
+            <div class="tutorial-progress"><span id="tutorialProgress"></span></div>
+            <h3 id="tutorialTitle">Welcome</h3>
+            <p id="tutorialBody"></p>
+            <div class="tutorial-actions">
+                <button class="tutorial-btn tutorial-skip" id="tutorialSkip">Skip tour</button>
+                <div class="tutorial-step-actions">
+                    <button class="tutorial-btn tutorial-prev" id="tutorialPrev">Back</button>
+                    <button class="tutorial-btn tutorial-next primary" id="tutorialNext">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- YouTube API -->
     <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="{{ url_for('static', filename='js/userdata.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/tutorial.js') }}"></script>
+
+    <!-- Bookmarks side panel -->
+    <div class="ud-panel" id="bookmarksPanel" aria-hidden="true">
+        <div class="ud-panel-header">
+            <h3>Bookmarks</h3>
+            <button class="ud-panel-close" id="bookmarksClose" aria-label="Close">×</button>
+        </div>
+        <div class="ud-panel-body" id="bookmarksList">
+            <p class="ud-empty">No bookmarks yet. Right-click a verse and choose <strong>Bookmark</strong>.</p>
+        </div>
+    </div>
+
+    <!-- Verse action menu (right-click on a sync verse) -->
+    <div class="ud-context-menu" id="verseMenu" role="menu" hidden>
+        <button class="ud-menu-item" data-action="bookmark" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            <span data-label="bookmark">Bookmark verse</span>
+        </button>
+        <button class="ud-menu-item" data-action="note" role="menuitem">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <span data-label="note">Add note</span>
+        </button>
+        <div class="ud-menu-section">
+            <span class="ud-menu-label">Highlight</span>
+            <div class="ud-color-row">
+                <button class="ud-color yellow" data-color="yellow" aria-label="Yellow"></button>
+                <button class="ud-color green"  data-color="green"  aria-label="Green"></button>
+                <button class="ud-color blue"   data-color="blue"   aria-label="Blue"></button>
+                <button class="ud-color pink"   data-color="pink"   aria-label="Pink"></button>
+                <button class="ud-color orange" data-color="orange" aria-label="Orange"></button>
+                <button class="ud-color purple" data-color="purple" aria-label="Purple"></button>
+                <button class="ud-color clear"  data-color=""       aria-label="Clear" title="Clear highlight">×</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note editor modal -->
+    <div class="ud-modal-overlay" id="noteOverlay" hidden>
+        <div class="ud-modal" role="dialog" aria-labelledby="noteTitle" aria-modal="true">
+            <header class="ud-modal-header">
+                <h3 id="noteTitle">Note</h3>
+                <button class="ud-panel-close" id="noteCancel" aria-label="Close">×</button>
+            </header>
+            <textarea id="noteBody" class="ud-note-body" placeholder="Write your note…" maxlength="5000"></textarea>
+            <footer class="ud-modal-footer">
+                <button class="ud-btn-ghost" id="noteDelete">Delete</button>
+                <div class="spacer"></div>
+                <button class="ud-btn-ghost" id="noteCancel2">Cancel</button>
+                <button class="ud-btn-primary" id="noteSave">Save</button>
+            </footer>
+        </div>
+    </div>
     {% include "_email_prompt.html" %}
 </body>
 </html>

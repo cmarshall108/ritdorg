@@ -37,8 +37,10 @@ AUTH_DB_PATH = os.environ.get(
 
 SESSION_COOKIE_NAME = "ritd_session"
 DISMISS_COOKIE_NAME = "ritd_email_dismissed"
+DEVICE_COOKIE_NAME  = "ritd_device"
 SESSION_DURATION = timedelta(days=7)
 DISMISS_DURATION = timedelta(days=30)
+DEVICE_DURATION  = timedelta(days=365 * 2)
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -93,6 +95,66 @@ def init_db() -> None:
                 user_agent  TEXT
             );
             CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions(user_id);
+
+            -- Per-visitor reading state (last position, view mode, prefs).
+            -- Owner is identified by either user_id (logged in) or
+            -- device_key (anonymous cookie). Exactly one of these is set.
+            CREATE TABLE IF NOT EXISTS reading_state (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                device_key  TEXT,
+                book        TEXT,
+                chapter     INTEGER,
+                verse       INTEGER,
+                view        TEXT,
+                updated_at  TEXT NOT NULL,
+                UNIQUE(user_id),
+                UNIQUE(device_key)
+            );
+
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                device_key  TEXT,
+                book        TEXT NOT NULL,
+                chapter     INTEGER NOT NULL,
+                verse       INTEGER NOT NULL,
+                label       TEXT,
+                created_at  TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS bookmarks_owner_idx
+                ON bookmarks(user_id, device_key);
+
+            CREATE TABLE IF NOT EXISTS notes (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                device_key  TEXT,
+                book        TEXT NOT NULL,
+                chapter     INTEGER NOT NULL,
+                verse       INTEGER NOT NULL,
+                body        TEXT NOT NULL,
+                created_at  TEXT NOT NULL,
+                updated_at  TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS notes_owner_idx
+                ON notes(user_id, device_key);
+            CREATE INDEX IF NOT EXISTS notes_loc_idx
+                ON notes(book, chapter);
+
+            CREATE TABLE IF NOT EXISTS highlights (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                device_key  TEXT,
+                book        TEXT NOT NULL,
+                chapter     INTEGER NOT NULL,
+                verse       INTEGER NOT NULL,
+                color       TEXT NOT NULL,
+                created_at  TEXT NOT NULL,
+                UNIQUE(user_id, book, chapter, verse),
+                UNIQUE(device_key, book, chapter, verse)
+            );
+            CREATE INDEX IF NOT EXISTS highlights_owner_idx
+                ON highlights(user_id, device_key);
             """
         )
 
@@ -246,6 +308,237 @@ def load_current_user() -> None:
         row = get_session_user(token)
         if row:
             g.current_user = {"id": row["id"], "email": row["email"]}
+    # Stable per-device key so anonymous visitors also keep their
+    # bookmarks / notes / last position. Set elsewhere by ensure_device_key.
+    g.device_key = request.cookies.get(DEVICE_COOKIE_NAME) or None
+
+
+def ensure_device_key(response):
+    """Attach a long-lived random device-key cookie if the visitor doesn't
+    have one yet. Call this from an after_request hook."""
+    if request.cookies.get(DEVICE_COOKIE_NAME):
+        return response
+    key = secrets.token_urlsafe(24)
+    g.device_key = key
+    response.set_cookie(
+        DEVICE_COOKIE_NAME, key,
+        max_age=int(DEVICE_DURATION.total_seconds()),
+        httponly=True, secure=request.is_secure, samesite="Lax", path="/",
+    )
+    return response
+
+
+def _owner_filter():
+    """Returns (sql_clause, params) selecting rows owned by the current
+    user (preferred) or the current device key. Falls back to a clause
+    that matches nothing when no identity is present."""
+    user = g.get("current_user") or {}
+    if user.get("id"):
+        return ("user_id = ?", (user["id"],))
+    key = g.get("device_key")
+    if key:
+        return ("device_key = ?", (key,))
+    return ("1 = 0", ())
+
+
+def _owner_columns():
+    """Returns ('user_id, device_key', (uid_or_None, key_or_None)) for
+    INSERT statements."""
+    user = g.get("current_user") or {}
+    if user.get("id"):
+        return ("user_id, device_key", (user["id"], None))
+    return ("user_id, device_key", (None, g.get("device_key")))
+
+
+def has_owner() -> bool:
+    return bool((g.get("current_user") or {}).get("id") or g.get("device_key"))
+
+
+# ---------------------------------------------------------------------------
+# Reading state, bookmarks, notes, highlights
+# ---------------------------------------------------------------------------
+
+def _now_iso() -> str:
+    return _iso(_utcnow())
+
+
+def get_reading_state() -> Optional[dict]:
+    where, params = _owner_filter()
+    with _connect() as c:
+        row = c.execute(
+            f"SELECT book, chapter, verse, view, updated_at "
+            f"FROM reading_state WHERE {where}", params,
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def save_reading_state(book: str, chapter: int, verse: Optional[int], view: Optional[str]) -> None:
+    if not has_owner():
+        return
+    user = g.get("current_user") or {}
+    uid = user.get("id")
+    key = None if uid else g.get("device_key")
+    now = _now_iso()
+    with _connect() as c:
+        if uid:
+            existing = c.execute("SELECT id FROM reading_state WHERE user_id = ?", (uid,)).fetchone()
+        else:
+            existing = c.execute("SELECT id FROM reading_state WHERE device_key = ?", (key,)).fetchone()
+        if existing:
+            c.execute(
+                "UPDATE reading_state SET book=?, chapter=?, verse=?, view=?, updated_at=? WHERE id=?",
+                (book, chapter, verse, view, now, existing["id"]),
+            )
+        else:
+            c.execute(
+                "INSERT INTO reading_state(user_id, device_key, book, chapter, verse, view, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (uid, key, book, chapter, verse, view, now),
+            )
+
+
+def list_bookmarks() -> list[dict]:
+    where, params = _owner_filter()
+    with _connect() as c:
+        rows = c.execute(
+            f"SELECT id, book, chapter, verse, label, created_at "
+            f"FROM bookmarks WHERE {where} ORDER BY created_at DESC", params,
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def add_bookmark(book: str, chapter: int, verse: int, label: str = "") -> Optional[int]:
+    if not has_owner():
+        return None
+    cols, vals = _owner_columns()
+    with _connect() as c:
+        cur = c.execute(
+            f"INSERT INTO bookmarks({cols}, book, chapter, verse, label, created_at) "
+            f"VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (*vals, book, chapter, int(verse), label or None, _now_iso()),
+        )
+        return cur.lastrowid
+
+
+def delete_bookmark(bookmark_id: int) -> bool:
+    where, params = _owner_filter()
+    with _connect() as c:
+        cur = c.execute(
+            f"DELETE FROM bookmarks WHERE id = ? AND {where}",
+            (int(bookmark_id), *params),
+        )
+        return cur.rowcount > 0
+
+
+def list_notes(book: Optional[str] = None, chapter: Optional[int] = None) -> list[dict]:
+    where, params = _owner_filter()
+    extra = ""
+    extra_params: tuple = ()
+    if book and chapter:
+        extra = " AND book = ? AND chapter = ?"
+        extra_params = (book, int(chapter))
+    with _connect() as c:
+        rows = c.execute(
+            f"SELECT id, book, chapter, verse, body, created_at, updated_at "
+            f"FROM notes WHERE {where}{extra} "
+            f"ORDER BY book, chapter, verse",
+            (*params, *extra_params),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def upsert_note(book: str, chapter: int, verse: int, body: str) -> Optional[int]:
+    if not has_owner():
+        return None
+    body = (body or "").strip()
+    where, params = _owner_filter()
+    now = _now_iso()
+    with _connect() as c:
+        existing = c.execute(
+            f"SELECT id FROM notes WHERE {where} AND book = ? AND chapter = ? AND verse = ?",
+            (*params, book, int(chapter), int(verse)),
+        ).fetchone()
+        if existing:
+            if not body:
+                c.execute("DELETE FROM notes WHERE id = ?", (existing["id"],))
+                return None
+            c.execute(
+                "UPDATE notes SET body = ?, updated_at = ? WHERE id = ?",
+                (body, now, existing["id"]),
+            )
+            return existing["id"]
+        if not body:
+            return None
+        cols, vals = _owner_columns()
+        cur = c.execute(
+            f"INSERT INTO notes({cols}, book, chapter, verse, body, created_at, updated_at) "
+            f"VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (*vals, book, int(chapter), int(verse), body, now, now),
+        )
+        return cur.lastrowid
+
+
+def delete_note(note_id: int) -> bool:
+    where, params = _owner_filter()
+    with _connect() as c:
+        cur = c.execute(
+            f"DELETE FROM notes WHERE id = ? AND {where}",
+            (int(note_id), *params),
+        )
+        return cur.rowcount > 0
+
+
+_VALID_HIGHLIGHT_COLORS = {"yellow", "green", "blue", "pink", "orange", "purple"}
+
+
+def list_highlights(book: Optional[str] = None, chapter: Optional[int] = None) -> list[dict]:
+    where, params = _owner_filter()
+    extra = ""
+    extra_params: tuple = ()
+    if book and chapter:
+        extra = " AND book = ? AND chapter = ?"
+        extra_params = (book, int(chapter))
+    with _connect() as c:
+        rows = c.execute(
+            f"SELECT id, book, chapter, verse, color, created_at "
+            f"FROM highlights WHERE {where}{extra}",
+            (*params, *extra_params),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def set_highlight(book: str, chapter: int, verse: int, color: str) -> Optional[int]:
+    if not has_owner():
+        return None
+    color = (color or "").lower().strip()
+    if color not in _VALID_HIGHLIGHT_COLORS:
+        return None
+    where, params = _owner_filter()
+    with _connect() as c:
+        existing = c.execute(
+            f"SELECT id FROM highlights WHERE {where} AND book = ? AND chapter = ? AND verse = ?",
+            (*params, book, int(chapter), int(verse)),
+        ).fetchone()
+        if existing:
+            c.execute("UPDATE highlights SET color = ? WHERE id = ?", (color, existing["id"]))
+            return existing["id"]
+        cols, vals = _owner_columns()
+        cur = c.execute(
+            f"INSERT INTO highlights({cols}, book, chapter, verse, color, created_at) "
+            f"VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (*vals, book, int(chapter), int(verse), color, _now_iso()),
+        )
+        return cur.lastrowid
+
+
+def clear_highlight(book: str, chapter: int, verse: int) -> bool:
+    where, params = _owner_filter()
+    with _connect() as c:
+        cur = c.execute(
+            f"DELETE FROM highlights WHERE {where} AND book = ? AND chapter = ? AND verse = ?",
+            (*params, book, int(chapter), int(verse)),
+        )
+        return cur.rowcount > 0
 
 
 # ---------------------------------------------------------------------------

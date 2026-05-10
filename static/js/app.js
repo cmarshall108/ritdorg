@@ -57,12 +57,20 @@ class BibleReader {
         // Caption→verse matching helpers
         this.verseIndex = null;          // { byVerse, idf, verseNums }
         this.recentVerseMatches = [];    // last few verse matches for smoothing
-        
+
+        // Per-visitor data: bookmarks, notes, highlights, last position.
+        this.userData = (typeof UserData !== 'undefined') ? new UserData() : null;
+
         this.init();
     }
     
     init() {
         this.searchDebounceTimer = null;
+        // Generation counters for in-flight fetches; bumped each call so
+        // a stale response can't overwrite the current view.
+        this._chapterReqId = 0;
+        this._parallelReqId = 0;
+        this._syncReqId = 0;
         this.bindEvents();
 
         // Initialize playback rate UI
@@ -81,8 +89,18 @@ class BibleReader {
         // Initialize translation options to prevent same selection
         this.updateTranslationOptions();
         
-        // Load chapters for the book (this will also load chapter content and video sync)
-        this.loadChapters(this.currentBook, this.currentChapter);
+        // Restore last-read position (if any) before kicking off the
+        // initial chapter load. Resume is best-effort — on any error or
+        // unknown book we silently fall back to the current defaults.
+        this.setupUserDataUI();
+        this._restoreReadingState().finally(() => {
+            document.getElementById('bookSelect').value = this.currentBook;
+            this.updateTranslationOptions();
+            this.loadChapters(this.currentBook, this.currentChapter);
+            if (this.userData) {
+                this.userData.loadBookmarks().then(() => this._renderBookmarksList());
+            }
+        });
     }
     
     bindEvents() {
@@ -99,7 +117,21 @@ class BibleReader {
             
             sidebarToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('collapsed');
+                // On mobile the sidebar uses .open instead of .collapsed; toggle both for safety.
+                sidebar.classList.toggle('open');
+                this._syncSidebarBackdrop();
                 localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+            });
+        }
+
+        // Mobile sidebar backdrop — tap outside to close.
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+        if (sidebarBackdrop) {
+            sidebarBackdrop.addEventListener('click', () => {
+                document.getElementById('sidebar')?.classList.remove('open');
+                document.getElementById('topNav')?.classList.remove('open');
+                document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
+                this._syncSidebarBackdrop();
             });
         }
         
@@ -121,6 +153,7 @@ class BibleReader {
             mobileMenuToggle.addEventListener('click', () => {
                 const isOpen = topNav.classList.toggle('open');
                 mobileMenuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                this._syncSidebarBackdrop();
             });
             topNav.querySelectorAll('.nav-link').forEach(link => {
                 link.addEventListener('click', () => {
@@ -168,8 +201,13 @@ class BibleReader {
         document.getElementById('prevPage').addEventListener('click', () => this.prevPage());
         document.getElementById('nextPage').addEventListener('click', () => this.nextPage());
         
-        // Keyboard navigation
+        // Keyboard navigation. Skip when typing in form fields so the
+        // search box and translation dropdowns don't accidentally flip
+        // pages on every arrow press.
         document.addEventListener('keydown', (e) => {
+            const t = e.target;
+            if (t && (t.matches('input, textarea, select, [contenteditable="true"]')
+                      || t.isContentEditable)) return;
             if (e.key === 'ArrowLeft') this.prevPage();
             if (e.key === 'ArrowRight') this.nextPage();
         });
@@ -217,29 +255,66 @@ class BibleReader {
             this.loadParallelVerses();
         });
         
-        // Swap translations button (disabled since Hebrew is locked to right side)
+        // Swap translations button (parallel view)
         const swapBtn = document.getElementById('swapTranslations');
-        swapBtn.disabled = true;
-        swapBtn.style.opacity = '0.5';
-        swapBtn.style.cursor = 'not-allowed';
-        swapBtn.title = 'Swap disabled - Hebrew is locked to right side';
-        
-        // Sync translation selectors
+        if (swapBtn) {
+            swapBtn.addEventListener('click', () => {
+                const a = this.parallelTrans1;
+                const b = this.parallelTrans2;
+                this.parallelTrans1 = b;
+                this.parallelTrans2 = a;
+                const sel1 = document.getElementById('parallelTrans1');
+                const sel2 = document.getElementById('parallelTrans2');
+                if (sel1) sel1.value = b;
+                if (sel2) sel2.value = a;
+                swapBtn.classList.remove('swap-anim');
+                // Force reflow to restart the animation
+                void swapBtn.offsetWidth;
+                swapBtn.classList.add('swap-anim');
+                this.updateTranslationOptions();
+                this.loadParallelVerses();
+            });
+        }
+
+        // Sync translation selectors (both editable; either side can be Hebrew)
         document.getElementById('syncTrans1').addEventListener('change', (e) => {
             this.syncTrans1 = e.target.value;
-            this.loadVideoSync();
+            document.getElementById('syncColName1').textContent = this.syncTrans1;
+            this.renderSyncText();
         });
-        
-        // syncTrans2 is locked to Hebrew and cannot be changed
-        // Ensure it's always set to Hebrew
-        this.syncTrans2 = 'Hebrew';
+
         const syncTrans2Select = document.getElementById('syncTrans2');
         if (syncTrans2Select) {
-            syncTrans2Select.value = 'Hebrew';
-            syncTrans2Select.disabled = true;
+            syncTrans2Select.disabled = false;
+            syncTrans2Select.addEventListener('change', (e) => {
+                this.syncTrans2 = e.target.value;
+                document.getElementById('syncColName2').textContent = this.syncTrans2;
+                this.renderSyncText();
+            });
         }
-        
-        // Filter syncTrans1 options to exclude Hebrew
+
+        // Swap translations button (sync / video view)
+        const swapSyncBtn = document.getElementById('swapSyncTranslations');
+        if (swapSyncBtn) {
+            swapSyncBtn.addEventListener('click', () => {
+                const a = this.syncTrans1;
+                const b = this.syncTrans2;
+                this.syncTrans1 = b;
+                this.syncTrans2 = a;
+                const s1 = document.getElementById('syncTrans1');
+                const s2 = document.getElementById('syncTrans2');
+                if (s1) s1.value = b;
+                if (s2) s2.value = a;
+                document.getElementById('syncColName1').textContent = this.syncTrans1;
+                document.getElementById('syncColName2').textContent = this.syncTrans2;
+                swapSyncBtn.classList.remove('swap-anim');
+                void swapSyncBtn.offsetWidth;
+                swapSyncBtn.classList.add('swap-anim');
+                this.renderSyncText();
+            });
+        }
+
+        // (legacy) Filter syncTrans1 options — now a no-op preserving selections
         this.updateSyncTranslationOptions();
         
         // Font size
@@ -413,9 +488,11 @@ class BibleReader {
         try {
             // Stop any in-progress text-to-speech playback when changing chapter
             if (this.ttsState && this.ttsState !== 'idle') this.stopTTS();
+            const reqId = ++this._chapterReqId;
             const response = await fetch(`/api/verses/${book}/${chapter}?translation=${this.currentTranslation}`);
             const data = await response.json();
-            
+            // Bail if a newer chapter request was issued while this one was in flight.
+            if (reqId !== this._chapterReqId) return;
             // Handle new response format with fallback info
             this.verses = data.verses || data;
             
@@ -451,6 +528,15 @@ class BibleReader {
 
             // Highlight verse from search navigation
             this.highlightPendingVerse();
+
+            // Persist last-read position and load per-chapter annotations
+            // (highlights, notes). Bookmarks are global so we don't refetch.
+            if (this.userData) {
+                this.userData.saveReadingState(book, chapter, null, this._currentViewName());
+                this.userData.loadForChapter(book, chapter).then(() => {
+                    this._applyVerseAnnotations();
+                });
+            }
             
         } catch (error) {
             console.error('Failed to load verses:', error);
@@ -603,105 +689,71 @@ class BibleReader {
     
     // ===== Parallel Translation View =====
     
-    // Update translation dropdown options to lock Hebrew to right side
+    // Update translation dropdowns: both selects show ALL translations.
+    // Either side can host Hebrew (or any other translation).
     updateTranslationOptions() {
         const trans1Select = document.getElementById('parallelTrans1');
         const trans2Select = document.getElementById('parallelTrans2');
-        
-        // If we haven't stored all translations yet, get them from the current options
+        if (!trans1Select || !trans2Select) return;
+
         if (this.allTranslations.length === 0) {
             this.allTranslations = Array.from(trans1Select.options).map(option => ({
                 value: option.value,
                 text: option.text
             }));
         }
-        
-        // Separate Hebrew and non-Hebrew translations
-        const hebrewTranslations = this.allTranslations.filter(trans => 
-            trans.value.toLowerCase().includes('hebrew')
-        );
-        const otherTranslations = this.allTranslations.filter(trans => 
-            !trans.value.toLowerCase().includes('hebrew')
-        );
-        
-        // Clear both selects
-        trans1Select.innerHTML = '';
-        trans2Select.innerHTML = '';
-        
-        // Populate left side (trans1) with non-Hebrew translations
-        otherTranslations.forEach(trans => {
-            const option = document.createElement('option');
-            option.value = trans.value;
-            option.text = trans.text;
-            if (trans.value === this.parallelTrans1) {
-                option.selected = true;
-            }
-            trans1Select.appendChild(option);
-        });
-        
-        // Populate right side (trans2) with Hebrew translations
-        hebrewTranslations.forEach(trans => {
-            const option = document.createElement('option');
-            option.value = trans.value;
-            option.text = trans.text;
-            if (trans.value === this.parallelTrans2) {
-                option.selected = true;
-            }
-            trans2Select.appendChild(option);
-        });
-        
-        // If no Hebrew translation is selected on the right, select the first available
-        if (hebrewTranslations.length > 0 && !hebrewTranslations.some(trans => trans.value === this.parallelTrans2)) {
-            this.parallelTrans2 = hebrewTranslations[0].value;
-            trans2Select.value = this.parallelTrans2;
-        }
+
+        const populate = (select, currentValue) => {
+            select.innerHTML = '';
+            this.allTranslations.forEach(trans => {
+                const option = document.createElement('option');
+                option.value = trans.value;
+                option.text = trans.text;
+                if (trans.value === currentValue) option.selected = true;
+                select.appendChild(option);
+            });
+        };
+        populate(trans1Select, this.parallelTrans1);
+        populate(trans2Select, this.parallelTrans2);
     }
     
-    // Update sync translation dropdown options to exclude Hebrew from left side
+    // Sync view: both selects show ALL translations.
     updateSyncTranslationOptions() {
         const syncTrans1Select = document.getElementById('syncTrans1');
-        
-        // If we haven't stored all translations yet, get them from the current options
+        const syncTrans2Select = document.getElementById('syncTrans2');
+        if (!syncTrans1Select) return;
+
         if (this.allTranslations.length === 0) {
             this.allTranslations = Array.from(syncTrans1Select.options).map(option => ({
                 value: option.value,
                 text: option.text
             }));
         }
-        
-        // Clear syncTrans1
-        syncTrans1Select.innerHTML = '';
-        
-        // Populate syncTrans1 with all translations except Hebrew
-        this.allTranslations.forEach(trans => {
-            if (!trans.value.toLowerCase().includes('hebrew')) {
+
+        const populate = (select, currentValue) => {
+            if (!select) return;
+            select.innerHTML = '';
+            this.allTranslations.forEach(trans => {
                 const option = document.createElement('option');
                 option.value = trans.value;
                 option.text = trans.text;
-                if (trans.value === this.syncTrans1) {
-                    option.selected = true;
-                }
-                syncTrans1Select.appendChild(option);
-            }
-        });
-        
-        // If current selection is Hebrew, switch to first available option
-        if (this.syncTrans1.toLowerCase().includes('hebrew')) {
-            const firstOption = syncTrans1Select.querySelector('option');
-            if (firstOption) {
-                this.syncTrans1 = firstOption.value;
-                firstOption.selected = true;
-            }
-        }
+                if (trans.value === currentValue) option.selected = true;
+                select.appendChild(option);
+            });
+        };
+        populate(syncTrans1Select, this.syncTrans1);
+        populate(syncTrans2Select, this.syncTrans2);
     }
     
     async loadParallelVerses() {
         try {
+            const reqId = ++this._parallelReqId;
             const response = await fetch(
                 `/api/verses/parallel/${this.currentBook}/${this.currentChapter}?translation1=${this.parallelTrans1}&translation2=${this.parallelTrans2}`
             );
             const data = await response.json();
-            
+            if (reqId !== this._parallelReqId) return;
+
             this.parallelVerses1 = data.translation1.verses;
             this.parallelVerses2 = data.translation2.verses;
             
@@ -785,32 +837,44 @@ class BibleReader {
     setupSyncScroll() {
         const col1 = document.getElementById('col1Verses');
         const col2 = document.getElementById('col2Verses');
-        let isSyncing = false;
-        let manualScroll = false;
-        let scrollTimer;
-        
-        const syncScroll = (source, target) => {
-            if (isSyncing || manualScroll) return;
-            isSyncing = true;
-            
-            const scrollRatio = source.scrollTop / (source.scrollHeight - source.clientHeight);
-            target.scrollTop = scrollRatio * (target.scrollHeight - target.clientHeight);
-            
-            requestAnimationFrame(() => { isSyncing = false; });
+        if (!col1 || !col2) return;
+        // Attach listeners only once. Verse nodes are recreated on each
+        // chapter change but the container element persists, so we
+        // don't leak handlers.
+        if (this._parallelScrollWired) return;
+        this._parallelScrollWired = true;
+        let suppress = 0;
+        const findAnchor = (container) => {
+            const verses = container.querySelectorAll('.parallel-verse, .sync-verse');
+            const cTop = container.getBoundingClientRect().top;
+            let best = null;
+            for (const v of verses) {
+                const top = v.getBoundingClientRect().top;
+                if (top >= cTop - 4) { best = best || v; }
+                if (top >= cTop + 8) break;
+                best = v;
+            }
+            if (!best) return null;
+            return { verse: best.dataset.verse, offset: best.getBoundingClientRect().top - cTop };
         };
-        
-        const onScroll = () => {
-            manualScroll = true;
-            clearTimeout(scrollTimer);
-            scrollTimer = setTimeout(() => { manualScroll = false; }, 300);
+        const mirror = (source, target) => {
+            if (suppress) return;
+            const anchor = findAnchor(source);
+            if (!anchor || anchor.verse == null) return;
+            const match = target.querySelector(`[data-verse="${anchor.verse}"]`);
+            if (!match) return;
+            const tTop = target.getBoundingClientRect().top;
+            const desired = match.getBoundingClientRect().top - tTop;
+            const delta = desired - anchor.offset;
+            if (Math.abs(delta) < 1) return;
+            suppress++;
+            target.scrollTop += delta;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => { suppress = Math.max(0, suppress - 1); });
+            });
         };
-        
-        col1.addEventListener('scroll', onScroll);
-        col2.addEventListener('scroll', onScroll);
-        
-        // Also sync on scroll
-        col1.addEventListener('scroll', () => syncScroll(col1, col2));
-        col2.addEventListener('scroll', () => syncScroll(col2, col1));
+        col1.addEventListener('scroll', () => mirror(col1, col2), { passive: true });
+        col2.addEventListener('scroll', () => mirror(col2, col1), { passive: true });
     }
     
     // ===== Video Sync =====
@@ -884,6 +948,7 @@ class BibleReader {
     
     async renderSyncText() {
         // Fetch both translations for sync view
+        const reqId = ++this._syncReqId;
         const [response1, response2] = await Promise.all([
             fetch(`/api/verses/${this.currentBook}/${this.currentChapter}?translation=${this.syncTrans1}`),
             fetch(`/api/verses/${this.currentBook}/${this.currentChapter}?translation=${this.syncTrans2}`)
@@ -891,6 +956,7 @@ class BibleReader {
         
         const data1 = await response1.json();
         const data2 = await response2.json();
+        if (reqId !== this._syncReqId) return;
         
         // Handle new response format
         const verses1 = data1.verses || data1;
@@ -922,6 +988,15 @@ class BibleReader {
 
         // Setup synchronized scrolling between sync columns
         this.setupSyncColumnScroll();
+
+        // Apply per-verse highlights/notes/bookmarks to the freshly
+        // rendered DOM so they're visible immediately on every render.
+        this._applyVerseAnnotations();
+
+        // If TTS is currently playing, the queue is now stale (it was
+        // built from the previous translation/lang). Restart it from the
+        // current verse so the new column's language is used.
+        this.restartTTSIfPlaying();
     }
     
     renderSyncVerses(verses, withWordSync) {
@@ -1009,37 +1084,138 @@ class BibleReader {
         col2.classList.toggle('hidden-column', hide2);
         const wrap = col1.parentElement;
         if (wrap) wrap.classList.toggle('single-column', hide1 || hide2);
+        this.updateSyncRoleBadges();
+    }
+
+    // Show "Read aloud" badge on whichever sync column is the actual TTS
+    // source, and "Follow along" on the other. Hide both when only one
+    // column is visible (the badge would be redundant).
+    updateSyncRoleBadges() {
+        const role1 = document.getElementById('syncRole1');
+        const role2 = document.getElementById('syncRole2');
+        if (!role1 || !role2) return;
+        const col1 = document.getElementById('syncCol1');
+        const col2 = document.getElementById('syncCol2');
+        const col1Hidden = col1 && col1.classList.contains('hidden-column');
+        const col2Hidden = (col2 && col2.classList.contains('hidden-column')) || !!this.hebrewDisabled;
+        const onlyOne = col1Hidden || col2Hidden;
+        // Right column is the default audio source; if it's hidden, left becomes the source.
+        const rightIsSource = !col2Hidden;
+        const setBadge = (el, isSource, isSourceLabel) => {
+            el.classList.toggle('primary', isSource);
+            el.style.display = onlyOne ? 'none' : '';
+            const label = isSource ? 'Read aloud' : 'Follow along';
+            // Replace just the trailing text node (keep the SVG)
+            let textNode = null;
+            for (const n of el.childNodes) {
+                if (n.nodeType === Node.TEXT_NODE && n.textContent.trim()) { textNode = n; break; }
+            }
+            if (textNode) textNode.textContent = ' ' + label;
+            else el.appendChild(document.createTextNode(' ' + label));
+            el.title = isSource
+                ? 'Audio is being read from this column'
+                : 'This column follows along with what is being read';
+        };
+        setBadge(role1, !rightIsSource, true);
+        setBadge(role2, rightIsSource,  true);
     }
     
+    // Returns true while audio narration is actively driving the page
+    // (TTS speaking, or the YouTube player in PLAYING state). When this
+    // is false the two sync columns scroll independently.
+    _isLiveReadingActive() {
+        if (this.ttsState === 'playing') return true;
+        try {
+            if (this.player && this.isPlayerReady &&
+                typeof YT !== 'undefined' && YT.PlayerState &&
+                this.player.getPlayerState() === YT.PlayerState.PLAYING) {
+                return true;
+            }
+        } catch { /* player may not be ready */ }
+        return false;
+    }
+
     setupSyncColumnScroll() {
         const col1 = document.getElementById('syncVerses1');
         const col2 = document.getElementById('syncVerses2');
-        let isSyncing = false;
-        let manualScroll = false;
-        let scrollTimer;
-        
-        const syncScroll = (source, target) => {
-            if (isSyncing || manualScroll) return;
-            isSyncing = true;
-            
-            const scrollRatio = source.scrollTop / (source.scrollHeight - source.clientHeight);
-            target.scrollTop = scrollRatio * (target.scrollHeight - target.clientHeight);
-            
-            requestAnimationFrame(() => { isSyncing = false; });
+        if (!col1 || !col2) return;
+        // Attach listeners only once per column. On re-render the verse
+        // nodes are recreated but the container element is the same, so
+        // listeners keep working without leaking.
+        if (this._syncScrollWired) return;
+        this._syncScrollWired = true;
+
+        // Programmatic scrolls (the sync mirror, scrollIntoView from the
+        // active-verse highlighter, etc.) set this flag so the resulting
+        // 'scroll' event is not treated as user input and does not
+        // bounce back to the source column.
+        let suppress = 0;
+
+        // Find the verse number anchored at the top of `container` and
+        // how far past the top it is, so we can place the matching verse
+        // in the other column at the same offset.
+        const findAnchorVerse = (container) => {
+            const verses = container.querySelectorAll('.sync-verse');
+            const cTop = container.getBoundingClientRect().top;
+            let best = null;
+            for (const v of verses) {
+                const top = v.getBoundingClientRect().top;
+                // The first verse whose top is at-or-below the container
+                // top is our anchor; the previous one (still partially
+                // visible above) is acceptable too.
+                if (top >= cTop - 4) { best = best || v; }
+                if (top >= cTop + 8) break;
+                best = v;
+            }
+            if (!best) return null;
+            return {
+                verse: best.dataset.verse,
+                offset: best.getBoundingClientRect().top - cTop,
+            };
         };
-        
-        const onScroll = () => {
-            manualScroll = true;
-            clearTimeout(scrollTimer);
-            scrollTimer = setTimeout(() => { manualScroll = false; }, 300);
+
+        const mirror = (source, target) => {
+            if (suppress) return;
+            // Independent scrolling unless "live reading" is active —
+            // i.e. TTS is currently speaking, or the YouTube player is
+            // actively playing audio. When idle/paused, let each column
+            // scroll freely so the reader can browse on their own.
+            if (!this._isLiveReadingActive()) return;
+            const anchor = findAnchorVerse(source);
+            if (!anchor) return;
+            const match = target.querySelector(`.sync-verse[data-verse="${anchor.verse}"]`);
+            if (!match) return;
+            const tTop = target.getBoundingClientRect().top;
+            const desired = match.getBoundingClientRect().top - tTop;
+            const delta = desired - anchor.offset;
+            if (Math.abs(delta) < 1) return;
+            suppress++;
+            target.scrollTop += delta;
+            // Release on next frame so the resulting scroll event is
+            // swallowed before user input can fire again.
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => { suppress = Math.max(0, suppress - 1); });
+            });
         };
-        
-        col1.addEventListener('scroll', onScroll);
-        col2.addEventListener('scroll', onScroll);
-        
-        // Also sync on scroll
-        col1.addEventListener('scroll', () => syncScroll(col1, col2));
-        col2.addEventListener('scroll', () => syncScroll(col2, col1));
+
+        col1.addEventListener('scroll', () => mirror(col1, col2), { passive: true });
+        col2.addEventListener('scroll', () => mirror(col2, col1), { passive: true });
+
+        // Expose so other code (e.g. active-verse highlighter) can mark
+        // a programmatic scroll without triggering a mirror loop.
+        // The optional `holdMs` keeps suppression alive long enough for
+        // a smooth-scroll animation to settle.
+        this._suppressSyncScroll = (fn, holdMs) => {
+            suppress++;
+            try { fn(); } finally {
+                const release = () => { suppress = Math.max(0, suppress - 1); };
+                if (holdMs && holdMs > 0) {
+                    setTimeout(release, holdMs);
+                } else {
+                    requestAnimationFrame(() => requestAnimationFrame(release));
+                }
+            }
+        };
     }
     
     initYouTubePlayer(videoId, playlistId = null, playlistIndex = 0) {
@@ -1184,6 +1360,16 @@ class BibleReader {
         return 'en-US';
     }
 
+    // Languages whose browser TTS engines are unreliable enough that we
+    // should always go straight to the server gTTS path. Hebrew in
+    // particular tends to crash silently (or fall back to an English voice
+    // spelling out characters) in Chrome/Safari when nikud/cantillation
+    // marks are present.
+    ttsShouldForceServer(lang) {
+        const base = (lang || '').toLowerCase().split('-')[0];
+        return base === 'he' || base === 'ar' || base === 'yi';
+    }
+
     pickTTSVoice(lang) {
         const voices = window.speechSynthesis.getVoices() || [];
         if (!voices.length) return null;
@@ -1298,11 +1484,76 @@ class BibleReader {
         this.setPlayBtnPlaying(true);
     }
 
+    // Re-queue TTS from the current verse using whatever the visible
+    // sync column now is. Called after a translation swap/change so the
+    // new language is read aloud instead of finishing the old queue.
+    restartTTSIfPlaying() {
+        if (this.ttsState !== 'playing') return;
+        const currentVerse = this.ttsQueue[this.ttsIndex] && this.ttsQueue[this.ttsIndex].verse;
+        // Invalidate any in-flight audio/utterance callbacks so they
+        // can't bump ttsIndex on the freshly-rebuilt queue.
+        this._ttsGen = (this._ttsGen || 0) + 1;
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        if (this.ttsAudio) {
+            try {
+                this.ttsAudio.onended = null;
+                this.ttsAudio.onerror = null;
+                this.ttsAudio.pause();
+                this.ttsAudio.src = '';
+            } catch {}
+            this.ttsAudio = null;
+        }
+        this.currentUtterance = null;
+        const verses = this.collectVisibleVerses();
+        if (!verses.length) { this.stopTTS(); return; }
+        let resumeIdx = 0;
+        if (currentVerse) {
+            const i = verses.findIndex(v => String(v.verse) === String(currentVerse));
+            if (i >= 0) resumeIdx = i;
+        }
+        this.ttsQueue = verses;
+        this.ttsIndex = resumeIdx;
+        const lang = verses[resumeIdx].lang;
+        const useServer = this.ttsShouldForceServer(lang) || !window.speechSynthesis;
+        this.ttsMode = useServer ? 'audio' : 'speech';
+        this.speakNextTTS();
+    }
+
     async startTTS(opts = {}) {
+        // The right column is the intended "Read aloud" source. If the
+        // sync render hasn't populated it yet (e.g. user pressed play
+        // very quickly after navigating), wait for it before queueing
+        // so we don't accidentally lock TTS onto the English left column.
+        const col2 = document.getElementById('syncVerses2');
+        const col2El = col2 && col2.closest('.sync-column');
+        const col2Hidden = (col2El && col2El.classList.contains('hidden-column')) || !!this.hebrewDisabled;
+        if (col2 && !col2Hidden && col2.querySelectorAll('.sync-verse').length === 0) {
+            try { await this.renderSyncText(); } catch {}
+        }
         const verses = this.collectVisibleVerses();
         if (!verses.length) {
             this.showToast('No text available to read', 'info');
             return;
+        }
+        // For Hebrew, prefer the RITDorg YouTube video if one exists for
+        // this chapter. Falls through to gTTS, which itself falls through
+        // to the local browser voice if it 503s.
+        const firstLang = (verses[0] && verses[0].lang || '').toLowerCase().split('-')[0];
+        if (!opts._videoChecked && firstLang === 'he') {
+            try {
+                const r = await fetch(`/api/sync/${this.currentBook}/${this.currentChapter}`);
+                if (r.ok) {
+                    const d = await r.json();
+                    if (d && (d.video_id || d.playlist_id)) {
+                        this.showToast('Playing RITDorg video for this chapter', 'info');
+                        try { await this.loadVideoSync(); } catch {}
+                        if (this.player && this.isPlayerReady) {
+                            try { this.player.playVideo(); } catch {}
+                            return;
+                        }
+                    }
+                }
+            } catch {}
         }
         // Cancel any previous queue
         if (window.speechSynthesis) window.speechSynthesis.cancel();
@@ -1319,6 +1570,11 @@ class BibleReader {
 
         const lang = verses[0].lang;
         let useServer = !!opts.forceServer;
+        // Always use server audio for languages whose browser voices are
+        // unreliable (notably Hebrew).
+        if (!useServer && this.ttsShouldForceServer(lang)) {
+            useServer = true;
+        }
         if (!useServer && window.speechSynthesis) {
             await this.waitForVoices(1500);
             const voice = this.pickTTSVoice(lang);
@@ -1332,13 +1588,18 @@ class BibleReader {
     }
 
     collectVisibleVerses() {
-        // Prefer the visible sync column (left). Fall back to right column.
-        const containers = ['syncVerses1', 'syncVerses2'];
+        // The RIGHT column is the "Read aloud" source; the LEFT column is
+        // the "Follow along" mirror. Prefer the right column unless it's
+        // hidden (e.g. user toggled the Hebrew column off, or it fell back
+        // to a translation that doesn't carry this passage).
+        const containers = ['syncVerses2', 'syncVerses1'];
         for (const id of containers) {
             const c = document.getElementById(id);
             if (!c) continue;
             const colEl = c.closest('.sync-column');
             if (colEl && colEl.classList.contains('hidden-column')) continue;
+            // The Hebrew column is also hidden when the user disables it.
+            if (id === 'syncVerses2' && this.hebrewDisabled) continue;
             const nodes = Array.from(c.querySelectorAll('.sync-verse'));
             if (!nodes.length) continue;
             const transName = (id === 'syncVerses1') ? this.syncTrans1 : this.syncTrans2;
@@ -1353,6 +1614,33 @@ class BibleReader {
         return [];
     }
 
+    // Smoothly center a verse element within its scrollable .sync-verses
+    // container without affecting page scroll. Uses the sync-scroll
+    // suppress hook so it doesn't bounce the cross-column mirror.
+    centerVerseInColumn(verseEl) {
+        if (!verseEl) return;
+        const container = verseEl.closest('.sync-verses');
+        if (!container) return;
+        const cRect = container.getBoundingClientRect();
+        const vRect = verseEl.getBoundingClientRect();
+        const verseCenter = (vRect.top - cRect.top) + container.scrollTop + (vRect.height / 2);
+        let target = verseCenter - (cRect.height / 2);
+        target = Math.max(0, Math.min(target, container.scrollHeight - container.clientHeight));
+        if (Math.abs(target - container.scrollTop) < 2) return;
+        const doScroll = () => {
+            try {
+                container.scrollTo({ top: target, behavior: 'smooth' });
+            } catch {
+                container.scrollTop = target;
+            }
+        };
+        if (this._suppressSyncScroll) {
+            this._suppressSyncScroll(doScroll, 700);
+        } else {
+            doScroll();
+        }
+    }
+
     speakNextTTS() {
         if (this.ttsState !== 'playing') return;
         if (this.ttsIndex >= this.ttsQueue.length) {
@@ -1360,10 +1648,25 @@ class BibleReader {
             return;
         }
         const item = this.ttsQueue[this.ttsIndex];
-        document.querySelectorAll('.sync-verse.active').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.sync-verse.active, .sync-verse.follow-active')
+            .forEach(v => v.classList.remove('active', 'follow-active'));
         if (item.el) {
             item.el.classList.add('active');
-            item.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            this.centerVerseInColumn(item.el);
+            // Mirror the active verse on the opposite ("follow along") column.
+            const verseNum = item.el.dataset.verse;
+            if (verseNum) {
+                document.querySelectorAll(`.sync-verse[data-verse="${verseNum}"]`)
+                    .forEach(other => {
+                        if (other !== item.el) {
+                            other.classList.add('follow-active');
+                            // Keep both columns visually aligned on the
+                            // current verse, regardless of which one is
+                            // the audio source.
+                            this.centerVerseInColumn(other);
+                        }
+                    });
+            }
         }
         this.updateTTSProgress();
 
@@ -1381,10 +1684,18 @@ class BibleReader {
             this.speakNextTTS();
             return;
         }
+        const myGen = (this._ttsGen = this._ttsGen || 0);
         const voice = this.pickTTSVoice(item.lang);
         let i = 0;
+        const failVerseToServer = () => {
+            if (myGen !== this._ttsGen) return;
+            try { window.speechSynthesis.cancel(); } catch {}
+            this.ttsMode = 'audio';
+            this.speakViaServer(item);
+        };
         const speakChunk = () => {
             if (this.ttsState !== 'playing') return;
+            if (myGen !== this._ttsGen) return; // queue rebuilt, abandon
             if (i >= chunks.length) {
                 this.ttsIndex += 1;
                 this.speakNextTTS();
@@ -1394,17 +1705,23 @@ class BibleReader {
             u.lang = item.lang;
             u.rate = this.playbackRate || 1;
             if (voice) u.voice = voice;
-            u.onend = () => { i += 1; speakChunk(); };
-            u.onerror = (e) => {
-                console.warn('SpeechSynthesis error', e);
-                // If first chunk fails, try server fallback for whole verse
-                if (i === 0 && this.ttsMode === 'speech') {
-                    this.ttsMode = 'audio';
-                    this.speakViaServer(item);
+            const startedAt = performance.now();
+            const minMs = Math.max(120, chunks[i].length * 18);
+            u.onend = () => {
+                if (myGen !== this._ttsGen) return;
+                const elapsed = performance.now() - startedAt;
+                if (elapsed < Math.min(minMs, 400)) {
+                    console.warn('TTS finished suspiciously fast', { elapsed, chunk: chunks[i] });
+                    failVerseToServer();
                     return;
                 }
                 i += 1;
                 speakChunk();
+            };
+            u.onerror = (e) => {
+                if (myGen !== this._ttsGen) return;
+                console.warn('SpeechSynthesis error', e);
+                failVerseToServer();
             };
             this.currentUtterance = u;
             window.speechSynthesis.speak(u);
@@ -1415,24 +1732,42 @@ class BibleReader {
 
     speakViaServer(item) {
         try {
-            if (this.ttsAudio) { try { this.ttsAudio.pause(); } catch {} }
+            if (this.ttsAudio) {
+                try {
+                    this.ttsAudio.onended = null;
+                    this.ttsAudio.onerror = null;
+                    this.ttsAudio.pause();
+                } catch {}
+            }
+            const myGen = (this._ttsGen = this._ttsGen || 0);
             const lang = (item.lang || 'en').split('-')[0];
             const url = `/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(item.text)}`;
             const audio = new Audio(url);
             audio.playbackRate = this.playbackRate || 1;
             audio.preload = 'auto';
             audio.onended = () => {
+                if (myGen !== this._ttsGen) return; // stale, queue was rebuilt
                 this.ttsIndex += 1;
                 this.speakNextTTS();
             };
             audio.onerror = () => {
-                console.warn('Server TTS failed for verse', item.verse);
-                this.ttsIndex += 1;
-                this.speakNextTTS();
+                if (myGen !== this._ttsGen) return;
+                console.warn('Server TTS failed for verse', item.verse, '- falling back to browser TTS');
+                if (window.speechSynthesis && !this._serverTTSWarned) {
+                    this._serverTTSWarned = true;
+                    this.showToast('Online voice unavailable, using device voice', 'info');
+                }
+                if (window.speechSynthesis) {
+                    this.speakViaSynthesis(item);
+                } else {
+                    this.ttsIndex += 1;
+                    this.speakNextTTS();
+                }
             };
             this.ttsAudio = audio;
             const p = audio.play();
             if (p && p.catch) p.catch(err => {
+                if (myGen !== this._ttsGen) return;
                 console.warn('Audio.play rejected', err);
                 this.stopTTS();
                 this.showToast('Tap play to start audio', 'info');
@@ -1474,7 +1809,8 @@ class BibleReader {
         this.currentUtterance = null;
         this.ttsMode = null;
         this.setPlayBtnPlaying(false);
-        document.querySelectorAll('.sync-verse.active').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.sync-verse.active, .sync-verse.follow-active')
+            .forEach(v => v.classList.remove('active', 'follow-active'));
         const fill = document.getElementById('progressFill');
         if (fill) fill.style.width = '0%';
         const time = document.getElementById('timeDisplay');
@@ -2442,6 +2778,323 @@ class BibleReader {
     }
 
     
+    // ===== Mobile sidebar/menu backdrop =====
+    _syncSidebarBackdrop() {
+        const backdrop = document.getElementById('sidebarBackdrop');
+        if (!backdrop) return;
+        const sidebar = document.getElementById('sidebar');
+        const topNav = document.getElementById('topNav');
+        const sidebarOpen = sidebar && sidebar.classList.contains('open');
+        const navOpen = topNav && topNav.classList.contains('open');
+        backdrop.classList.toggle('visible', !!(sidebarOpen || navOpen));
+    }
+
+    // ===== User Data: position, bookmarks, notes, highlights =====
+
+    _currentViewName() {
+        if (document.getElementById('videoView')?.classList.contains('active')) return 'video';
+        if (document.getElementById('parallelView')?.classList.contains('active')) return 'parallel';
+        return 'reader';
+    }
+
+    async _restoreReadingState() {
+        if (!this.userData) return;
+        try {
+            const state = await this.userData.getReadingState();
+            if (!state) return;
+            const bookSelect = document.getElementById('bookSelect');
+            const valid = bookSelect && Array.from(bookSelect.options).some(o => o.value === state.book);
+            if (!valid) return;
+            this.currentBook = state.book;
+            this.currentChapter = Math.max(1, parseInt(state.chapter, 10) || 1);
+            if (state.verse) this.pendingHighlightVerse = state.verse;
+        } catch (e) {
+            console.warn('restoreReadingState failed', e);
+        }
+    }
+
+    setupUserDataUI() {
+        if (!this.userData) return;
+
+        const panel = document.getElementById('bookmarksPanel');
+        const openBtn = document.getElementById('bookmarksBtn');
+        const closeBtn = document.getElementById('bookmarksClose');
+        if (openBtn && panel) {
+            openBtn.addEventListener('click', () => {
+                this._renderBookmarksList();
+                panel.classList.add('open');
+                panel.setAttribute('aria-hidden', 'false');
+            });
+        }
+        if (closeBtn && panel) {
+            closeBtn.addEventListener('click', () => {
+                panel.classList.remove('open');
+                panel.setAttribute('aria-hidden', 'true');
+            });
+        }
+
+        // Right-click on a sync verse opens the action menu. Long-press
+        // on touch devices does the same.
+        document.addEventListener('contextmenu', (e) => {
+            const verseEl = e.target.closest && e.target.closest('.sync-verse[data-verse], .parallel-verse[data-verse]');
+            if (!verseEl) return;
+            e.preventDefault();
+            this._openVerseMenu(verseEl, e.clientX, e.clientY);
+        });
+
+        // Touch long-press → open menu. We track the starting point so
+        // a small finger jitter does not cancel the press, and we
+        // suppress the synthetic click that follows the long-press.
+        let touchTimer = null;
+        let touchStartX = 0, touchStartY = 0;
+        let touchFired = false;
+        const cancelTouch = () => {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+        };
+        document.addEventListener('touchstart', (e) => {
+            touchFired = false;
+            const verseEl = e.target.closest && e.target.closest('.sync-verse[data-verse], .parallel-verse[data-verse]');
+            if (!verseEl) return;
+            const t = e.touches[0];
+            touchStartX = t.clientX;
+            touchStartY = t.clientY;
+            cancelTouch();
+            touchTimer = setTimeout(() => {
+                touchFired = true;
+                this._openVerseMenu(verseEl, touchStartX, touchStartY);
+            }, 500);
+        }, { passive: true });
+        document.addEventListener('touchmove', (e) => {
+            if (!touchTimer) return;
+            const t = e.touches[0];
+            // 10px jitter tolerance — beyond that, treat as a scroll.
+            if (Math.abs(t.clientX - touchStartX) > 10 ||
+                Math.abs(t.clientY - touchStartY) > 10) {
+                cancelTouch();
+            }
+        }, { passive: true });
+        document.addEventListener('touchend', cancelTouch);
+        document.addEventListener('touchcancel', cancelTouch);
+        // Suppress the synthetic click that fires ~300ms after a
+        // long-press so it doesn't immediately close the menu we just
+        // opened or trigger another handler.
+        document.addEventListener('click', (e) => {
+            if (touchFired) {
+                touchFired = false;
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+
+        // Click on note indicator → open note editor
+        document.addEventListener('click', (e) => {
+            const indicator = e.target.closest && e.target.closest('.note-indicator');
+            if (!indicator) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const verseEl = indicator.closest('[data-verse]');
+            if (verseEl) this._openNoteEditor(parseInt(verseEl.dataset.verse, 10));
+        });
+
+        // Hide context menu on outside click / Escape
+        const menu = document.getElementById('verseMenu');
+        document.addEventListener('click', (e) => {
+            if (menu && !menu.hidden && !menu.contains(e.target)) {
+                menu.hidden = true;
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && menu && !menu.hidden) menu.hidden = true;
+        });
+
+        // Wire menu actions
+        if (menu) {
+            menu.addEventListener('click', async (e) => {
+                const colorBtn = e.target.closest('[data-color]');
+                if (colorBtn) {
+                    const color = colorBtn.dataset.color || '';
+                    await this._applyHighlight(this._menuVerse, color);
+                    menu.hidden = true;
+                    return;
+                }
+                const item = e.target.closest('[data-action]');
+                if (!item) return;
+                const action = item.dataset.action;
+                menu.hidden = true;
+                if (action === 'bookmark') await this._toggleBookmark(this._menuVerse);
+                else if (action === 'note') this._openNoteEditor(this._menuVerse);
+            });
+        }
+
+        // Note modal
+        const overlay = document.getElementById('noteOverlay');
+        const cancel = () => { if (overlay) overlay.hidden = true; };
+        document.getElementById('noteCancel')?.addEventListener('click', cancel);
+        document.getElementById('noteCancel2')?.addEventListener('click', cancel);
+        document.getElementById('noteSave')?.addEventListener('click', async () => {
+            const body = document.getElementById('noteBody').value;
+            await this._saveNote(this._noteVerse, body);
+            cancel();
+        });
+        document.getElementById('noteDelete')?.addEventListener('click', async () => {
+            await this._saveNote(this._noteVerse, '');
+            cancel();
+        });
+        if (overlay) {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) cancel();
+            });
+        }
+    }
+
+    _openVerseMenu(verseEl, x, y) {
+        const verse = parseInt(verseEl.dataset.verse, 10);
+        if (!verse) return;
+        this._menuVerse = verse;
+        const menu = document.getElementById('verseMenu');
+        if (!menu) return;
+
+        // Update bookmark label based on current state
+        const bookmarked = this.userData.isBookmarked(this.currentBook, this.currentChapter, verse);
+        const bmLabel = menu.querySelector('[data-label="bookmark"]');
+        if (bmLabel) bmLabel.textContent = bookmarked ? 'Remove bookmark' : 'Bookmark verse';
+        const noteLabel = menu.querySelector('[data-label="note"]');
+        if (noteLabel) noteLabel.textContent = this.userData.getNote(verse) ? 'Edit note' : 'Add note';
+
+        menu.hidden = false;
+        // Position, keeping menu within viewport
+        const r = menu.getBoundingClientRect();
+        const maxX = window.innerWidth - r.width - 8;
+        const maxY = window.innerHeight - r.height - 8;
+        menu.style.left = Math.max(8, Math.min(x, maxX)) + 'px';
+        menu.style.top  = Math.max(8, Math.min(y, maxY)) + 'px';
+    }
+
+    async _toggleBookmark(verse) {
+        if (!verse) return;
+        const existing = this.userData.bookmarks.find(b =>
+            b.book === this.currentBook && b.chapter === this.currentChapter && +b.verse === +verse);
+        if (existing) {
+            await this.userData.removeBookmark(existing.id);
+            this.showToast('Bookmark removed', 'info');
+        } else {
+            await this.userData.addBookmark(this.currentBook, this.currentChapter, verse, null);
+            this.showToast('Bookmark added', 'success');
+        }
+        this._applyVerseAnnotations();
+        this._renderBookmarksList();
+    }
+
+    async _applyHighlight(verse, color) {
+        if (!verse) return;
+        await this.userData.setHighlight(this.currentBook, this.currentChapter, verse, color);
+        this._applyVerseAnnotations();
+    }
+
+    _openNoteEditor(verse) {
+        if (!verse) return;
+        this._noteVerse = verse;
+        const overlay = document.getElementById('noteOverlay');
+        const body = document.getElementById('noteBody');
+        const title = document.getElementById('noteTitle');
+        const del = document.getElementById('noteDelete');
+        if (!overlay || !body) return;
+        const existing = this.userData.getNote(verse);
+        body.value = existing ? existing.body : '';
+        if (title) title.textContent = `Note on ${this.currentBook} ${this.currentChapter}:${verse}`;
+        if (del) del.style.display = existing ? '' : 'none';
+        overlay.hidden = false;
+        setTimeout(() => body.focus(), 30);
+    }
+
+    async _saveNote(verse, body) {
+        if (!verse) return;
+        await this.userData.setNote(this.currentBook, this.currentChapter, verse, body);
+        this._applyVerseAnnotations();
+    }
+
+    _applyVerseAnnotations() {
+        if (!this.userData) return;
+        const sel = '.sync-verse[data-verse], .parallel-verse[data-verse]';
+        document.querySelectorAll(sel).forEach((el) => {
+            const v = parseInt(el.dataset.verse, 10);
+            if (!v) return;
+            // Highlight color
+            const hl = this.userData.getHighlight(v);
+            if (hl) el.setAttribute('data-hl', hl.color);
+            else el.removeAttribute('data-hl');
+            // Bookmark marker
+            const bm = this.userData.isBookmarked(this.currentBook, this.currentChapter, v);
+            if (bm) el.setAttribute('data-bookmarked', '1');
+            else el.removeAttribute('data-bookmarked');
+            // Note indicator
+            el.querySelectorAll(':scope > .note-indicator').forEach(n => n.remove());
+            const note = this.userData.getNote(v);
+            if (note) {
+                const ind = document.createElement('span');
+                ind.className = 'note-indicator';
+                ind.title = note.body.slice(0, 200);
+                ind.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+                el.appendChild(ind);
+            }
+        });
+    }
+
+    _renderBookmarksList() {
+        if (!this.userData) return;
+        const list = document.getElementById('bookmarksList');
+        if (!list) return;
+        const items = this.userData.bookmarks;
+        if (!items.length) {
+            list.innerHTML = '<p class="ud-empty">No bookmarks yet. Right-click a verse and choose <strong>Bookmark</strong>.</p>';
+            return;
+        }
+        list.innerHTML = items.map(b => `
+            <div class="ud-bookmark" data-id="${b.id}" data-book="${b.book}" data-chapter="${b.chapter}" data-verse="${b.verse}">
+                <div class="ud-bookmark-info">
+                    <div class="ud-bookmark-ref">${b.book} ${b.chapter}:${b.verse}</div>
+                    ${b.label ? `<div class="ud-bookmark-label">${this._escape(b.label)}</div>` : ''}
+                </div>
+                <button class="ud-bookmark-del" aria-label="Remove">×</button>
+            </div>
+        `).join('');
+        list.querySelectorAll('.ud-bookmark').forEach(el => {
+            el.addEventListener('click', (e) => {
+                if (e.target.closest('.ud-bookmark-del')) {
+                    const id = parseInt(el.dataset.id, 10);
+                    this.userData.removeBookmark(id).then(() => {
+                        this._renderBookmarksList();
+                        this._applyVerseAnnotations();
+                    });
+                    return;
+                }
+                this._navigateToBookmark(el.dataset.book, parseInt(el.dataset.chapter, 10), parseInt(el.dataset.verse, 10));
+            });
+        });
+    }
+
+    _navigateToBookmark(book, chapter, verse) {
+        this.pendingHighlightVerse = verse;
+        document.getElementById('bookSelect').value = book;
+        if (book !== this.currentBook) {
+            this.loadChapters(book, chapter);
+        } else {
+            this.loadChapter(book, chapter);
+        }
+        const panel = document.getElementById('bookmarksPanel');
+        if (panel) {
+            panel.classList.remove('open');
+            panel.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    _escape(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
     // ===== Toast Notifications =====
     showToast(message, type = 'success') {
         const container = document.getElementById('toastContainer');

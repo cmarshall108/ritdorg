@@ -1,7 +1,8 @@
 from flask import (
-    Flask, render_template, jsonify, request,
-    redirect, url_for, session, flash, g, make_response,
+    Flask, render_template, jsonify, request, Response,
+    redirect, url_for, session, flash, g, make_response, abort,
 )
+import glob
 import json
 import os
 import logging
@@ -12,9 +13,16 @@ import bible_fetcher
 import auth
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+_DEFAULT_SECRET = "dev-secret-change-me"
+app.secret_key = os.environ.get("SECRET_KEY", _DEFAULT_SECRET)
+if app.secret_key == _DEFAULT_SECRET:
+    logger.warning(
+        "SECRET_KEY is using the insecure default. Set the SECRET_KEY "
+        "environment variable before serving production traffic."
+    )
 
 # On first startup, export hardcoded data from translations.py into JSON cache
 # so the dynamic fetcher can serve Matthew/Mark instantly.
@@ -31,6 +39,11 @@ auth.init_db()
 @app.before_request
 def _load_user():
     auth.load_current_user()
+
+
+@app.after_request
+def _ensure_device_key(response):
+    return auth.ensure_device_key(response)
 
 
 @app.context_processor
@@ -133,7 +146,10 @@ def search_bible():
         return jsonify({"error": "Query must be at least 2 characters", "results": []})
 
     translations_param = request.args.get('translation', 'all')
-    limit = min(int(request.args.get('limit', 100)), 500)
+    try:
+        limit = min(max(int(request.args.get('limit', 100)), 1), 500)
+    except (TypeError, ValueError):
+        limit = 100
 
     # Determine which translations to search
     if translations_param == 'all':
@@ -244,13 +260,30 @@ def tts_audio():
     requested language. Used only when the browser's speechSynthesis cannot
     produce audio in the desired language (common on Linux Chromium and
     older Android browsers). Backed by gTTS (Google Translate TTS)."""
-    from flask import request, Response, abort
     text = (request.args.get('text') or '').strip()
     lang = (request.args.get('lang') or 'en').split('-')[0].lower()
     if not text:
         abort(400, 'text required')
+    # gTTS uses some legacy ISO codes that differ from BCP-47.
+    GTTS_LANG_ALIAS = {
+        'he': 'iw',   # Hebrew
+        'jv': 'jw',   # Javanese
+    }
+    lang = GTTS_LANG_ALIAS.get(lang, lang)
+    # Strip characters that make gTTS choke or that it pronounces literally
+    # (zero-width joiners, BOMs, bidi marks, common Hebrew cantillation
+    # marks). Keep nikud (vowel points) — gTTS handles those fine.
+    import re
+    text = re.sub(r'[\u200B-\u200F\u202A-\u202E\uFEFF]', '', text)
+    # Hebrew cantillation (te'amim) range U+0591..U+05AF — these are read
+    # as separate chars by some TTS engines. Strip them for cleaner audio.
+    text = re.sub(r'[\u0591-\u05AF]', '', text)
+    # Maqaf (־) → regular hyphen so it's treated as a word separator
+    text = text.replace('\u05BE', '-')
     if len(text) > 800:
         text = text[:800]
+    if not text.strip():
+        abort(400, 'text empty after sanitization')
     try:
         from gtts import gTTS
         import io
@@ -262,6 +295,7 @@ def tts_audio():
         return resp
     except Exception as e:
         # Library missing or upstream failure
+        app.logger.warning('TTS failed for lang=%s len=%d: %s', lang, len(text), e)
         abort(503, f'TTS unavailable: {e}')
 
 @app.route('/api/playlists/<book>')
@@ -277,7 +311,6 @@ def get_playlist_for_book(book):
 
 @app.route('/videos')
 def videos():
-    import glob
     video_dir = os.path.join(app.static_folder, 'videos')
     video_files = []
     for ext in ('*.mp4', '*.mov', '*.webm'):
@@ -313,6 +346,123 @@ def hebrew_lessons():
 @app.route('/downloads')
 def downloads():
     return render_template('downloads.html')
+
+# ---------------------------------------------------------------------------
+# Per-visitor reading state, bookmarks, notes, highlights
+# Tied to either the logged-in user or a long-lived device-key cookie,
+# so anonymous visitors also keep their data across sessions.
+# ---------------------------------------------------------------------------
+
+@app.route('/api/me/state', methods=['GET'])
+def api_get_state():
+    return jsonify(auth.get_reading_state() or {})
+
+
+@app.route('/api/me/state', methods=['PUT', 'POST'])
+def api_save_state():
+    data = request.get_json(silent=True) or {}
+    book = (data.get('book') or '').strip()
+    chapter = data.get('chapter')
+    if not book or not isinstance(chapter, int):
+        return jsonify({'ok': False, 'error': 'book and chapter required'}), 400
+    if book not in ALL_BOOKS or not (1 <= chapter <= ALL_BOOKS[book]['chapters']):
+        return jsonify({'ok': False, 'error': 'unknown book/chapter'}), 400
+    verse = data.get('verse')
+    if verse is not None:
+        try: verse = int(verse)
+        except (TypeError, ValueError): verse = None
+    view = data.get('view')
+    if view not in (None, 'reader', 'parallel', 'video'):
+        view = None
+    auth.save_reading_state(book, chapter, verse, view)
+    return jsonify({'ok': True})
+
+
+@app.route('/api/me/bookmarks', methods=['GET'])
+def api_list_bookmarks():
+    return jsonify({'bookmarks': auth.list_bookmarks()})
+
+
+@app.route('/api/me/bookmarks', methods=['POST'])
+def api_add_bookmark():
+    data = request.get_json(silent=True) or {}
+    book = (data.get('book') or '').strip()
+    try:
+        chapter = int(data.get('chapter'))
+        verse = int(data.get('verse'))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'chapter/verse required'}), 400
+    if book not in ALL_BOOKS:
+        return jsonify({'ok': False, 'error': 'unknown book'}), 400
+    label = (data.get('label') or '').strip()[:120]
+    new_id = auth.add_bookmark(book, chapter, verse, label)
+    if new_id is None:
+        return jsonify({'ok': False, 'error': 'no owner'}), 400
+    return jsonify({'ok': True, 'id': new_id})
+
+
+@app.route('/api/me/bookmarks/<int:bookmark_id>', methods=['DELETE'])
+def api_delete_bookmark(bookmark_id):
+    return jsonify({'ok': auth.delete_bookmark(bookmark_id)})
+
+
+@app.route('/api/me/notes', methods=['GET'])
+def api_list_notes():
+    book = request.args.get('book') or None
+    chapter = request.args.get('chapter')
+    chapter = int(chapter) if (chapter and chapter.isdigit()) else None
+    return jsonify({'notes': auth.list_notes(book, chapter)})
+
+
+@app.route('/api/me/notes', methods=['POST', 'PUT'])
+def api_upsert_note():
+    data = request.get_json(silent=True) or {}
+    book = (data.get('book') or '').strip()
+    try:
+        chapter = int(data.get('chapter'))
+        verse = int(data.get('verse'))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'chapter/verse required'}), 400
+    body = (data.get('body') or '').strip()[:5000]
+    if book not in ALL_BOOKS:
+        return jsonify({'ok': False, 'error': 'unknown book'}), 400
+    note_id = auth.upsert_note(book, chapter, verse, body)
+    return jsonify({'ok': True, 'id': note_id})
+
+
+@app.route('/api/me/notes/<int:note_id>', methods=['DELETE'])
+def api_delete_note(note_id):
+    return jsonify({'ok': auth.delete_note(note_id)})
+
+
+@app.route('/api/me/highlights', methods=['GET'])
+def api_list_highlights():
+    book = request.args.get('book') or None
+    chapter = request.args.get('chapter')
+    chapter = int(chapter) if (chapter and chapter.isdigit()) else None
+    return jsonify({'highlights': auth.list_highlights(book, chapter)})
+
+
+@app.route('/api/me/highlights', methods=['POST', 'PUT'])
+def api_set_highlight():
+    data = request.get_json(silent=True) or {}
+    book = (data.get('book') or '').strip()
+    try:
+        chapter = int(data.get('chapter'))
+        verse = int(data.get('verse'))
+    except (TypeError, ValueError):
+        return jsonify({'ok': False, 'error': 'chapter/verse required'}), 400
+    color = (data.get('color') or '').strip().lower()
+    if book not in ALL_BOOKS:
+        return jsonify({'ok': False, 'error': 'unknown book'}), 400
+    if not color:
+        ok = auth.clear_highlight(book, chapter, verse)
+        return jsonify({'ok': ok})
+    new_id = auth.set_highlight(book, chapter, verse, color)
+    if new_id is None:
+        return jsonify({'ok': False, 'error': 'invalid color'}), 400
+    return jsonify({'ok': True, 'id': new_id, 'color': color})
+
 
 # ---------------------------------------------------------------------------
 # Optional email capture (encouraged, not required)
