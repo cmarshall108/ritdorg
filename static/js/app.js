@@ -30,6 +30,20 @@ class BibleReader {
         this.syncInterval = null;
         this.playbackRate = 1; // default playback rate
         
+        // Browser TTS fallback (used when no video for a chapter)
+        this.ttsState = 'idle'; // 'idle' | 'playing' | 'paused'
+        this.ttsQueue = [];
+        this.ttsIndex = 0;
+        this.currentUtterance = null;
+
+        // Hebrew column on/off (persisted). When disabled, the right
+        // (Hebrew) column is hidden and the play button drives TTS for the
+        // left translation instead of playing the Hebrew-narrated video.
+        this.hebrewDisabled = (() => {
+            try { return localStorage.getItem('hebrewDisabled') === '1'; }
+            catch { return false; }
+        })();
+        
         // Dynamic caption sync
         this.captions = null;
         this.currentCaptionIndex = -1;
@@ -253,6 +267,27 @@ class BibleReader {
         // Video visibility toggle
         document.getElementById('videoToggleBtn').addEventListener('click', () => this.toggleVideoVisibility());
 
+        // Hebrew column on/off toggle
+        const hebrewToggleBtn = document.getElementById('hebrewToggleBtn');
+        if (hebrewToggleBtn) {
+            const setBtnState = () => {
+                hebrewToggleBtn.classList.toggle('active', !this.hebrewDisabled);
+                hebrewToggleBtn.setAttribute('aria-pressed', String(!this.hebrewDisabled));
+            };
+            setBtnState();
+            hebrewToggleBtn.addEventListener('click', () => {
+                this.hebrewDisabled = !this.hebrewDisabled;
+                try { localStorage.setItem('hebrewDisabled', this.hebrewDisabled ? '1' : '0'); } catch {}
+                setBtnState();
+                // Stop any video playback if user is turning Hebrew off
+                if (this.hebrewDisabled && this.player && this.isPlayerReady) {
+                    try { this.player.pauseVideo(); } catch {}
+                }
+                // Re-apply column visibility immediately
+                this.applySyncColumnVisibility(false, false);
+            });
+        }
+
         const focusModeBtn = document.getElementById('focusModeBtn');
         if (focusModeBtn) {
             focusModeBtn.addEventListener('click', () => this.toggleFocusMode());
@@ -376,6 +411,8 @@ class BibleReader {
     
     async loadChapter(book, chapter) {
         try {
+            // Stop any in-progress text-to-speech playback when changing chapter
+            if (this.ttsState && this.ttsState !== 'idle') this.stopTTS();
             const response = await fetch(`/api/verses/${book}/${chapter}?translation=${this.currentTranslation}`);
             const data = await response.json();
             
@@ -671,6 +708,20 @@ class BibleReader {
             // Update header with actual translation (shows fallback if applicable)
             document.getElementById('parallelBookChapter').textContent = `${this.currentBook} ${this.currentChapter}`;
             
+            // Hide column entirely when its translation has no equivalent for
+            // this book (fell back to a different translation). Show only the
+            // column whose translation actually has the passage.
+            const col1 = document.getElementById('parallelCol1');
+            const col2 = document.getElementById('parallelCol2');
+            const fb1 = !!data.translation1.fallback;
+            const fb2 = !!data.translation2.fallback;
+            if (col1 && col2) {
+                col1.classList.toggle('hidden-column', fb1 && !fb2);
+                col2.classList.toggle('hidden-column', fb2 && !fb1);
+                const wrap = col1.parentElement;
+                if (wrap) wrap.classList.toggle('single-column', (fb1 && !fb2) || (fb2 && !fb1));
+            }
+
             // Show actual translation name, with fallback indicator if needed
             const trans1Label = data.translation1.fallback 
                 ? `${this.parallelTrans1} → ${data.translation1.actual}` 
@@ -682,12 +733,9 @@ class BibleReader {
             document.getElementById('col1TransName').textContent = trans1Label;
             document.getElementById('col2TransName').textContent = trans2Label;
             
-            // Show toast if either translation fell back
-            if (data.translation1.fallback || data.translation2.fallback) {
-                const fallbackMsg = [];
-                if (data.translation1.fallback) fallbackMsg.push(`${this.parallelTrans1}`);
-                if (data.translation2.fallback) fallbackMsg.push(`${this.parallelTrans2}`);
-                this.showToast(`${fallbackMsg.join(' and ')} not available. Showing NIV fallback.`, 'info');
+            // Show toast only when BOTH columns fell back (nothing useful to display)
+            if (fb1 && fb2) {
+                this.showToast(`${this.parallelTrans1} and ${this.parallelTrans2} not available. Showing NIV fallback.`, 'info');
             }
             
             // Render columns
@@ -803,6 +851,8 @@ class BibleReader {
                 
                 this.renderSyncText();
                 document.querySelector('.video-placeholder').style.display = 'none';
+                const _vBtn = document.getElementById('videoToggleBtn');
+                if (_vBtn) _vBtn.style.display = '';
                 
                 // Fetch dynamic captions from YouTube for verse sync
                 if (videoId && videoId !== 'placeholder_video_id') {
@@ -811,8 +861,20 @@ class BibleReader {
                 
                 console.log(`Loading video: ${videoId || 'playlist'}, playlist: ${playlistId}, index: ${playlistIndex}`);
             } else {
-                document.querySelector('.video-placeholder').style.display = 'flex';
-                document.getElementById('syncStatusText').textContent = 'No video available';
+                // No video for this chapter: hide the placeholder AND the
+                // video toggle button silently — no need to notify the user.
+                document.querySelector('.video-placeholder').style.display = 'none';
+                const videoWrapper = document.querySelector('.video-player-wrapper');
+                if (videoWrapper) {
+                    videoWrapper.classList.remove('visible-player');
+                    videoWrapper.classList.add('hidden-player');
+                }
+                const vBtn = document.getElementById('videoToggleBtn');
+                if (vBtn) {
+                    vBtn.style.display = 'none';
+                    vBtn.classList.remove('active');
+                }
+                document.getElementById('syncStatusText').textContent = '';
                 this.renderSyncTextNoVideo();
             }
         } catch (error) {
@@ -847,6 +909,7 @@ class BibleReader {
         
         document.getElementById('syncColName1').textContent = trans1Label;
         document.getElementById('syncColName2').textContent = trans2Label;
+        this.applySyncColumnVisibility(!!data1.fallback, !!data2.fallback);
         
         // Render first translation with word highlighting
         syncVerses1.innerHTML = this.renderSyncVerses(verses1, true);
@@ -906,6 +969,7 @@ class BibleReader {
         
         document.getElementById('syncColName1').textContent = trans1Label;
         document.getElementById('syncColName2').textContent = trans2Label;
+        this.applySyncColumnVisibility(!!data1.fallback, !!data2.fallback);
         
         const syncVerses1 = document.getElementById('syncVerses1');
         const syncVerses2 = document.getElementById('syncVerses2');
@@ -925,6 +989,26 @@ class BibleReader {
                 ${verses[num]}
             </p>
         `).join('');
+    }
+
+    applySyncColumnVisibility(fb1, fb2) {
+        const col1 = document.getElementById('syncCol1');
+        const col2 = document.getElementById('syncCol2');
+        if (!col1 || !col2) return;
+        // Remember last fallback state so the Hebrew toggle can re-apply
+        // visibility without forgetting an active fallback.
+        if (typeof fb1 === 'boolean') this._lastFb1 = fb1;
+        if (typeof fb2 === 'boolean') this._lastFb2 = fb2;
+        const f1 = !!this._lastFb1;
+        const f2 = !!this._lastFb2;
+        // User-toggled "hide Hebrew" forces col2 hidden regardless of fallback.
+        const userHideRight = !!this.hebrewDisabled;
+        const hide1 = f1 && !f2 && !userHideRight;
+        const hide2 = (f2 && !f1) || userHideRight;
+        col1.classList.toggle('hidden-column', hide1);
+        col2.classList.toggle('hidden-column', hide2);
+        const wrap = col1.parentElement;
+        if (wrap) wrap.classList.toggle('single-column', hide1 || hide2);
     }
     
     setupSyncColumnScroll() {
@@ -1067,7 +1151,18 @@ class BibleReader {
     }
     
     togglePlay() {
-        if (!this.player || !this.isPlayerReady) return;
+        // If the user has disabled the Hebrew column, the (Hebrew-narrated)
+        // video isn't useful — drive TTS for the left translation instead.
+        if (this.hebrewDisabled) {
+            this.toggleTTS();
+            return;
+        }
+        // If no YouTube player is ready (no video for this chapter), fall
+        // back to browser TTS using the same play button.
+        if (!this.player || !this.isPlayerReady) {
+            this.toggleTTS();
+            return;
+        }
         this.clearSearchHighlight();
         
         const state = this.player.getPlayerState();
@@ -1076,6 +1171,331 @@ class BibleReader {
         } else {
             this.player.playVideo();
         }
+    }
+
+    // ===== Browser Text-to-Speech (used when no video is available) =====
+    // Uses window.speechSynthesis. Reads the chapter verse-by-verse in the
+    // appropriate language, highlights the active verse, and updates the
+    // existing progress bar / time display / play button.
+    ttsLangFor(translationName) {
+        const t = (translationName || '').toLowerCase();
+        if (t.includes('hungarian')) return 'hu-HU';
+        if (t.includes('hebrew'))    return 'he-IL';
+        return 'en-US';
+    }
+
+    pickTTSVoice(lang) {
+        const voices = window.speechSynthesis.getVoices() || [];
+        if (!voices.length) return null;
+        const want = (lang || '').toLowerCase();
+        const base = want.split('-')[0];
+        // 1. exact match (e.g. hu-HU)
+        let v = voices.find(x => (x.lang || '').toLowerCase() === want);
+        // 2. same base lang and 'default' flag preferred (e.g. hu-*)
+        if (!v) v = voices.find(x => (x.lang || '').toLowerCase().startsWith(base + '-') && x.default);
+        // 3. any voice in same base lang
+        if (!v) v = voices.find(x => (x.lang || '').toLowerCase().startsWith(base + '-'));
+        // 4. base-only lang code (e.g. "hu")
+        if (!v) v = voices.find(x => (x.lang || '').toLowerCase() === base);
+        return v || null;
+    }
+
+    waitForVoices(timeoutMs = 1500) {
+        return new Promise(resolve => {
+            const got = window.speechSynthesis.getVoices();
+            if (got && got.length) return resolve(got);
+            let done = false;
+            const onChange = () => {
+                if (done) return;
+                done = true;
+                window.speechSynthesis.removeEventListener('voiceschanged', onChange);
+                resolve(window.speechSynthesis.getVoices() || []);
+            };
+            window.speechSynthesis.addEventListener('voiceschanged', onChange);
+            setTimeout(() => {
+                if (done) return;
+                done = true;
+                window.speechSynthesis.removeEventListener('voiceschanged', onChange);
+                resolve(window.speechSynthesis.getVoices() || []);
+            }, timeoutMs);
+        });
+    }
+
+    // Split long text into ~160-char chunks at sentence/clause boundaries.
+    // Works around Chrome's ~200-char / ~15-second utterance bug and
+    // improves reliability on iOS Safari.
+    chunkTextForTTS(text, maxLen = 160) {
+        const clean = (text || '').trim();
+        if (!clean) return [];
+        if (clean.length <= maxLen) return [clean];
+        const parts = clean.split(/(?<=[.!?,:;—–])\s+/);
+        const out = [];
+        let buf = '';
+        for (const p of parts) {
+            if ((buf + ' ' + p).trim().length <= maxLen) {
+                buf = (buf ? buf + ' ' : '') + p;
+            } else {
+                if (buf) out.push(buf);
+                if (p.length <= maxLen) {
+                    buf = p;
+                } else {
+                    // Hard split very long token-runs by spaces
+                    const words = p.split(' ');
+                    let line = '';
+                    for (const w of words) {
+                        if ((line + ' ' + w).trim().length <= maxLen) {
+                            line = (line ? line + ' ' : '') + w;
+                        } else {
+                            if (line) out.push(line);
+                            line = w;
+                        }
+                    }
+                    buf = line;
+                }
+            }
+        }
+        if (buf) out.push(buf);
+        return out;
+    }
+
+    toggleTTS() {
+        const hasSpeech = ('speechSynthesis' in window) && ('SpeechSynthesisUtterance' in window);
+        if (!hasSpeech) {
+            // No native TTS at all → go straight to server fallback
+            this.startTTS({ forceServer: true });
+            return;
+        }
+        if (this.ttsState === 'playing') {
+            this.pauseTTS();
+            return;
+        }
+        if (this.ttsState === 'paused') {
+            this.resumeTTS();
+            return;
+        }
+        this.startTTS();
+    }
+
+    pauseTTS() {
+        if (this.ttsMode === 'audio' && this.ttsAudio) {
+            this.ttsAudio.pause();
+        } else if (window.speechSynthesis) {
+            window.speechSynthesis.pause();
+        }
+        this.ttsState = 'paused';
+        this.setPlayBtnPlaying(false);
+        this.stopTTSKeepalive();
+    }
+
+    resumeTTS() {
+        if (this.ttsMode === 'audio' && this.ttsAudio) {
+            this.ttsAudio.play().catch(() => {});
+        } else if (window.speechSynthesis) {
+            window.speechSynthesis.resume();
+            this.startTTSKeepalive();
+        }
+        this.ttsState = 'playing';
+        this.setPlayBtnPlaying(true);
+    }
+
+    async startTTS(opts = {}) {
+        const verses = this.collectVisibleVerses();
+        if (!verses.length) {
+            this.showToast('No text available to read', 'info');
+            return;
+        }
+        // Cancel any previous queue
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        if (this.ttsAudio) { try { this.ttsAudio.pause(); } catch {} this.ttsAudio = null; }
+        this.ttsQueue = verses;
+        this.ttsIndex = 0;
+        this.ttsState = 'playing';
+        this.ttsMode = null; // 'speech' | 'audio'
+        this.setPlayBtnPlaying(true);
+        const np = document.getElementById('nowPlayingText');
+        if (np) np.textContent = `${this.currentBook} ${this.currentChapter} (Read aloud)`;
+        const status = document.getElementById('syncStatusText');
+        if (status) status.textContent = 'Reading…';
+
+        const lang = verses[0].lang;
+        let useServer = !!opts.forceServer;
+        if (!useServer && window.speechSynthesis) {
+            await this.waitForVoices(1500);
+            const voice = this.pickTTSVoice(lang);
+            if (!voice) {
+                // No installed voice for this language → use server mp3
+                useServer = true;
+            }
+        }
+        this.ttsMode = useServer ? 'audio' : 'speech';
+        this.speakNextTTS();
+    }
+
+    collectVisibleVerses() {
+        // Prefer the visible sync column (left). Fall back to right column.
+        const containers = ['syncVerses1', 'syncVerses2'];
+        for (const id of containers) {
+            const c = document.getElementById(id);
+            if (!c) continue;
+            const colEl = c.closest('.sync-column');
+            if (colEl && colEl.classList.contains('hidden-column')) continue;
+            const nodes = Array.from(c.querySelectorAll('.sync-verse'));
+            if (!nodes.length) continue;
+            const transName = (id === 'syncVerses1') ? this.syncTrans1 : this.syncTrans2;
+            const lang = this.ttsLangFor(transName);
+            return nodes.map(n => ({
+                el: n,
+                verse: n.dataset.verse,
+                text: (n.innerText || n.textContent || '').replace(/^\s*\d+\s*/, '').trim(),
+                lang,
+            })).filter(v => v.text);
+        }
+        return [];
+    }
+
+    speakNextTTS() {
+        if (this.ttsState !== 'playing') return;
+        if (this.ttsIndex >= this.ttsQueue.length) {
+            this.stopTTS();
+            return;
+        }
+        const item = this.ttsQueue[this.ttsIndex];
+        document.querySelectorAll('.sync-verse.active').forEach(v => v.classList.remove('active'));
+        if (item.el) {
+            item.el.classList.add('active');
+            item.el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        this.updateTTSProgress();
+
+        if (this.ttsMode === 'audio') {
+            this.speakViaServer(item);
+        } else {
+            this.speakViaSynthesis(item);
+        }
+    }
+
+    speakViaSynthesis(item) {
+        const chunks = this.chunkTextForTTS(item.text);
+        if (!chunks.length) {
+            this.ttsIndex += 1;
+            this.speakNextTTS();
+            return;
+        }
+        const voice = this.pickTTSVoice(item.lang);
+        let i = 0;
+        const speakChunk = () => {
+            if (this.ttsState !== 'playing') return;
+            if (i >= chunks.length) {
+                this.ttsIndex += 1;
+                this.speakNextTTS();
+                return;
+            }
+            const u = new SpeechSynthesisUtterance(chunks[i]);
+            u.lang = item.lang;
+            u.rate = this.playbackRate || 1;
+            if (voice) u.voice = voice;
+            u.onend = () => { i += 1; speakChunk(); };
+            u.onerror = (e) => {
+                console.warn('SpeechSynthesis error', e);
+                // If first chunk fails, try server fallback for whole verse
+                if (i === 0 && this.ttsMode === 'speech') {
+                    this.ttsMode = 'audio';
+                    this.speakViaServer(item);
+                    return;
+                }
+                i += 1;
+                speakChunk();
+            };
+            this.currentUtterance = u;
+            window.speechSynthesis.speak(u);
+            this.startTTSKeepalive();
+        };
+        speakChunk();
+    }
+
+    speakViaServer(item) {
+        try {
+            if (this.ttsAudio) { try { this.ttsAudio.pause(); } catch {} }
+            const lang = (item.lang || 'en').split('-')[0];
+            const url = `/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(item.text)}`;
+            const audio = new Audio(url);
+            audio.playbackRate = this.playbackRate || 1;
+            audio.preload = 'auto';
+            audio.onended = () => {
+                this.ttsIndex += 1;
+                this.speakNextTTS();
+            };
+            audio.onerror = () => {
+                console.warn('Server TTS failed for verse', item.verse);
+                this.ttsIndex += 1;
+                this.speakNextTTS();
+            };
+            this.ttsAudio = audio;
+            const p = audio.play();
+            if (p && p.catch) p.catch(err => {
+                console.warn('Audio.play rejected', err);
+                this.stopTTS();
+                this.showToast('Tap play to start audio', 'info');
+            });
+        } catch (err) {
+            console.warn('speakViaServer error', err);
+            this.ttsIndex += 1;
+            this.speakNextTTS();
+        }
+    }
+
+    // Chrome on desktop stops speaking utterances after ~15s. Calling
+    // pause()/resume() periodically keeps the engine alive.
+    startTTSKeepalive() {
+        this.stopTTSKeepalive();
+        this.ttsKeepalive = setInterval(() => {
+            if (!window.speechSynthesis) return;
+            if (this.ttsState !== 'playing') return;
+            if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+                window.speechSynthesis.pause();
+                window.speechSynthesis.resume();
+            }
+        }, 10000);
+    }
+    stopTTSKeepalive() {
+        if (this.ttsKeepalive) {
+            clearInterval(this.ttsKeepalive);
+            this.ttsKeepalive = null;
+        }
+    }
+
+    stopTTS() {
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        if (this.ttsAudio) { try { this.ttsAudio.pause(); } catch {} this.ttsAudio = null; }
+        this.stopTTSKeepalive();
+        this.ttsState = 'idle';
+        this.ttsIndex = 0;
+        this.ttsQueue = [];
+        this.currentUtterance = null;
+        this.ttsMode = null;
+        this.setPlayBtnPlaying(false);
+        document.querySelectorAll('.sync-verse.active').forEach(v => v.classList.remove('active'));
+        const fill = document.getElementById('progressFill');
+        if (fill) fill.style.width = '0%';
+        const time = document.getElementById('timeDisplay');
+        if (time) time.textContent = '0 / 0';
+        const status = document.getElementById('syncStatusText');
+        if (status) status.textContent = '';
+    }
+
+    setPlayBtnPlaying(isPlaying) {
+        const btn = document.getElementById('playPauseBtn');
+        if (!btn) return;
+        btn.classList.toggle('playing', !!isPlaying);
+    }
+
+    updateTTSProgress() {
+        const total = this.ttsQueue.length || 1;
+        const pct = Math.min(100, ((this.ttsIndex) / total) * 100);
+        const fill = document.getElementById('progressFill');
+        if (fill) fill.style.width = `${pct}%`;
+        const time = document.getElementById('timeDisplay');
+        if (time) time.textContent = `${Math.min(this.ttsIndex + 1, total)} / ${total}`;
     }
 
     // Set playback rate (UI + player). Chooses nearest supported rate for YouTube.

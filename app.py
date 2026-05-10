@@ -238,6 +238,32 @@ def get_playlists():
     """Get all RITDorg playlists"""
     return jsonify(RITDORG_PLAYLISTS)
 
+@app.route('/api/tts')
+def tts_audio():
+    """Server-side TTS fallback. Returns MP3 audio for the given text in the
+    requested language. Used only when the browser's speechSynthesis cannot
+    produce audio in the desired language (common on Linux Chromium and
+    older Android browsers). Backed by gTTS (Google Translate TTS)."""
+    from flask import request, Response, abort
+    text = (request.args.get('text') or '').strip()
+    lang = (request.args.get('lang') or 'en').split('-')[0].lower()
+    if not text:
+        abort(400, 'text required')
+    if len(text) > 800:
+        text = text[:800]
+    try:
+        from gtts import gTTS
+        import io
+        buf = io.BytesIO()
+        gTTS(text=text, lang=lang).write_to_fp(buf)
+        buf.seek(0)
+        resp = Response(buf.getvalue(), mimetype='audio/mpeg')
+        resp.headers['Cache-Control'] = 'public, max-age=86400'
+        return resp
+    except Exception as e:
+        # Library missing or upstream failure
+        abort(503, f'TTS unavailable: {e}')
+
 @app.route('/api/playlists/<book>')
 def get_playlist_for_book(book):
     """Get the RITDorg playlist for a specific book"""

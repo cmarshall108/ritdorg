@@ -2055,6 +2055,56 @@ body.focus-reading-mode .audio-controls-bar {
     background: var(--border-color);
 }
 
+/* Hide a column entirely when its translation has no equivalent for the
+   current passage. The remaining column expands to full width. */
+.parallel-column.hidden-column,
+.sync-column.hidden-column {
+    display: none !important;
+}
+
+.parallel-columns.single-column .parallel-divider,
+.sync-text-dual.single-column .sync-divider {
+    display: none !important;
+}
+
+.parallel-columns.single-column .parallel-column,
+.sync-text-dual.single-column .sync-column {
+    flex: 1 1 100%;
+    max-width: 100%;
+}
+
+/* Hebrew column on/off toggle in the sync header */
+.hebrew-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-left: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+
+.hebrew-toggle-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.hebrew-toggle-btn .hebrew-off-icon { display: none; }
+.hebrew-toggle-btn.active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+.hebrew-toggle-btn:not(.active) .hebrew-on-icon { display: none; }
+.hebrew-toggle-btn:not(.active) .hebrew-off-icon { display: inline; }
+
+
 .column-header {
     padding: 16px 24px;
     background: var(--bg-tertiary);
