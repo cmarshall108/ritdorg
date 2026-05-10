@@ -2164,7 +2164,7 @@ body.focus-reading-mode .audio-controls-bar {
 
 .parallel-verse .verse-text {
     font-family: var(--font-reader);
-    font-size: 1.18rem;
+    font-size: clamp(1.05rem, 0.9rem + 0.4vw, 1.45rem);
     line-height: 1.8;
     letter-spacing: 0.005em;
     color: var(--text-primary);
@@ -2260,10 +2260,11 @@ body.focus-reading-mode .audio-controls-bar {
 
 .sync-verses {
     flex: 1;
-    padding: 24px 28px;
+    padding: clamp(18px, 2.5vw, 36px) clamp(20px, 3vw, 48px);
     overflow-y: auto;
     font-family: var(--font-reader);
-    font-size: 1.22rem;
+    /* Scale font with viewport so wide monitors don't waste space. */
+    font-size: clamp(1.05rem, 0.9rem + 0.45vw, 1.55rem);
     line-height: 1.85;
     letter-spacing: 0.005em;
     color: var(--text-primary);
@@ -2271,8 +2272,23 @@ body.focus-reading-mode .audio-controls-bar {
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     font-feature-settings: "kern" 1, "liga" 1;
-    max-width: 70ch;
+    max-width: min(78ch, 100%);
     margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* When only one column is visible (Hebrew-only or other-only), let the
+   text breathe a lot more on wide screens so it doesn't sit in a tiny
+   centered ribbon. */
+.sync-text-dual.single-column .sync-verses {
+    max-width: min(92ch, 100%);
+    font-size: clamp(1.1rem, 0.95rem + 0.6vw, 1.75rem);
+}
+
+/* Hebrew rendering needs slightly more vertical room for niqqud. */
+.sync-column[dir="rtl"] .sync-verses,
+.sync-verses[dir="rtl"] {
+    line-height: 2.05;
 }
 
 .sync-verse {
