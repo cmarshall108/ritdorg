@@ -2816,6 +2816,86 @@ body.focus-reading-mode .audio-controls-bar {
     }
 }
 
+/* ----- Landscape phone (short viewport, coarse pointer) -----
+   The 600px-wide breakpoint above doesn't catch a landscape iPhone
+   (~926px wide × ~428px tall), so the audio bar stays at full desktop
+   size and eats most of the screen. This block compacts the bar and
+   the sync header so the actual Bible text gets the lion's share of
+   the vertical space. */
+@media (max-height: 520px) and (pointer: coarse), (max-height: 460px) {
+    .video-view,
+    .parallel-view,
+    .reader-view {
+        padding: 6px;
+        gap: 6px;
+    }
+
+    .sync-header {
+        padding: 6px 12px;
+    }
+    .sync-header h2 {
+        font-size: 0.95rem;
+    }
+    .sync-status { display: none; }
+
+    .sync-column-header {
+        padding: 4px 10px;
+        font-size: 0.72rem;
+    }
+
+    .sync-verses {
+        padding: 8px 12px;
+        font-size: 1rem;
+        line-height: 1.55;
+    }
+    .sync-verse { margin-bottom: 8px; padding: 4px 8px; }
+
+    /* The audio bar — flatten everything that's optional. */
+    .audio-controls-bar {
+        gap: 8px;
+        padding: 6px 10px;
+        border-radius: 12px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+    }
+    .audio-controls-bar .now-playing { display: none; }
+    .audio-controls-bar .nav-jump-label { display: none; }
+    .audio-controls-bar .time-display {
+        font-size: 0.72rem;
+        min-width: 0;
+        white-space: nowrap;
+    }
+
+    .chapter-nav-btn,
+    .control-btn,
+    .video-toggle-btn,
+    .focus-mode-btn,
+    .nav-jump-btn {
+        width: 30px;
+        height: 30px;
+    }
+    .control-btn svg { width: 18px; height: 18px; }
+    .chapter-nav-btn svg,
+    .video-toggle-btn svg,
+    .nav-jump-btn svg { width: 16px; height: 16px; }
+
+    .progress-bar {
+        order: 0;          /* keep inline; do NOT wrap to its own row */
+        flex-basis: auto;
+        flex: 1 1 60px;
+        min-width: 60px;
+        height: 4px;
+    }
+
+    .playback-rate {
+        margin-left: 0;
+        min-width: 0;
+        gap: 4px;
+    }
+    .playback-rate input[type="range"] { width: 56px; }
+    #rateLabel { font-size: 0.72rem; }
+}
+
 /* ===== Scrollbar Styling ===== */
 ::-webkit-scrollbar {
     width: 8px;
