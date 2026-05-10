@@ -36,6 +36,16 @@ class BibleReader {
         this.ttsIndex = 0;
         this.currentUtterance = null;
 
+        // Auto-advance to the next chapter when read-aloud (or video) finishes.
+        // Defaults ON; persisted across sessions.
+        this.autoAdvanceChapter = (() => {
+            try {
+                const v = localStorage.getItem('autoAdvanceChapter');
+                return v === null ? true : v === '1';
+            } catch { return true; }
+        })();
+        this._autoplayAfterLoad = false;
+
         // Hebrew column on/off (persisted). When disabled, the right
         // (Hebrew) column is hidden and the play button drives TTS for the
         // left translation instead of playing the Hebrew-narrated video.
@@ -371,6 +381,22 @@ class BibleReader {
         // Chapter navigation
         document.getElementById('prevChapterBtn').addEventListener('click', () => this.prevChapter());
         document.getElementById('nextChapterBtn').addEventListener('click', () => this.nextChapter());
+        const autoBtn = document.getElementById('autoAdvanceBtn');
+        if (autoBtn) {
+            // Reflect persisted state immediately.
+            autoBtn.classList.toggle('active', !!this.autoAdvanceChapter);
+            autoBtn.setAttribute('aria-pressed', this.autoAdvanceChapter ? 'true' : 'false');
+            autoBtn.addEventListener('click', () => {
+                this.autoAdvanceChapter = !this.autoAdvanceChapter;
+                try { localStorage.setItem('autoAdvanceChapter', this.autoAdvanceChapter ? '1' : '0'); } catch {}
+                autoBtn.classList.toggle('active', this.autoAdvanceChapter);
+                autoBtn.setAttribute('aria-pressed', this.autoAdvanceChapter ? 'true' : 'false');
+                this.showToast(
+                    this.autoAdvanceChapter ? 'Auto-continue: ON' : 'Auto-continue: OFF',
+                    'info'
+                );
+            });
+        }
 
         // Search
         const searchInput = document.getElementById('searchInput');
@@ -537,7 +563,24 @@ class BibleReader {
                     this._applyVerseAnnotations();
                 });
             }
-            
+
+            // If we got here via auto-continue from the previous chapter,
+            // resume read-aloud playback automatically. We delay slightly so
+            // the new chapter's verse DOM (and any video re-init) is ready.
+            if (this._autoplayAfterLoad) {
+                this._autoplayAfterLoad = false;
+                setTimeout(() => {
+                    try {
+                        // Prefer the same play path the user normally uses
+                        // (video if available, otherwise TTS).
+                        this.togglePlay();
+                    } catch (e) {
+                        console.warn('auto-advance togglePlay failed', e);
+                        try { this.startTTS(); } catch {}
+                    }
+                }, 250);
+            }
+
         } catch (error) {
             console.error('Failed to load verses:', error);
             this.showToast('Failed to load verses', 'error');
@@ -1323,6 +1366,16 @@ class BibleReader {
                 const duration = this.player.getDuration();
                 this.syncWithCaptions(currentTime, duration);
             }
+
+            // Auto-continue to the next chapter when the video ends.
+            if (event.data === YT.PlayerState.ENDED && this.autoAdvanceChapter) {
+                const sel = document.getElementById('chapterSelect');
+                const maxChapter = sel ? sel.options.length : 0;
+                if (this.currentChapter < maxChapter) {
+                    this._autoplayAfterLoad = true;
+                    this.nextChapter();
+                }
+            }
         }
     }
     
@@ -1651,6 +1704,16 @@ class BibleReader {
     speakNextTTS() {
         if (this.ttsState !== 'playing') return;
         if (this.ttsIndex >= this.ttsQueue.length) {
+            // End of chapter — auto-advance if enabled and a next chapter exists.
+            if (this.autoAdvanceChapter) {
+                const sel = document.getElementById('chapterSelect');
+                const maxChapter = sel ? sel.options.length : 0;
+                if (this.currentChapter < maxChapter) {
+                    this._autoplayAfterLoad = true;
+                    this.nextChapter();
+                    return;
+                }
+            }
             this.stopTTS();
             return;
         }

@@ -1470,6 +1470,28 @@ mark.search-term {
     display: block;
 }
 
+/* Auto-advance toggle (continue to next chapter when read-aloud ends) */
+.auto-advance-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.auto-advance-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+.auto-advance-btn.active {
+    background: var(--accent-primary);
+    color: #fff;
+    border-color: var(--accent-primary);
+}
+
 .focus-mode-btn {
     display: flex;
     align-items: center;
