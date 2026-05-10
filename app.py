@@ -1,6 +1,7 @@
 from flask import (
     Flask, render_template, jsonify, request, Response,
     redirect, url_for, session, flash, g, make_response, abort,
+    send_from_directory,
 )
 import glob
 import json
@@ -318,6 +319,33 @@ def videos():
     video_files.sort(key=lambda f: os.path.getmtime(f), reverse=True)
     video_names = [os.path.basename(f) for f in video_files]
     return render_template('videos.html', videos=video_names)
+
+
+@app.route('/static/videos/<path:filename>')
+def serve_video(filename):
+    """Serve uploaded videos with a browser-friendly MIME type.
+
+    iPhone-recorded ``.mov`` files are H.264 + AAC inside a QuickTime
+    container. Chrome and Firefox refuse to play files served as
+    ``video/quicktime`` (the default for the ``.mov`` extension), but
+    will happily decode the same bytes when the response is labeled as
+    ``video/mp4``. ``send_from_directory`` returns a conditional
+    response, so HTTP Range requests (needed for seeking and progressive
+    download of large files) keep working.
+    """
+    video_dir = os.path.join(app.static_folder, 'videos')
+    ext = os.path.splitext(filename)[1].lower()
+    mimetype = {
+        '.mp4':  'video/mp4',
+        '.mov':  'video/mp4',
+        '.m4v':  'video/mp4',
+        '.webm': 'video/webm',
+    }.get(ext, 'application/octet-stream')
+    return send_from_directory(
+        video_dir, filename,
+        mimetype=mimetype,
+        conditional=True,
+    )
 
 @app.route('/services')
 def services():

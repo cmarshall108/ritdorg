@@ -84,12 +84,8 @@
                 {% for video in videos %}
                 <div class="video-card" data-video="{{ video }}">
                     <div class="video-player-wrap">
-                        <video preload="metadata" playsinline>
-                            <source src="{{ url_for('static', filename='videos/' + video) }}" type="video/{{ 'mp4' if video.endswith('.mp4') else 'quicktime' }}">
-                            Your browser does not support the video tag.
-                        </video>
                         <div class="video-play-overlay">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="rgba(255,255,255,0.95)">
+                            <svg width="64" height="64" viewBox="0 0 24 24" fill="rgba(255,255,255,0.95)">
                                 <path d="M8 5v14l11-7z"/>
                             </svg>
                         </div>
@@ -132,6 +128,15 @@
             <video id="lightboxVideo" controls playsinline autoplay>
                 Your browser does not support the video tag.
             </video>
+            <div class="lightbox-error" id="lightboxError" hidden>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="13"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <h3>Can't play this video here</h3>
+                <p>This file uses a video format (HEVC / H.265) that your browser doesn't support. Try opening this page in Safari, or download the file to view it.</p>
+            </div>
         </div>
     </div>
 
@@ -158,14 +163,35 @@
                 const videoFile = card.dataset.video;
                 const lightbox = document.getElementById('videoLightbox');
                 const lbVideo = document.getElementById('lightboxVideo');
-                const ext = videoFile.split('.').pop().toLowerCase();
-                const mimeType = ext === 'mp4' ? 'video/mp4' : 'video/quicktime';
-
-                lbVideo.innerHTML = `<source src="/static/videos/${videoFile}" type="${mimeType}">`;
+                const errBox = document.getElementById('lightboxError');
+                if (errBox) errBox.hidden = true;
+                lbVideo.style.display = '';
+                // Always present .mov files as video/mp4 — iPhone-recorded
+                // QuickTime containers wrap H.264 + AAC and Chrome/Firefox
+                // will only attempt playback when labeled as mp4.
+                lbVideo.innerHTML = `<source src="/static/videos/${videoFile}" type="video/mp4">`;
                 lbVideo.load();
-                lbVideo.play();
                 lightbox.classList.add('active');
                 document.body.style.overflow = 'hidden';
+                // Surface the (very real) chance that the browser cannot
+                // decode the codec inside — many iPhone clips are HEVC,
+                // which only Safari supports.
+                const onError = () => {
+                    if (errBox) errBox.hidden = false;
+                    lbVideo.style.display = 'none';
+                };
+                lbVideo.onerror = onError;
+                // <source> errors don't bubble to <video> by default; catch them too.
+                const sourceEl = lbVideo.querySelector('source');
+                if (sourceEl) sourceEl.onerror = onError;
+                // Play after the lightbox is visible so the user gesture
+                // counts and the video element has nonzero dimensions.
+                const tryPlay = () => {
+                    const p = lbVideo.play();
+                    if (p && p.catch) p.catch(err => console.warn('Video play failed:', err));
+                };
+                if (lbVideo.readyState >= 2) tryPlay();
+                else lbVideo.addEventListener('loadeddata', tryPlay, { once: true });
             });
         });
 

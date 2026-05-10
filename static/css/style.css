@@ -3503,3 +3503,41 @@ body.tutorial-open { overflow: hidden; }
     #syncCol2 .sync-verses,
     #parallelCol2 .column-verses { font-size: 1.4rem; line-height: 1.95; }
 }
+
+/* The video card no longer embeds a real <video> preview (most uploads
+   are HEVC, which Chrome/Firefox can't decode anyway). Style the empty
+   wrap as a clean dark placeholder with a centered play badge. */
+.video-player-wrap {
+    background: linear-gradient(135deg, #1a1a1f 0%, #2a2a32 100%);
+}
+.video-card .video-play-overlay {
+    background: rgba(0, 0, 0, 0.15);
+}
+.video-card:hover .video-play-overlay {
+    background: rgba(0, 0, 0, 0.0);
+}
+
+/* Lightbox codec-error message — shown when the browser refuses to
+   decode the file (typically HEVC clips outside Safari). */
+.lightbox-error {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 40px 32px;
+    text-align: center;
+    max-width: 520px;
+    margin: 0 auto;
+    border-radius: 12px;
+}
+.lightbox-error svg { color: var(--text-muted); margin-bottom: 12px; }
+.lightbox-error h3 {
+    font-family: var(--font-sans);
+    font-size: 1.1rem;
+    margin: 0 0 8px;
+}
+.lightbox-error p {
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+    margin: 0;
+}
