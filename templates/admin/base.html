@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Admin · RITDorg{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
     <style>
         :root { color-scheme: dark; }
         * { box-sizing: border-box; }
@@ -43,6 +44,40 @@
         .flash { padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.92rem; }
         .flash.info  { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.35); }
         .flash.error { background: rgba(220,38,38,0.15); border: 1px solid rgba(220,38,38,0.4); }
+
+        .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+        .toolbar .spacer { flex: 1; }
+        .btn-secondary { background: #1e293b; color: #e2e8f0; border-color: #334155; }
+        .btn-success   { background: #16a34a; color: #fff; border-color: #16a34a; }
+        .btn-ghost     { background: transparent; color: #cbd5e1; border-color: #334155; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+        .badge-draft     { background: rgba(250,204,21,0.15); color: #fde047; border: 1px solid rgba(250,204,21,0.35); }
+        .badge-published { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.4); }
+
+        textarea, input[type="email"], input[type="url"] {
+            width: 100%; padding: 9px 12px; border-radius: 6px; border: 1px solid #334155;
+            background: #0b1220; color: #e2e8f0; font-size: 0.95rem; font-family: inherit;
+        }
+        .field { margin-bottom: 14px; }
+        .field label { display:block; font-size:0.78rem; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+        .editor-wrap { background: #0b1220; border: 1px solid #334155; border-radius: 8px; }
+        .EasyMDEContainer .CodeMirror { background: #0b1220; color: #e2e8f0; border: none; min-height: 420px; }
+        .EasyMDEContainer .editor-toolbar { background: #0b1220; border: none; border-bottom: 1px solid #1e293b; }
+        .EasyMDEContainer .editor-toolbar button { color: #cbd5e1 !important; }
+        .EasyMDEContainer .editor-toolbar button:hover, .EasyMDEContainer .editor-toolbar button.active { background: #1e293b; border-color: #334155; }
+        .EasyMDEContainer .editor-preview, .EasyMDEContainer .editor-preview-side { background: #0f172a; color: #e2e8f0; }
+        .EasyMDEContainer .CodeMirror-cursor { border-color: #e2e8f0 !important; }
+        .editor-statusbar { color: #64748b; }
+
+        .upload-drop {
+            border: 2px dashed #334155; border-radius: 10px; padding: 30px; text-align: center;
+            background: #0b1220; transition: border-color .15s, background .15s; cursor: pointer;
+        }
+        .upload-drop.dragover { border-color: #60a5fa; background: #0f1f3d; }
+        .upload-drop p { margin: 6px 0; color: #94a3b8; }
+        .upload-drop strong { color: #e2e8f0; }
+        .upload-progress { margin-top: 12px; height: 6px; background: #1e293b; border-radius: 999px; overflow: hidden; display: none; }
+        .upload-progress div { height: 100%; width: 0%; background: #2563eb; transition: width .15s; }
     </style>
 </head>
 <body>
@@ -51,7 +86,10 @@
         <h2>Admin</h2>
         <nav>
             <a href="{{ url_for('admin_dashboard') }}" class="{% if request.endpoint == 'admin_dashboard' %}active{% endif %}">Dashboard</a>
+            <a href="{{ url_for('admin_analytics') }}" class="{% if request.endpoint == 'admin_analytics' %}active{% endif %}">Analytics</a>
             <a href="{{ url_for('admin_users') }}" class="{% if request.endpoint in ['admin_users', 'admin_delete_user'] %}active{% endif %}">Users</a>
+            <a href="{{ url_for('admin_newsletters') }}" class="{% if request.endpoint in ['admin_newsletters', 'admin_newsletter_new', 'admin_newsletter_edit'] %}active{% endif %}">Newsletters</a>
+            <a href="{{ url_for('admin_videos') }}" class="{% if request.endpoint in ['admin_videos', 'admin_video_upload', 'admin_video_delete', 'admin_video_rename'] %}active{% endif %}">Videos</a>
             <a href="{{ url_for('index') }}">&larr; Back to site</a>
         </nav>
         <div class="sidebar-foot">
@@ -69,5 +107,7 @@
         {% block content %}{% endblock %}
     </main>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

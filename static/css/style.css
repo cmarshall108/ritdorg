@@ -3541,3 +3541,39 @@ body.tutorial-open { overflow: hidden; }
     line-height: 1.55;
     margin: 0;
 }
+
+/* ---------- Newsletters ---------- */
+.newsletter-list { list-style: none; padding: 0; margin: 24px 0 0; display: grid; gap: 14px; }
+.newsletter-item a {
+    display: block; padding: 18px 20px; border-radius: 12px;
+    background: var(--bg-secondary); border: 1px solid var(--border-color);
+    color: inherit; text-decoration: none;
+    transition: transform .15s, box-shadow .15s, border-color .15s;
+}
+.newsletter-item a:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--accent-primary);
+}
+.newsletter-item h2 { margin: 0 0 4px; font-size: 1.25rem; font-family: var(--font-serif, var(--font-sans)); }
+.newsletter-sub { margin: 0 0 6px; color: var(--text-muted); font-size: 0.95rem; }
+.newsletter-date { margin: 0; color: var(--text-muted); font-size: 0.8rem; }
+
+.newsletter-article .newsletter-back { font-size: 0.9rem; }
+.newsletter-article .newsletter-sub-large { color: var(--text-muted); font-size: 1.1rem; margin: -4px 0 8px; }
+.newsletter-article hr { border: 0; border-top: 1px solid var(--border-color); margin: 18px 0 22px; }
+.newsletter-body img { max-width: 100%; height: auto; border-radius: 8px; margin: 12px 0; }
+.newsletter-body h2, .newsletter-body h3 { margin-top: 1.6em; }
+.newsletter-body blockquote {
+    border-left: 4px solid var(--accent-primary);
+    padding: 6px 16px; margin: 16px 0; color: var(--text-muted);
+    background: var(--bg-secondary); border-radius: 4px;
+}
+.newsletter-body pre, .newsletter-body code {
+    background: var(--bg-secondary); border-radius: 6px;
+}
+.newsletter-body pre { padding: 12px 14px; overflow-x: auto; }
+.newsletter-body code { padding: 2px 6px; font-size: 0.92em; }
+.newsletter-body pre code { padding: 0; background: transparent; }
+.newsletter-body table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+.newsletter-body th, .newsletter-body td { border: 1px solid var(--border-color); padding: 8px 10px; text-align: left; }

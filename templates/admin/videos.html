@@ -1,0 +1,173 @@
+{% extends "admin/base.html" %}
+{% block title %}Videos · Admin{% endblock %}
+{% block content %}
+<h1>Videos</h1>
+
+<div class="card">
+    <form id="uploadForm" method="post" action="{{ url_for('admin_video_upload') }}"
+          enctype="multipart/form-data">
+        <div class="upload-drop" id="uploadDrop">
+            <p><strong>Drop a video here</strong> or click to choose a file.</p>
+            <p>Allowed: .mp4, .mov, .m4v, .webm — max {{ max_mb }} MB.</p>
+            <input id="videoInput" name="video" type="file"
+                   accept="video/mp4,video/quicktime,video/x-m4v,video/webm,.mp4,.mov,.m4v,.webm"
+                   style="display:none;">
+        </div>
+        <div class="upload-progress" id="uploadProgress"><div></div></div>
+        <p style="margin-top:10px;color:#94a3b8;font-size:0.85rem;">
+            {% if ffmpeg_available %}
+            Uploads in HEVC / <code>.mov</code> / <code>.m4v</code> / <code>.webm</code> are
+            <strong>automatically converted to H.264 MP4</strong> in the background so they
+            play in every browser. The original file is moved to
+            <code>static/videos/originals/</code> when the conversion finishes.
+            {% else %}
+            <strong>ffmpeg is not installed</strong>, so uploads are kept as-is. iPhone
+            <code>.mov</code> files (HEVC) won't play in Chrome or Firefox until you install
+            ffmpeg (<code>brew install ffmpeg</code>) or transcode them manually.
+            {% endif %}
+        </p>
+    </form>
+</div>
+
+<div class="card">
+    {% if videos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Size</th>
+                <th>Modified</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in videos %}
+            <tr data-name="{{ v.name }}">
+                <td>
+                    <a href="{{ url_for('serve_video', filename=v.name) }}" target="_blank">{{ v.name }}</a>
+                </td>
+                <td style="color:#94a3b8;">{{ v.size_mb }} MB</td>
+                <td style="color:#94a3b8;">{{ (v.mtime|int)|string }}</td>
+                <td>
+                    {% if v.transcode_status == 'pending' or v.transcode_status == 'running' %}
+                    <span class="badge" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:1px solid rgba(59,130,246,0.4);" data-tx-badge>
+                        Transcoding…
+                    </span>
+                    {% elif v.transcode_status == 'failed' %}
+                    <span class="badge" style="background:rgba(220,38,38,0.15);color:#fca5a5;border:1px solid rgba(220,38,38,0.4);" data-tx-badge>
+                        Transcode failed
+                    </span>
+                    {% elif v.transcode_status == 'done' %}
+                    <span class="badge badge-published" data-tx-badge>Converted</span>
+                    {% else %}
+                    <span data-tx-badge></span>
+                    {% endif %}
+                </td>
+                <td style="white-space:nowrap;">
+                    <button class="btn btn-ghost" type="button"
+                            onclick="renameVideo('{{ v.name|e }}')">Rename</button>
+                    <form method="post" action="{{ url_for('admin_video_delete', name=v.name) }}"
+                          onsubmit="return confirm('Delete {{ v.name|e }}? This cannot be undone.');"
+                          style="display:inline;">
+                        <button class="btn btn-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="margin:0;color:#94a3b8;">No videos uploaded yet.</p>
+    {% endif %}
+</div>
+
+<form id="renameForm" method="post" style="display:none;">
+    <input type="hidden" name="new_name" id="renameNew">
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const drop  = document.getElementById('uploadDrop');
+    const input = document.getElementById('videoInput');
+    const form  = document.getElementById('uploadForm');
+    const bar   = document.getElementById('uploadProgress');
+    const fill  = bar.querySelector('div');
+
+    drop.addEventListener('click', () => input.click());
+    drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('dragover'); });
+    drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+    drop.addEventListener('drop', e => {
+        e.preventDefault();
+        drop.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            input.files = e.dataTransfer.files;
+            submit();
+        }
+    });
+    input.addEventListener('change', submit);
+
+    function submit() {
+        if (!input.files.length) return;
+        // Use XHR so we get progress events; the server still gets a normal
+        // multipart POST and redirects back here on success.
+        const fd = new FormData(form);
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', form.action);
+        bar.style.display = 'block';
+        fill.style.width = '0%';
+        xhr.upload.addEventListener('progress', e => {
+            if (e.lengthComputable) fill.style.width = ((e.loaded/e.total)*100).toFixed(1) + '%';
+        });
+        xhr.addEventListener('load', () => {
+            // Server returns a redirect (302) → just reload to pick up the new list and flash.
+            window.location.reload();
+        });
+        xhr.addEventListener('error', () => {
+            alert('Upload failed.');
+            bar.style.display = 'none';
+        });
+        xhr.send(fd);
+    }
+})();
+
+function renameVideo(currentName) {
+    const next = prompt('Rename file to:', currentName);
+    if (!next || next === currentName) return;
+    const f = document.getElementById('renameForm');
+    f.action = '/admin/videos/' + encodeURIComponent(currentName) + '/rename';
+    document.getElementById('renameNew').value = next;
+    f.submit();
+}
+
+// Poll the transcode-status endpoint while any file is in progress so
+// the badges update without forcing the user to reload.
+(function() {
+    function active() {
+        return Array.from(document.querySelectorAll('[data-tx-badge]'))
+            .some(el => /Transcoding/i.test(el.textContent));
+    }
+    if (!active()) return;
+    let consecutiveDone = 0;
+    const tick = async () => {
+        try {
+            const r = await fetch('{{ url_for("admin_video_status") }}', { credentials: 'same-origin' });
+            const data = await r.json();
+            // If something newly finished we just reload — that's the
+            // simplest way to reflect filename changes (e.g. .mov -> .mp4).
+            for (const [name, status] of Object.entries(data)) {
+                if (status === 'done' || status === 'failed') {
+                    consecutiveDone++;
+                }
+            }
+            if (consecutiveDone > 0) { window.location.reload(); return; }
+        } catch (e) { /* swallow */ }
+        if (active()) setTimeout(tick, 3000);
+    };
+    setTimeout(tick, 3000);
+})();
+
+</script>
+{% endblock %}

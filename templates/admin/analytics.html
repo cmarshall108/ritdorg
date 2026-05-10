@@ -1,0 +1,230 @@
+{% extends "admin/base.html" %}
+{% block title %}Analytics · Admin{% endblock %}
+{% block content %}
+<h1 style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+    Analytics
+    <form method="get" action="{{ url_for('admin_analytics') }}"
+          style="display:flex;gap:6px;font-size:0.9rem;align-items:center;font-weight:400;">
+        <label for="days" style="color:#94a3b8;">Range</label>
+        <select name="days" id="days" onchange="this.form.submit()"
+                style="padding:6px 10px;border-radius:6px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;">
+            {% for opt in [1, 7, 14, 30, 60, 90, 180, 365] %}
+            <option value="{{ opt }}" {% if days == opt %}selected{% endif %}>
+                Last {{ opt }} day{{ '' if opt == 1 else 's' }}
+            </option>
+            {% endfor %}
+        </select>
+    </form>
+</h1>
+
+{% set t = data.totals %}
+{% set delta = (t.views_24h - t.views_prev_24h) %}
+<div class="card">
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="num">{{ t.views_window }}</div>
+            <div class="lbl">Pageviews · last {{ days }}d</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ t.visitors_window }}</div>
+            <div class="lbl">Unique visitors · last {{ days }}d</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ t.views_24h }}</div>
+            <div class="lbl">
+                Pageviews · last 24h
+                {% if t.views_prev_24h or t.views_24h %}
+                <span style="margin-left:6px;color:{% if delta >= 0 %}#86efac{% else %}#fca5a5{% endif %};">
+                    {{ '+' if delta >= 0 else '' }}{{ delta }}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ t.visitors_24h }}</div>
+            <div class="lbl">Unique visitors · last 24h</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ t.all_time_views }}</div>
+            <div class="lbl">All-time pageviews</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ t.all_time_visitors }}</div>
+            <div class="lbl">All-time visitors</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Traffic over time</h2>
+    <canvas id="trafficChart" height="110"></canvas>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Devices</h2>
+        <canvas id="deviceChart" height="180"></canvas>
+    </div>
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Browsers</h2>
+        <canvas id="browserChart" height="180"></canvas>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px;">
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Top pages</h2>
+        {% if data.top_paths %}
+        <table>
+            <thead><tr><th>Path</th><th style="text-align:right;">Views</th><th style="text-align:right;">Visitors</th></tr></thead>
+            <tbody>
+                {% for r in data.top_paths %}
+                <tr>
+                    <td><a href="{{ r.path }}" target="_blank" style="color:#cbd5e1;">{{ r.path }}</a></td>
+                    <td style="text-align:right;">{{ r.views }}</td>
+                    <td style="text-align:right;color:#94a3b8;">{{ r.visitors }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<p style="margin:0;color:#94a3b8;">No data yet.</p>{% endif %}
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Top referrers</h2>
+        {% if data.top_referrers %}
+        <table>
+            <thead><tr><th>Source</th><th style="text-align:right;">Views</th></tr></thead>
+            <tbody>
+                {% for r in data.top_referrers %}
+                <tr>
+                    <td style="word-break:break-all;font-size:0.85rem;">{{ r.referrer }}</td>
+                    <td style="text-align:right;">{{ r.views }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<p style="margin:0;color:#94a3b8;">No external referrers in this window.</p>{% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Visits by hour (UTC)</h2>
+    {# Heatmap is a 7×24 grid: rows = day of week, columns = hour. #}
+    {% set heat_max = (data.heatmap | map(attribute='n') | max) if data.heatmap else 0 %}
+    <div class="heatmap">
+        <div></div>
+        {% for h in range(24) %}<div class="hcol-h">{{ h }}</div>{% endfor %}
+        {% set days_labels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'] %}
+        {% for dow in range(7) %}
+            <div class="hrow-l">{{ days_labels[dow] }}</div>
+            {% for hour in range(24) %}
+                {% set cell = data.heatmap | selectattr('dow','equalto',dow) | selectattr('hour','equalto',hour) | list %}
+                {% set n = cell[0].n if cell else 0 %}
+                {% set pct = ((n / heat_max) if heat_max else 0) %}
+                <div class="hcell" title="{{ days_labels[dow] }} {{ hour }}:00 UTC — {{ n }} views"
+                     style="background: rgba(96,165,250, {{ '%.2f'|format(0.08 + 0.92 * pct) if n else 0.04 }});">
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
+    <p style="margin:10px 0 0;font-size:0.78rem;color:#64748b;">Darker = more views. Times are in UTC.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Top countries</h2>
+        {% if data.top_countries and (data.top_countries|length > 1 or data.top_countries[0].country != '—') %}
+        <table>
+            <thead><tr><th>Country</th><th style="text-align:right;">Views</th><th style="text-align:right;">Visitors</th></tr></thead>
+            <tbody>
+                {% for r in data.top_countries %}
+                <tr><td>{{ r.country }}</td><td style="text-align:right;">{{ r.views }}</td><td style="text-align:right;color:#94a3b8;">{{ r.visitors }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<p style="margin:0;color:#94a3b8;font-size:0.88rem;">No country data. Set the <code>CF-IPCountry</code> header (Cloudflare does this automatically) to populate this.</p>{% endif %}
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Recent activity</h2>
+        {% if data.recent %}
+        <div style="max-height:380px;overflow:auto;">
+            <table>
+                <thead><tr><th>When (UTC)</th><th>Path</th><th>Device</th><th>Browser</th></tr></thead>
+                <tbody>
+                    {% for r in data.recent %}
+                    <tr>
+                        <td style="white-space:nowrap;color:#94a3b8;font-size:0.82rem;">{{ r.ts[:16].replace('T',' ') }}</td>
+                        <td style="word-break:break-all;font-size:0.85rem;">{{ r.path }}</td>
+                        <td style="font-size:0.85rem;">{{ r.device or '—' }}</td>
+                        <td style="font-size:0.85rem;">{{ r.browser or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}<p style="margin:0;color:#94a3b8;">No pageviews recorded yet. Visit the public site once to populate this.</p>{% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .heatmap {
+        display: grid;
+        grid-template-columns: 36px repeat(24, 1fr);
+        gap: 2px;
+    }
+    .heatmap .hcol-h { font-size: 0.62rem; color: #64748b; text-align: center; }
+    .heatmap .hrow-l { font-size: 0.72rem; color: #64748b; line-height: 18px; }
+    .heatmap .hcell { height: 18px; border-radius: 3px; background: rgba(96,165,250,0.04); }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const ts = {{ data.timeseries | tojson }};
+    const palette = ['#60a5fa','#34d399','#fbbf24','#f472b6','#a78bfa','#f87171','#22d3ee','#a3e635'];
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = '#1e293b';
+
+    new Chart(document.getElementById('trafficChart'), {
+        type: 'line',
+        data: {
+            labels: ts.map(p => p.day),
+            datasets: [
+                { label: 'Pageviews', data: ts.map(p => p.views),
+                  borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.18)',
+                  fill: true, tension: 0.25, pointRadius: 2 },
+                { label: 'Visitors',  data: ts.map(p => p.visitors),
+                  borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.12)',
+                  fill: true, tension: 0.25, pointRadius: 2 },
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { grid: { color: '#162033' }, ticks: { maxRotation: 0, autoSkip: true } },
+                y: { grid: { color: '#162033' }, beginAtZero: true, ticks: { precision: 0 } },
+            },
+            plugins: { legend: { position: 'top' } },
+        }
+    });
+
+    function donut(canvasId, rows) {
+        if (!rows.length) return;
+        new Chart(document.getElementById(canvasId), {
+            type: 'doughnut',
+            data: {
+                labels: rows.map(r => r.label),
+                datasets: [{ data: rows.map(r => r.n), backgroundColor: palette, borderColor: '#0b1220' }],
+            },
+            options: { plugins: { legend: { position: 'right' } }, cutout: '62%' },
+        });
+    }
+    donut('deviceChart',  {{ data.devices  | tojson }});
+    donut('browserChart', {{ data.browsers | tojson }});
+})();
+</script>
+{% endblock %}

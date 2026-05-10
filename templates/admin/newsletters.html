@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+{% block title %}Newsletters · Admin{% endblock %}
+{% block content %}
+<h1>Newsletters</h1>
+
+<div class="toolbar">
+    <a class="btn btn-primary" href="{{ url_for('admin_newsletter_new') }}">+ New newsletter</a>
+    <div class="spacer"></div>
+    <span style="color:#94a3b8;font-size:0.85rem;">{{ newsletters|length }} total</span>
+</div>
+
+<div class="card">
+    {% if newsletters %}
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Updated</th>
+                <th>Published</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in newsletters %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('admin_newsletter_edit', newsletter_id=n.id) }}">{{ n.title }}</a>
+                    {% if n.subtitle %}<div style="color:#64748b;font-size:0.82rem;">{{ n.subtitle }}</div>{% endif %}
+                </td>
+                <td><span class="badge badge-{{ n.status }}">{{ n.status }}</span></td>
+                <td style="color:#94a3b8;">{{ (n.updated_at or '')[:16].replace('T',' ') }}</td>
+                <td style="color:#94a3b8;">{{ (n.published_at or '—')[:16].replace('T',' ') }}</td>
+                <td style="white-space:nowrap;">
+                    {% if n.status == 'published' %}
+                    <a class="btn btn-ghost" href="{{ url_for('newsletter_detail', slug=n.slug) }}" target="_blank">View</a>
+                    {% endif %}
+                    <form method="post" action="{{ url_for('admin_newsletter_delete', newsletter_id=n.id) }}"
+                          onsubmit="return confirm('Delete “{{ n.title|e }}”? This cannot be undone.');"
+                          style="display:inline;">
+                        <button class="btn btn-danger" type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="margin:0;color:#94a3b8;">No newsletters yet. <a href="{{ url_for('admin_newsletter_new') }}">Create your first one →</a></p>
+    {% endif %}
+</div>
+{% endblock %}

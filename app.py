@@ -12,6 +12,7 @@ from translations import *
 from bible_data import NT_BOOKS, ALL_BOOKS, NT_TRANSLATIONS
 import bible_fetcher
 import auth
+import video_transcode
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,8 +30,11 @@ if app.secret_key == _DEFAULT_SECRET:
 # so the dynamic fetcher can serve Matthew/Mark instantly.
 bible_fetcher.export_hardcoded_to_cache()
 
-# Initialize the auth database (users, sessions).
+# Initialize the auth database (users, sessions, newsletters).
 auth.init_db()
+# If no ADMIN_PASS_HASH is provided in the environment, fall back to the
+# documented default account so the panel is reachable on a fresh install.
+auth.ensure_default_admin()
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +44,36 @@ auth.init_db()
 @app.before_request
 def _load_user():
     auth.load_current_user()
+
+
+@app.before_request
+def _log_pageview():
+    """Record a row in the analytics table for real reader page loads.
+
+    Filtered down to GETs that aren't /static, /api/, /admin, /auth/, etc.
+    Runs after _load_user so we can attach the logged-in user_id.
+    """
+    try:
+        if not auth.should_log_request(request.path or "", request.method or "GET"):
+            return
+        # Background pruning of old rows so the table doesn't grow unbounded.
+        auth._maybe_prune_pageviews()
+        user = g.get("current_user") or {}
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+        # Only the first hop is useful; X-Forwarded-For can be a list.
+        if "," in ip:
+            ip = ip.split(",", 1)[0].strip()
+        auth.log_pageview(
+            path=request.path or "",
+            referrer=request.referrer or "",
+            user_agent=request.headers.get("User-Agent") or "",
+            ip=ip[:64],
+            visitor_key=request.cookies.get(auth.DEVICE_COOKIE_NAME),
+            user_id=user.get("id"),
+            country=request.headers.get("CF-IPCountry"),
+        )
+    except Exception:
+        pass
 
 
 @app.after_request
@@ -357,7 +391,16 @@ def qa():
 
 @app.route('/newsletter')
 def newsletter():
-    return render_template('newsletter.html')
+    items = auth.list_newsletters(status='published')
+    return render_template('newsletter.html', newsletters=items)
+
+
+@app.route('/newsletter/<slug>')
+def newsletter_detail(slug):
+    item = auth.get_newsletter_by_slug(slug, published_only=True)
+    if not item:
+        abort(404)
+    return render_template('newsletter_detail.html', n=item)
 
 @app.route('/founders')
 def founders():
@@ -601,6 +644,18 @@ def admin_dashboard():
     )
 
 
+@app.route("/admin/analytics")
+@auth.admin_required
+def admin_analytics():
+    try:
+        days = int(request.args.get("days", 30))
+    except (TypeError, ValueError):
+        days = 30
+    days = max(1, min(days, 365))
+    data = auth.analytics_summary(days=days)
+    return render_template("admin/analytics.html", data=data, days=days)
+
+
 @app.route("/admin/users")
 @auth.admin_required
 def admin_users():
@@ -615,6 +670,217 @@ def admin_delete_user(user_id: int):
     auth.delete_user(user_id)
     flash("User deleted.", "info")
     return redirect(url_for("admin_users"))
+
+
+# ---------------------------------------------------------------------------
+# Admin: newsletters
+# ---------------------------------------------------------------------------
+
+@app.route("/admin/newsletters")
+@auth.admin_required
+def admin_newsletters():
+    items = auth.list_newsletters()
+    return render_template("admin/newsletters.html", newsletters=items)
+
+
+@app.route("/admin/newsletters/new", methods=["GET", "POST"])
+@auth.admin_required
+def admin_newsletter_new():
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        subtitle = (request.form.get("subtitle") or "").strip()
+        body_md = request.form.get("body_md") or ""
+        body_html = request.form.get("body_html") or ""
+        action = request.form.get("action") or "save"
+        publish = action == "publish"
+        nid = auth.create_newsletter(
+            title or "Untitled", subtitle, body_md, body_html, publish=publish,
+        )
+        flash(("Published." if publish else "Draft saved."), "info")
+        return redirect(url_for("admin_newsletter_edit", newsletter_id=nid))
+    return render_template("admin/newsletter_edit.html", newsletter=None)
+
+
+@app.route("/admin/newsletters/<int:newsletter_id>", methods=["GET", "POST"])
+@auth.admin_required
+def admin_newsletter_edit(newsletter_id: int):
+    item = auth.get_newsletter(newsletter_id)
+    if not item:
+        abort(404)
+    if request.method == "POST":
+        action = request.form.get("action") or "save"
+        title = (request.form.get("title") or "").strip()
+        subtitle = (request.form.get("subtitle") or "").strip()
+        body_md = request.form.get("body_md") or ""
+        body_html = request.form.get("body_html") or ""
+        new_status = None
+        if action == "publish":
+            new_status = "published"
+        elif action == "unpublish":
+            new_status = "draft"
+        auth.update_newsletter(
+            newsletter_id,
+            title=title, subtitle=subtitle,
+            body_md=body_md, body_html=body_html,
+            status=new_status,
+        )
+        if action == "publish":
+            flash("Newsletter published.", "info")
+        elif action == "unpublish":
+            flash("Reverted to draft.", "info")
+        else:
+            flash("Saved.", "info")
+        return redirect(url_for("admin_newsletter_edit", newsletter_id=newsletter_id))
+    return render_template("admin/newsletter_edit.html", newsletter=item)
+
+
+@app.route("/admin/newsletters/<int:newsletter_id>/delete", methods=["POST"])
+@auth.admin_required
+def admin_newsletter_delete(newsletter_id: int):
+    auth.delete_newsletter(newsletter_id)
+    flash("Newsletter deleted.", "info")
+    return redirect(url_for("admin_newsletters"))
+
+
+# ---------------------------------------------------------------------------
+# Admin: videos (upload, rename, delete)
+# ---------------------------------------------------------------------------
+
+import re as _re
+import unicodedata
+
+ALLOWED_VIDEO_EXTS = {".mp4", ".mov", ".m4v", ".webm"}
+MAX_VIDEO_BYTES = 1024 * 1024 * 1024          # 1 GiB upload cap
+app.config["MAX_CONTENT_LENGTH"] = MAX_VIDEO_BYTES
+
+
+def _safe_video_name(name: str) -> str:
+    """Normalize a user-supplied filename so it stays inside the videos
+    directory. Strips path separators, collapses whitespace, and keeps
+    only conservative ASCII characters + the original extension."""
+    name = unicodedata.normalize("NFKD", name or "")
+    name = name.encode("ascii", "ignore").decode("ascii")
+    name = os.path.basename(name).strip()
+    if not name:
+        return ""
+    stem, ext = os.path.splitext(name)
+    ext = ext.lower()
+    if ext not in ALLOWED_VIDEO_EXTS:
+        return ""
+    stem = _re.sub(r"[^A-Za-z0-9._-]+", "_", stem).strip("._-")
+    if not stem:
+        stem = "video"
+    return f"{stem[:100]}{ext}"
+
+
+def _video_dir() -> str:
+    d = os.path.join(app.static_folder, "videos")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+@app.route("/admin/videos")
+@auth.admin_required
+def admin_videos():
+    d = _video_dir()
+    statuses = video_transcode.all_statuses()
+    files = []
+    for entry in os.scandir(d):
+        if not entry.is_file():
+            continue
+        ext = os.path.splitext(entry.name)[1].lower()
+        if ext not in ALLOWED_VIDEO_EXTS:
+            continue
+        st = entry.stat()
+        files.append({
+            "name": entry.name,
+            "size_mb": round(st.st_size / (1024 * 1024), 1),
+            "mtime": st.st_mtime,
+            "transcode_status": statuses.get(entry.name),
+        })
+    files.sort(key=lambda f: f["mtime"], reverse=True)
+    return render_template(
+        "admin/videos.html",
+        videos=files,
+        max_mb=MAX_VIDEO_BYTES // (1024 * 1024),
+        ffmpeg_available=video_transcode.have_ffmpeg(),
+    )
+
+
+@app.route("/admin/videos/status")
+@auth.admin_required
+def admin_video_status():
+    """Lightweight JSON endpoint the Videos page polls so the
+    'Transcoding…' badge updates without a full reload."""
+    return jsonify(video_transcode.all_statuses())
+
+
+@app.route("/admin/videos/upload", methods=["POST"])
+@auth.admin_required
+def admin_video_upload():
+    f = request.files.get("video")
+    if not f or not f.filename:
+        flash("No file selected.", "error")
+        return redirect(url_for("admin_videos"))
+    safe = _safe_video_name(f.filename)
+    if not safe:
+        flash("Unsupported file type. Allowed: mp4, mov, m4v, webm.", "error")
+        return redirect(url_for("admin_videos"))
+    target = os.path.join(_video_dir(), safe)
+    # Avoid silently overwriting an existing upload.
+    if os.path.exists(target):
+        stem, ext = os.path.splitext(safe)
+        i = 2
+        while os.path.exists(os.path.join(_video_dir(), f"{stem}_{i}{ext}")):
+            i += 1
+        target = os.path.join(_video_dir(), f"{stem}_{i}{ext}")
+    f.save(target)
+    # Auto-convert HEVC / .mov / .m4v / .webm uploads to a browser-friendly
+    # H.264 MP4 in the background. The original file stays in place until
+    # the transcode finishes, then gets archived under static/videos/originals/.
+    video_transcode.maybe_transcode_async(target, _video_dir())
+    flash(f"Uploaded {os.path.basename(target)}.", "info")
+    return redirect(url_for("admin_videos"))
+
+
+@app.route("/admin/videos/<path:name>/delete", methods=["POST"])
+@auth.admin_required
+def admin_video_delete(name: str):
+    safe = _safe_video_name(name)
+    if not safe:
+        abort(400)
+    path = os.path.join(_video_dir(), safe)
+    if os.path.isfile(path):
+        try:
+            os.remove(path)
+            flash(f"Deleted {safe}.", "info")
+        except OSError as e:
+            flash(f"Delete failed: {e}", "error")
+    return redirect(url_for("admin_videos"))
+
+
+@app.route("/admin/videos/<path:name>/rename", methods=["POST"])
+@auth.admin_required
+def admin_video_rename(name: str):
+    safe = _safe_video_name(name)
+    new_raw = (request.form.get("new_name") or "").strip()
+    # Preserve the original extension if the user only typed a stem.
+    if new_raw and "." not in new_raw:
+        new_raw += os.path.splitext(safe)[1]
+    new_safe = _safe_video_name(new_raw)
+    if not safe or not new_safe:
+        flash("Invalid filename.", "error")
+        return redirect(url_for("admin_videos"))
+    src = os.path.join(_video_dir(), safe)
+    dst = os.path.join(_video_dir(), new_safe)
+    if not os.path.isfile(src):
+        abort(404)
+    if os.path.exists(dst) and os.path.abspath(src) != os.path.abspath(dst):
+        flash("A file with that name already exists.", "error")
+        return redirect(url_for("admin_videos"))
+    os.rename(src, dst)
+    flash(f"Renamed to {new_safe}.", "info")
+    return redirect(url_for("admin_videos"))
 
 
 if __name__ == '__main__':

@@ -1,0 +1,78 @@
+{% extends "admin/base.html" %}
+{% block title %}{% if newsletter %}Edit · {{ newsletter.title }}{% else %}New newsletter{% endif %} · Admin{% endblock %}
+{% block content %}
+<h1 style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    {% if newsletter %}Edit newsletter{% else %}New newsletter{% endif %}
+    {% if newsletter %}<span class="badge badge-{{ newsletter.status }}">{{ newsletter.status }}</span>{% endif %}
+</h1>
+
+<form method="post" id="newsletterForm"
+      action="{% if newsletter %}{{ url_for('admin_newsletter_edit', newsletter_id=newsletter.id) }}{% else %}{{ url_for('admin_newsletter_new') }}{% endif %}">
+    <div class="card">
+        <div class="field">
+            <label for="title">Title</label>
+            <input id="title" name="title" type="text" required
+                   value="{{ newsletter.title if newsletter else '' }}" placeholder="A bold, descriptive title">
+        </div>
+        <div class="field">
+            <label for="subtitle">Subtitle <span style="color:#64748b;font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+            <input id="subtitle" name="subtitle" type="text"
+                   value="{{ newsletter.subtitle or '' if newsletter else '' }}" placeholder="A short tagline shown beneath the title">
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="field" style="margin-bottom:8px;">
+            <label>Body</label>
+        </div>
+        <div class="editor-wrap">
+            <textarea id="bodyEditor" name="body_md">{{ newsletter.body_md if newsletter else '' }}</textarea>
+        </div>
+        <input type="hidden" name="body_html" id="bodyHtml">
+    </div>
+
+    <div class="toolbar" style="margin-top:18px;">
+        <button class="btn btn-primary" type="submit" name="action" value="save">Save draft</button>
+        <button class="btn btn-success" type="submit" name="action" value="publish">
+            {% if newsletter and newsletter.status == 'published' %}Save &amp; keep published{% else %}Publish{% endif %}
+        </button>
+        {% if newsletter and newsletter.status == 'published' %}
+        <button class="btn btn-secondary" type="submit" name="action" value="unpublish">Unpublish</button>
+        {% endif %}
+        <div class="spacer"></div>
+        <a class="btn btn-ghost" href="{{ url_for('admin_newsletters') }}">← All newsletters</a>
+        {% if newsletter and newsletter.status == 'published' %}
+        <a class="btn btn-ghost" href="{{ url_for('newsletter_detail', slug=newsletter.slug) }}" target="_blank">View live ↗</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // EasyMDE — versatile, easy-to-use Markdown editor with live preview,
+    // image paste, fullscreen, side-by-side preview and a friendly toolbar.
+    const easymde = new EasyMDE({
+        element: document.getElementById('bodyEditor'),
+        autofocus: false,
+        spellChecker: false,
+        autosave: { enabled: false },
+        status: ['lines', 'words', 'cursor'],
+        placeholder: 'Write your newsletter in Markdown. Use the toolbar to add headings, links, images, lists, quotes…',
+        toolbar: [
+            'bold', 'italic', 'strikethrough', 'heading', '|',
+            'quote', 'unordered-list', 'ordered-list', 'table', '|',
+            'link', 'image', 'horizontal-rule', '|',
+            'preview', 'side-by-side', 'fullscreen', '|',
+            'guide',
+        ],
+        renderingConfig: { singleLineBreaks: false, codeSyntaxHighlighting: false },
+    });
+
+    // On submit, snapshot the rendered HTML so the public page can render
+    // without a server-side Markdown dependency.
+    document.getElementById('newsletterForm').addEventListener('submit', () => {
+        document.getElementById('bodyHtml').value = easymde.markdown(easymde.value());
+    });
+</script>
+{% endblock %}
