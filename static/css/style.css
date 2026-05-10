@@ -2164,9 +2164,12 @@ body.focus-reading-mode .audio-controls-bar {
 
 .parallel-verse .verse-text {
     font-family: var(--font-reader);
-    font-size: 1.1rem;
+    font-size: 1.18rem;
     line-height: 1.8;
+    letter-spacing: 0.005em;
     color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 /* ===== Sync Dual Column Layout ===== */
@@ -2257,18 +2260,27 @@ body.focus-reading-mode .audio-controls-bar {
 
 .sync-verses {
     flex: 1;
-    padding: 20px;
+    padding: 24px 28px;
     overflow-y: auto;
     font-family: var(--font-reader);
-    font-size: 1.15rem;
-    line-height: 1.9;
+    font-size: 1.22rem;
+    line-height: 1.85;
+    letter-spacing: 0.005em;
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1;
+    max-width: 70ch;
+    margin: 0 auto;
 }
 
 .sync-verse {
-    margin-bottom: 20px;
-    padding: 12px 16px;
+    margin-bottom: 18px;
+    padding: 10px 14px;
     border-radius: 8px;
     transition: background var(--transition-fast);
+    text-wrap: pretty;
 }
 
 .sync-verse.active {
@@ -2392,19 +2404,19 @@ body.focus-reading-mode .audio-controls-bar {
 
 /* Video view font sizes */
 .video-view.font-small .sync-verses {
-    font-size: 0.95rem;
+    font-size: 1.05rem;
 }
 
 .video-view.font-medium .sync-verses {
-    font-size: 1.15rem;
+    font-size: 1.22rem;
 }
 
 .video-view.font-large .sync-verses {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
 }
 
 .video-view.font-xlarge .sync-verses {
-    font-size: 1.75rem;
+    font-size: 1.85rem;
 }
 
 /* Parallel view font sizes */
@@ -3440,4 +3452,54 @@ body.tutorial-open { overflow: hidden; }
     .help-btn { width: 36px; height: 36px; }
     .theme-toggle { width: 36px; height: 36px; }
     .youtube-link { display: none; }
+}
+
+/* ===== Reader typography refinements ===== */
+
+/* Hebrew text needs a font with proper nikud + cantillation support and
+   benefits from a larger size + slightly looser line-height. */
+#syncCol2 .sync-verses,
+#parallelCol2 .column-verses,
+#parallelCol2 .parallel-verse .verse-text {
+    font-family: 'SBL Hebrew', 'Ezra SIL', 'Times New Roman', 'David CLM',
+                 'Frank Ruehl CLM', serif;
+    font-size: 1.55rem;
+    line-height: 2.0;
+    letter-spacing: 0;
+}
+
+/* Subtler verse numbers so they don't compete with the body text. */
+.sync-verse .verse-num,
+.parallel-verse .verse-num {
+    color: var(--text-muted);
+    font-weight: 500;
+    opacity: 0.75;
+    margin-right: 8px;
+}
+.sync-verse:hover .verse-num,
+.parallel-verse:hover .verse-num {
+    opacity: 1;
+    color: var(--accent-primary);
+}
+
+/* Slight contrast bump for the body text in dark mode where Lora can
+   look a bit dim against the dark background. */
+[data-theme="dark"] .sync-verses,
+[data-theme="dark"] .parallel-verse .verse-text {
+    color: #e8e8ea;
+}
+
+/* Phone tweaks: the default body size is generous on desktop but feels
+   tight on small screens — keep it readable without horizontal padding
+   eating into the line length. */
+@media (max-width: 600px) {
+    .sync-verses {
+        padding: 16px 14px;
+        font-size: 1.13rem;
+        line-height: 1.75;
+    }
+    .sync-verse { padding: 8px 8px; margin-bottom: 12px; }
+    .parallel-verse .verse-text { font-size: 1.08rem; line-height: 1.7; }
+    #syncCol2 .sync-verses,
+    #parallelCol2 .column-verses { font-size: 1.4rem; line-height: 1.95; }
 }

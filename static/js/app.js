@@ -1569,11 +1569,18 @@ class BibleReader {
         if (status) status.textContent = 'Reading…';
 
         const lang = verses[0].lang;
-        let useServer = !!opts.forceServer;
-        // Always use server audio for languages whose browser voices are
-        // unreliable (notably Hebrew).
-        if (!useServer && this.ttsShouldForceServer(lang)) {
-            useServer = true;
+        // Prefer server-side Google TTS by default — it's far more
+        // consistent across browsers/devices and supports every language
+        // we ship. Callers may pass `preferBrowser:true` to opt into the
+        // local SpeechSynthesis path; otherwise we only use it as a
+        // fallback when the server can't deliver audio.
+        let useServer = !opts.preferBrowser;
+        if (opts.forceServer) useServer = true;
+        if (this.ttsShouldForceServer(lang)) useServer = true;
+        if (useServer && !('Audio' in window)) {
+            // Extremely unlikely, but if there's no <audio> support fall
+            // back to whatever native synthesis is available.
+            useServer = false;
         }
         if (!useServer && window.speechSynthesis) {
             await this.waitForVoices(1500);
