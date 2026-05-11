@@ -465,6 +465,15 @@
                             </div>
                         </div>
                     </div>
+                    <button class="focus-mode-btn" id="ttsSettingsBtn" title="Voice settings"
+                            aria-label="Voice settings" aria-haspopup="dialog">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                            <line x1="12" y1="19" x2="12" y2="23"/>
+                            <line x1="8" y1="23" x2="16" y2="23"/>
+                        </svg>
+                    </button>
                     <button class="focus-mode-btn" id="focusModeBtn" title="Focus mode: hide top bars" aria-pressed="false">
                         <svg class="focus-off-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
@@ -511,6 +520,71 @@
                 <div class="tutorial-step-actions">
                     <button class="tutorial-btn tutorial-prev" id="tutorialPrev">Back</button>
                     <button class="tutorial-btn tutorial-next primary" id="tutorialNext">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Voice / TTS settings dialog -->
+    <div class="modal-overlay" id="ttsSettingsOverlay" aria-hidden="true">
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="ttsSettingsTitle">
+            <div class="modal-header">
+                <h3 id="ttsSettingsTitle">Voice settings</h3>
+                <button class="modal-close" id="ttsSettingsClose" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-help">
+                    Choose which voice the read-aloud feature uses for each language.
+                    <strong>Online voices</strong> are powered by Microsoft neural TTS — they sound
+                    very natural but require an internet connection.
+                    <strong>Browser voices</strong> come from your device and work offline, but quality varies.
+                </p>
+
+                <div class="settings-row settings-row-check">
+                    <label>
+                        <input type="checkbox" id="ttsPreferServer" checked/>
+                        Use online (neural) voices
+                    </label>
+                    <small class="settings-hint">Recommended. When off, your device's built-in voices are used and the online voice is only a fallback.</small>
+                </div>
+
+                <hr class="settings-divider"/>
+
+                <div class="settings-row">
+                    <label for="ttsOnlineVoiceEn">English online voice</label>
+                    <select id="ttsOnlineVoiceEn" class="styled-select"></select>
+                </div>
+                <div class="settings-row">
+                    <label for="ttsOnlineVoiceHu">Hungarian online voice</label>
+                    <select id="ttsOnlineVoiceHu" class="styled-select"></select>
+                </div>
+                <div class="settings-row">
+                    <label for="ttsOnlineVoiceHe">Hebrew online voice</label>
+                    <select id="ttsOnlineVoiceHe" class="styled-select"></select>
+                </div>
+
+                <hr class="settings-divider"/>
+
+                <details class="settings-details">
+                    <summary>Browser (offline) voices</summary>
+                    <div class="settings-row">
+                        <label for="ttsVoiceEn">English browser voice</label>
+                        <select id="ttsVoiceEn" class="styled-select"></select>
+                    </div>
+                    <div class="settings-row">
+                        <label for="ttsVoiceHu">Hungarian browser voice</label>
+                        <select id="ttsVoiceHu" class="styled-select"></select>
+                    </div>
+                    <div class="settings-row">
+                        <label for="ttsVoiceHe">Hebrew browser voice</label>
+                        <select id="ttsVoiceHe" class="styled-select"></select>
+                        <small class="settings-hint">Hebrew always uses the online voice for accuracy with vowel points.</small>
+                    </div>
+                </details>
+
+                <div class="settings-row">
+                    <button class="modal-btn" id="ttsTestBtn" type="button">Test voice</button>
+                    <button class="modal-btn modal-btn-secondary" id="ttsResetBtn" type="button">Reset to defaults</button>
                 </div>
             </div>
         </div>

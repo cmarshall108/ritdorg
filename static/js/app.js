@@ -36,6 +36,34 @@ class BibleReader {
         this.ttsIndex = 0;
         this.currentUtterance = null;
 
+        // User-configurable voice settings (Voice settings dialog).
+        // - voice:        device (browser) voice URI per language
+        // - onlineVoice:  preferred Microsoft Edge neural voice per language
+        // - preferServer: prefer the (much more natural) online voices over
+        //                 device voices. Default ON because Edge neural is
+        //                 dramatically better than most browser voices.
+        // - tld:          legacy gTTS accent (only used when fallback
+        //                 reaches gTTS)
+        this.ttsSettings = (() => {
+            const def = {
+                voice:       { en: '', hu: '', he: '' },
+                onlineVoice: { en: '', hu: '', he: '' },
+                preferServer: true,
+                tld: 'com',
+            };
+            try {
+                const raw = localStorage.getItem('ttsSettings');
+                if (!raw) return def;
+                const parsed = JSON.parse(raw);
+                return {
+                    voice:        { ...def.voice,       ...(parsed.voice || {}) },
+                    onlineVoice:  { ...def.onlineVoice, ...(parsed.onlineVoice || {}) },
+                    preferServer: parsed.preferServer === undefined ? true : !!parsed.preferServer,
+                    tld:          parsed.tld || def.tld,
+                };
+            } catch { return def; }
+        })();
+
         // Auto-advance to the next chapter when read-aloud (or video) finishes.
         // Defaults ON; persisted across sessions.
         this.autoAdvanceChapter = (() => {
@@ -377,6 +405,9 @@ class BibleReader {
         if (focusModeBtn) {
             focusModeBtn.addEventListener('click', () => this.toggleFocusMode());
         }
+
+        // Voice / TTS settings dialog
+        this.bindTTSSettings();
         
         // Chapter navigation
         document.getElementById('prevChapterBtn').addEventListener('click', () => this.prevChapter());
@@ -1422,6 +1453,8 @@ class BibleReader {
     // spelling out characters) in Chrome/Safari when nikud/cantillation
     // marks are present.
     ttsShouldForceServer(lang) {
+        // User override: always use the online voice.
+        if (this.ttsSettings && this.ttsSettings.preferServer) return true;
         const base = (lang || '').toLowerCase().split('-')[0];
         return base === 'he' || base === 'ar' || base === 'yi';
     }
@@ -1431,6 +1464,12 @@ class BibleReader {
         if (!voices.length) return null;
         const want = (lang || '').toLowerCase();
         const base = want.split('-')[0];
+        // 0. user-chosen voice (per language) wins if it's still installed
+        const userPick = (this.ttsSettings && this.ttsSettings.voice && this.ttsSettings.voice[base]) || '';
+        if (userPick) {
+            const u = voices.find(x => x.voiceURI === userPick || x.name === userPick);
+            if (u) return u;
+        }
         // 1. exact match (e.g. hu-HU)
         let v = voices.find(x => (x.lang || '').toLowerCase() === want);
         // 2. same base lang and 'default' flag preferred (e.g. hu-*)
@@ -1461,6 +1500,193 @@ class BibleReader {
                 resolve(window.speechSynthesis.getVoices() || []);
             }, timeoutMs);
         });
+    }
+
+    // ===== Voice settings dialog =====
+    saveTTSSettings() {
+        try { localStorage.setItem('ttsSettings', JSON.stringify(this.ttsSettings)); } catch {}
+    }
+
+    bindTTSSettings() {
+        const btn      = document.getElementById('ttsSettingsBtn');
+        const overlay  = document.getElementById('ttsSettingsOverlay');
+        if (!btn || !overlay) return;
+        const closeBtn = document.getElementById('ttsSettingsClose');
+        const testBtn  = document.getElementById('ttsTestBtn');
+        const resetBtn = document.getElementById('ttsResetBtn');
+        const preferEl = document.getElementById('ttsPreferServer');
+
+        const open = async () => {
+            await this.populateVoiceSettings();
+            overlay.classList.add('active');
+            overlay.setAttribute('aria-hidden', 'false');
+        };
+        const close = () => {
+            overlay.classList.remove('active');
+            overlay.setAttribute('aria-hidden', 'true');
+        };
+
+        btn.addEventListener('click', open);
+        closeBtn?.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && overlay.classList.contains('active')) close();
+        });
+
+        // Browser (offline) voice selectors.
+        ['ttsVoiceEn', 'ttsVoiceHu', 'ttsVoiceHe'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', () => {
+                const lang = id.slice(-2).toLowerCase();
+                this.ttsSettings.voice[lang] = el.value || '';
+                this.saveTTSSettings();
+            });
+        });
+        // Online (neural) voice selectors.
+        ['ttsOnlineVoiceEn', 'ttsOnlineVoiceHu', 'ttsOnlineVoiceHe'].forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('change', () => {
+                const lang = id.slice(-2).toLowerCase();
+                this.ttsSettings.onlineVoice[lang] = el.value || '';
+                this.saveTTSSettings();
+            });
+        });
+        preferEl?.addEventListener('change', () => {
+            this.ttsSettings.preferServer = !!preferEl.checked;
+            this.saveTTSSettings();
+        });
+
+        testBtn?.addEventListener('click', () => this.testTTSVoice());
+
+        resetBtn?.addEventListener('click', () => {
+            this.ttsSettings = {
+                voice:       { en: '', hu: '', he: '' },
+                onlineVoice: { en: '', hu: '', he: '' },
+                preferServer: true,
+                tld: 'com',
+            };
+            this.saveTTSSettings();
+            this.populateVoiceSettings();
+            this.showToast('Voice settings reset', 'info');
+        });
+    }
+
+    async _fetchOnlineVoices() {
+        if (this._onlineVoicesCache) return this._onlineVoicesCache;
+        try {
+            const r = await fetch('/api/tts/voices');
+            if (!r.ok) return null;
+            this._onlineVoicesCache = await r.json();
+            return this._onlineVoicesCache;
+        } catch (e) {
+            console.warn('Failed to fetch online voices', e);
+            return null;
+        }
+    }
+
+    async populateVoiceSettings() {
+        // Online voices come from the server (curated list of Microsoft
+        // Edge neural voices). Browser voices come from speechSynthesis.
+        const [onlineCatalog, voices] = await Promise.all([
+            this._fetchOnlineVoices(),
+            this.waitForVoices(800),
+        ]);
+
+        const fillBrowser = (id, baseLang) => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const matches = voices
+                .filter(v => (v.lang || '').toLowerCase().startsWith(baseLang))
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            sel.innerHTML = '';
+            const auto = document.createElement('option');
+            auto.value = '';
+            auto.textContent = matches.length
+                ? '— Default (auto-select) —'
+                : '— No browser voices installed —';
+            sel.appendChild(auto);
+            matches.forEach(v => {
+                const o = document.createElement('option');
+                o.value = v.voiceURI || v.name;
+                o.textContent = `${v.name} (${v.lang})${v.default ? ' • default' : ''}`;
+                sel.appendChild(o);
+            });
+            const want = (this.ttsSettings.voice && this.ttsSettings.voice[baseLang]) || '';
+            sel.value = want;
+            if (sel.value !== want) sel.value = '';
+        };
+
+        const fillOnline = (id, baseLang) => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const list = (onlineCatalog && onlineCatalog[baseLang]) || [];
+            sel.innerHTML = '';
+            const auto = document.createElement('option');
+            auto.value = '';
+            auto.textContent = list.length
+                ? '— Default —'
+                : '— Online voices unavailable —';
+            sel.appendChild(auto);
+            list.forEach(v => {
+                const o = document.createElement('option');
+                o.value = v.id;
+                o.textContent = v.label;
+                sel.appendChild(o);
+            });
+            const want = (this.ttsSettings.onlineVoice && this.ttsSettings.onlineVoice[baseLang]) || '';
+            sel.value = want;
+            if (sel.value !== want) sel.value = '';
+        };
+
+        fillBrowser('ttsVoiceEn', 'en');
+        fillBrowser('ttsVoiceHu', 'hu');
+        fillBrowser('ttsVoiceHe', 'he');
+        fillOnline('ttsOnlineVoiceEn', 'en');
+        fillOnline('ttsOnlineVoiceHu', 'hu');
+        fillOnline('ttsOnlineVoiceHe', 'he');
+
+        const preferEl = document.getElementById('ttsPreferServer');
+        if (preferEl) preferEl.checked = !!this.ttsSettings.preferServer;
+    }
+
+    testTTSVoice() {
+        const transName = (document.getElementById('syncTrans1')?.value)
+            || this.currentTranslation || 'NIV';
+        const lang = this.ttsLangFor(transName);
+        const samples = {
+            'en-US': 'For God so loved the world that he gave his one and only Son.',
+            'hu-HU': 'Mert úgy szerette Isten a világot, hogy egyszülött Fiát adta.',
+            'he-IL': 'כִּי כָּכָה אָהַב הָאֱלֹהִים אֶת־הָעוֹלָם.',
+        };
+        const text = samples[lang] || samples['en-US'];
+        try { window.speechSynthesis.cancel(); } catch {}
+        if (this._testAudio) { try { this._testAudio.pause(); } catch {} this._testAudio = null; }
+
+        if (this.ttsShouldForceServer(lang)) {
+            const base = lang.split('-')[0];
+            const tld = this.ttsSettings.tld || 'com';
+            const onlineVoice = (this.ttsSettings.onlineVoice && this.ttsSettings.onlineVoice[base]) || '';
+            let url = `/api/tts?lang=${encodeURIComponent(base)}`
+                + `&tld=${encodeURIComponent(tld)}`
+                + `&text=${encodeURIComponent(text)}`;
+            if (onlineVoice) url += `&voice=${encodeURIComponent(onlineVoice)}`;
+            const a = new Audio(url);
+            a.playbackRate = this.playbackRate || 1;
+            this._testAudio = a;
+            a.play().catch(err => {
+                console.warn('Voice test failed', err);
+                this.showToast('Could not play test audio', 'error');
+            });
+            return;
+        }
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = lang;
+        u.rate = this.playbackRate || 1;
+        const voice = this.pickTTSVoice(lang);
+        if (voice) u.voice = voice;
+        window.speechSynthesis.speak(u);
     }
 
     // Split long text into ~160-char chunks at sentence/clause boundaries.
@@ -1814,7 +2040,15 @@ class BibleReader {
             }
             const myGen = (this._ttsGen = this._ttsGen || 0);
             const lang = (item.lang || 'en').split('-')[0];
-            const url = `/api/tts?lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(item.text)}`;
+            const tld = (this.ttsSettings && this.ttsSettings.tld) || 'com';
+            // User-chosen Microsoft Edge neural voice for this language,
+            // if any. Server falls back to a sane per-language default.
+            const onlineVoice = (this.ttsSettings && this.ttsSettings.onlineVoice
+                                 && this.ttsSettings.onlineVoice[lang]) || '';
+            let url = `/api/tts?lang=${encodeURIComponent(lang)}`
+                + `&tld=${encodeURIComponent(tld)}`
+                + `&text=${encodeURIComponent(item.text)}`;
+            if (onlineVoice) url += `&voice=${encodeURIComponent(onlineVoice)}`;
             const audio = new Audio(url);
             audio.playbackRate = this.playbackRate || 1;
             audio.preload = 'auto';

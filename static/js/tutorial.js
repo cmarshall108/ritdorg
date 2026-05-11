@@ -5,7 +5,7 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'ritd_tutorial_seen_v2';
+    const STORAGE_KEY = 'ritd_tutorial_seen_v3';
 
     const STEPS = [
         {
@@ -37,6 +37,11 @@
             title: 'Adjust the pace',
             body:  'Drag the speed slider to slow the narration down or speed it up — handy for study or listening on the go.',
             target: '.playback-rate',
+        },
+        {
+            title: 'Pick a voice',
+            body:  'Tap the microphone to open Voice settings. Choose from natural-sounding neural voices in English (US, UK, Australian and more), Hungarian, and Hebrew. Online voices are on by default for the best quality; switch to your device’s built-in voices if you’re offline.',
+            target: '#ttsSettingsBtn',
         },
         {
             title: 'Auto-continue chapters',

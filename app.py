@@ -291,47 +291,166 @@ def get_playlists():
 
 @app.route('/api/tts')
 def tts_audio():
-    """Server-side TTS fallback. Returns MP3 audio for the given text in the
-    requested language. Used only when the browser's speechSynthesis cannot
-    produce audio in the desired language (common on Linux Chromium and
-    older Android browsers). Backed by gTTS (Google Translate TTS)."""
+    """Server-side TTS. Returns MP3 audio for the given text in the
+    requested language.
+
+    Primary engine: Microsoft Edge neural voices (via the ``edge-tts``
+    package). These sound dramatically more natural than the legacy
+    Google Translate voices.
+
+    Fallback: gTTS (Google Translate TTS) — used only if edge-tts errors
+    or the package is missing.
+
+    Query params:
+      text  — sentence/verse to synthesize (required, max 1500 chars)
+      lang  — BCP-47 language code (e.g. "en", "en-US", "hu", "he").
+              Used to pick a default voice if ``voice`` is not given.
+      voice — explicit edge voice short-name (e.g. "en-US-AriaNeural").
+              Whitelist-validated to belong to a supported language.
+      tld   — gTTS top-level domain accent, only used when falling back
+              to gTTS or when voice='gtts'.
+    """
     text = (request.args.get('text') or '').strip()
-    lang = (request.args.get('lang') or 'en').split('-')[0].lower()
+    lang_raw = (request.args.get('lang') or 'en').strip()
+    lang = lang_raw.split('-')[0].lower()
+    voice = (request.args.get('voice') or '').strip()
+    tld = (request.args.get('tld') or 'com').strip().lower()
+    ALLOWED_TLDS = {'com', 'co.uk', 'com.au', 'ca', 'co.in', 'ie', 'co.za'}
+    if tld not in ALLOWED_TLDS:
+        tld = 'com'
+
     if not text:
         abort(400, 'text required')
-    # gTTS uses some legacy ISO codes that differ from BCP-47.
-    GTTS_LANG_ALIAS = {
-        'he': 'iw',   # Hebrew
-        'jv': 'jw',   # Javanese
-    }
-    lang = GTTS_LANG_ALIAS.get(lang, lang)
-    # Strip characters that make gTTS choke or that it pronounces literally
-    # (zero-width joiners, BOMs, bidi marks, common Hebrew cantillation
-    # marks). Keep nikud (vowel points) — gTTS handles those fine.
+
+    # Sanitize control / bidi / cantillation marks before sending to any
+    # engine. (Both edge-tts and gTTS handle nikud fine.)
     import re
     text = re.sub(r'[\u200B-\u200F\u202A-\u202E\uFEFF]', '', text)
-    # Hebrew cantillation (te'amim) range U+0591..U+05AF — these are read
-    # as separate chars by some TTS engines. Strip them for cleaner audio.
     text = re.sub(r'[\u0591-\u05AF]', '', text)
-    # Maqaf (־) → regular hyphen so it's treated as a word separator
     text = text.replace('\u05BE', '-')
-    if len(text) > 800:
-        text = text[:800]
+    if len(text) > 1500:
+        text = text[:1500]
     if not text.strip():
         abort(400, 'text empty after sanitization')
+
+    # Resolve voice → engine + voice short-name.
+    # Voices are listed in EDGE_VOICES (below). 'gtts' is a sentinel
+    # meaning "use the legacy gTTS engine".
+    engine = 'edge'
+    if voice == 'gtts':
+        engine = 'gtts'
+        voice = ''
+    elif voice and voice not in EDGE_VOICE_NAMES:
+        # Unknown / spoofed voice — fall back to default for the language.
+        voice = ''
+    if engine == 'edge' and not voice:
+        voice = DEFAULT_EDGE_VOICE.get(lang) or DEFAULT_EDGE_VOICE['en']
+
+    if engine == 'edge':
+        try:
+            audio_bytes = _synthesize_edge(text, voice)
+            resp = Response(audio_bytes, mimetype='audio/mpeg')
+            resp.headers['Cache-Control'] = 'public, max-age=86400'
+            return resp
+        except Exception as e:
+            app.logger.warning(
+                'edge-tts failed for voice=%s len=%d: %s — falling back to gTTS',
+                voice, len(text), e,
+            )
+            engine = 'gtts'
+
+    # gTTS fallback path.
+    GTTS_LANG_ALIAS = {'he': 'iw', 'jv': 'jw'}
+    glang = GTTS_LANG_ALIAS.get(lang, lang)
     try:
         from gtts import gTTS
         import io
         buf = io.BytesIO()
-        gTTS(text=text, lang=lang).write_to_fp(buf)
+        gTTS(text=text, lang=glang, tld=tld).write_to_fp(buf)
         buf.seek(0)
         resp = Response(buf.getvalue(), mimetype='audio/mpeg')
         resp.headers['Cache-Control'] = 'public, max-age=86400'
         return resp
     except Exception as e:
-        # Library missing or upstream failure
         app.logger.warning('TTS failed for lang=%s len=%d: %s', lang, len(text), e)
         abort(503, f'TTS unavailable: {e}')
+
+
+# --- Edge TTS voice catalog ----------------------------------------------
+# Curated list of high-quality neural voices we expose in the UI. Trimmed
+# from the full edge-tts catalog (~400 voices) to keep the picker usable.
+EDGE_VOICES = {
+    'en': [
+        # (short-name, friendly label)
+        ('en-US-AriaNeural',     'Aria — US, female (warm)'),
+        ('en-US-JennyNeural',    'Jenny — US, female (friendly)'),
+        ('en-US-GuyNeural',      'Guy — US, male'),
+        ('en-US-DavisNeural',    'Davis — US, male (deep)'),
+        ('en-US-AndrewNeural',   'Andrew — US, male (warm)'),
+        ('en-US-EmmaNeural',     'Emma — US, female'),
+        ('en-US-AvaNeural',      'Ava — US, female (expressive)'),
+        ('en-US-BrianNeural',    'Brian — US, male'),
+        ('en-GB-LibbyNeural',    'Libby — UK, female'),
+        ('en-GB-RyanNeural',     'Ryan — UK, male'),
+        ('en-GB-SoniaNeural',    'Sonia — UK, female'),
+        ('en-AU-NatashaNeural',  'Natasha — Australian, female'),
+        ('en-AU-WilliamNeural',  'William — Australian, male'),
+        ('en-CA-ClaraNeural',    'Clara — Canadian, female'),
+        ('en-IE-EmilyNeural',    'Emily — Irish, female'),
+        ('en-IN-NeerjaNeural',   'Neerja — Indian, female'),
+        ('en-ZA-LeahNeural',     'Leah — South African, female'),
+    ],
+    'hu': [
+        ('hu-HU-NoemiNeural',    'Noémi — female'),
+        ('hu-HU-TamasNeural',    'Tamás — male'),
+    ],
+    'he': [
+        ('he-IL-HilaNeural',     'Hila — female'),
+        ('he-IL-AvriNeural',     'Avri — male'),
+    ],
+}
+EDGE_VOICE_NAMES = {v[0] for vs in EDGE_VOICES.values() for v in vs}
+DEFAULT_EDGE_VOICE = {
+    'en': 'en-US-AriaNeural',
+    'hu': 'hu-HU-NoemiNeural',
+    'he': 'he-IL-HilaNeural',
+}
+
+
+def _synthesize_edge(text: str, voice: str) -> bytes:
+    """Synthesize ``text`` with edge-tts, returning MP3 bytes.
+
+    edge-tts is async; we run it on a fresh event loop per request so it
+    plays nicely with Flask's threaded WSGI server.
+    """
+    import asyncio
+    import edge_tts
+
+    async def _run():
+        comm = edge_tts.Communicate(text, voice)
+        chunks = bytearray()
+        async for chunk in comm.stream():
+            if chunk.get('type') == 'audio' and chunk.get('data'):
+                chunks.extend(chunk['data'])
+        return bytes(chunks)
+
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(_run())
+    finally:
+        loop.close()
+
+
+@app.route('/api/tts/voices')
+def tts_voices():
+    """Expose the curated voice catalog to the client (settings dialog)."""
+    out = {}
+    for lang, voices in EDGE_VOICES.items():
+        out[lang] = [{'id': v[0], 'label': v[1]} for v in voices]
+    # Synthetic "use legacy Google Translate voice" option per language.
+    for lang in out:
+        out[lang].append({'id': 'gtts', 'label': '— Legacy Google voice —'})
+    return jsonify(out)
 
 @app.route('/api/playlists/<book>')
 def get_playlist_for_book(book):
