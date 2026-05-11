@@ -70,6 +70,35 @@
 
     function currentReader() { return window.bibleReader || null; }
 
+    // Lightweight inline confirmation modal — friendlier than window.confirm.
+    function confirmInline(message) {
+        return new Promise((resolve) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'study-confirm';
+            wrap.innerHTML = `
+              <div class="study-confirm-card" role="alertdialog" aria-modal="true">
+                <p class="study-confirm-msg"></p>
+                <div class="study-confirm-actions">
+                  <button class="study-btn" data-act="no">Cancel</button>
+                  <button class="study-btn primary" data-act="yes">Yes, delete</button>
+                </div>
+              </div>`;
+            wrap.querySelector('.study-confirm-msg').textContent = message;
+            document.body.appendChild(wrap);
+            const close = (val) => { wrap.remove(); resolve(val); };
+            wrap.addEventListener('click', (e) => {
+                if (e.target === wrap) close(false);
+                if (e.target.dataset && e.target.dataset.act === 'yes') close(true);
+                if (e.target.dataset && e.target.dataset.act === 'no') close(false);
+            });
+            document.addEventListener('keydown', function onKey(e) {
+                if (e.key === 'Escape') { document.removeEventListener('keydown', onKey); close(false); }
+                if (e.key === 'Enter')  { document.removeEventListener('keydown', onKey); close(true); }
+            });
+            setTimeout(() => wrap.querySelector('[data-act=yes]').focus(), 30);
+        });
+    }
+
     // Read currently-displayed reference from the BibleReader if available.
     function currentRef() {
         const br = currentReader();
@@ -84,15 +113,16 @@
 
     // ---- root UI --------------------------------------------------------
     function injectShell() {
-        if ($('#study-fab')) return;
-        const fab = document.createElement('button');
-        fab.id = 'study-fab';
-        fab.className = 'study-fab';
-        fab.title = 'Study tools (S)';
-        fab.setAttribute('aria-label', 'Open study tools');
-        fab.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
-        document.body.appendChild(fab);
-        fab.addEventListener('click', openPanel);
+        if ($('#study-overlay')) return;
+
+        // Wire up the existing Study tools button in the audio control bar
+        // (templates/index.html). We no longer create a separate floating
+        // FAB — the play-bar button is the single entry point.
+        const trigger = $('#studyToolsBtn');
+        if (trigger && !trigger.dataset.studyWired) {
+            trigger.dataset.studyWired = '1';
+            trigger.addEventListener('click', (e) => { e.preventDefault(); openPanel(); });
+        }
 
         const overlay = document.createElement('div');
         overlay.id = 'study-overlay';
@@ -103,16 +133,17 @@
             <header class="study-head">
               <h2 id="study-title">Study tools</h2>
               <div class="study-tabs" role="tablist">
-                ${tabBtn('concordance', 'Concordance')}
+                ${tabBtn('home', 'Home')}
                 ${tabBtn('search', 'Search')}
-                ${tabBtn('xrefs', 'Cross-refs')}
-                ${tabBtn('lemma', 'Hebrew lemma')}
-                ${tabBtn('tags', 'Tags')}
-                ${tabBtn('outlines', 'Outlines')}
-                ${tabBtn('playlists', 'Sermon list')}
+                ${tabBtn('concordance', 'Compare words')}
+                ${tabBtn('xrefs', 'Related verses')}
+                ${tabBtn('lemma', 'Hebrew helper')}
+                ${tabBtn('tags', 'My tags')}
+                ${tabBtn('outlines', 'Sermons')}
+                ${tabBtn('playlists', 'Verse lists')}
                 ${tabBtn('plans', 'Reading plan')}
-                ${tabBtn('notebooks', 'Notebooks')}
-                ${tabBtn('share', 'Share / export')}
+                ${tabBtn('notebooks', 'Group notes')}
+                ${tabBtn('share', 'Share & export')}
                 ${tabBtn('settings', 'Settings')}
               </div>
               <button class="study-close" aria-label="Close" title="Close (Esc)">×</button>
@@ -172,7 +203,7 @@
         const o = $('#study-overlay');
         o.removeAttribute('hidden');
         document.body.classList.add('study-open');
-        switchTab(initialTab || state.lastTab || 'concordance');
+        switchTab(initialTab || state.lastTab || 'home');
     }
     function closePanel() {
         const o = $('#study-overlay');
@@ -180,7 +211,7 @@
         document.body.classList.remove('study-open');
     }
 
-    const state = { lastTab: 'concordance' };
+    const state = { lastTab: 'home' };
 
     function switchTab(name) {
         state.lastTab = name;
@@ -189,20 +220,87 @@
         const body = $('#study-body');
         if (!body) return;
         body.innerHTML = '<p class="study-loading">Loading…</p>';
-        (TABS[name] || TABS.concordance)(body).catch((e) => {
+        (TABS[name] || TABS.home)(body).catch((e) => {
             body.innerHTML = `<p class="study-error">${esc(e.message || e)}</p>`;
         });
         updatePermalink();
     }
 
-    // ---- TAB: Concordance ----------------------------------------------
+    // ---- TAB: Home (friendly menu) -------------------------------------
     const TABS = {};
+
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    function ic(path, opts) {
+        const a = (opts && opts.attrs) || '';
+        return `<svg xmlns="${SVG_NS}" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${a}>${path}</svg>`;
+    }
+    const ICONS = {
+        search:      ic('<circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'),
+        compare:     ic('<line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="22" y2="8"/><line x1="2" y1="20" x2="24" y2="20"/>'),
+        xrefs:       ic('<path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5"/>'),
+        hebrew:      ic('<polygon points="12 2 15 8 22 9 17 14 18 21 12 18 6 21 7 14 2 9 9 8 12 2"/>'),
+        tags:        ic('<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>'),
+        outlines:    ic('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/>'),
+        playlist:    ic('<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>'),
+        plan:        ic('<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'),
+        notebooks:   ic('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'),
+        share:       ic('<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>'),
+        settings:    ic('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.36.13.7.32 1 .56V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'),
+    };
+
+    const HOME_CARDS = [
+        { tab: 'search',      icon: ICONS.search,    title: 'Search the Bible',
+          desc: 'Find any word or phrase across translations.' },
+        { tab: 'concordance', icon: ICONS.compare,   title: 'Compare a word',
+          desc: 'See how often a word appears in NIV, KJV, ESV, Hebrew, and more.' },
+        { tab: 'xrefs',       icon: ICONS.xrefs,     title: 'Related verses',
+          desc: 'Find cross-references for the verse you\u2019re reading.' },
+        { tab: 'lemma',       icon: ICONS.hebrew,    title: 'Hebrew helper',
+          desc: 'Look up a Hebrew word and bridge it to English translations.' },
+        { tab: 'tags',        icon: ICONS.tags,      title: 'My tags',
+          desc: 'Color-code verses by topic and revisit them later.' },
+        { tab: 'outlines',    icon: ICONS.outlines,  title: 'Sermon outlines',
+          desc: 'Build outlines with notes, scripture, and a print handout.' },
+        { tab: 'playlists',   icon: ICONS.playlist,  title: 'Verse lists',
+          desc: 'Collect verses for preaching and present them full-screen.' },
+        { tab: 'plans',       icon: ICONS.plan,      title: 'Reading plan',
+          desc: 'Pick a daily plan and tick off each day as you go.' },
+        { tab: 'notebooks',   icon: ICONS.notebooks, title: 'Group notes',
+          desc: 'Share a notebook with friends or a small group.' },
+        { tab: 'share',       icon: ICONS.share,     title: 'Share & export',
+          desc: 'Save a verse image, copy a permalink, or export everything.' },
+        { tab: 'settings',    icon: ICONS.settings,  title: 'Settings',
+          desc: 'Dyslexia mode, text size, interlinear, and more.' },
+    ];
+
+    TABS.home = async function (root) {
+        const ref = currentRef();
+        root.innerHTML = html`
+          <p class="study-hint">
+            Pick a tool below. The current verse
+            (<strong>${esc(ref.book)} ${ref.chapter}:${ref.verse}</strong>) is filled in for you wherever it makes sense.
+            Press <kbd>?</kbd> any time to see keyboard shortcuts.
+          </p>
+          <div class="study-home-grid">
+            ${HOME_CARDS.map(c => `
+              <button class="study-home-card" data-go="${c.tab}">
+                <span class="study-home-icon" aria-hidden="true">${c.icon}</span>
+                <span class="study-home-title">${esc(c.title)}</span>
+                <span class="study-home-desc">${esc(c.desc)}</span>
+              </button>`).join('')}
+          </div>`;
+        $$('.study-home-card', root).forEach(c => c.addEventListener('click', () => switchTab(c.dataset.go)));
+    };
+
+    // ---- TAB: Compare words (concordance) ------------------------------
 
     TABS.concordance = async function (root) {
         root.innerHTML = html`
+          <h3>Compare a word across translations</h3>
+          <p class="study-hint">Type one word to see how many times each translation uses it. Hold Ctrl/⌘ to pick more than one translation.</p>
           <div class="study-form">
             <label>Word
-              <input type="text" id="cc-word" placeholder="e.g. Jesus / love / Isten" />
+              <input type="text" id="cc-word" placeholder="e.g. love, Jesus, Isten" />
             </label>
             <label>Translations
               <select id="cc-tr" multiple size="6">
@@ -248,8 +346,10 @@
     // ---- TAB: Search ----------------------------------------------------
     TABS.search = async function (root) {
         root.innerHTML = html`
+          <h3>Search the Bible</h3>
+          <p class="study-hint">Type any word or phrase. Use quotes for exact matches — e.g. <code>"in the beginning"</code>. Add <code>book:John</code> to limit by book.</p>
           <div class="study-form">
-            <label>Query
+            <label>Search for
               <input type="text" id="sr-q" placeholder='"in the beginning" book:John' />
             </label>
             <label>Translation
@@ -258,7 +358,7 @@
                   .map(t => `<option ${t==='NIV'?'selected':''}>${t}</option>`).join('')}
               </select>
             </label>
-            <label>Limit
+            <label>Show up to
               <input type="number" id="sr-lim" value="50" min="1" max="500" />
             </label>
             <button class="study-btn primary" id="sr-go">Search</button>
@@ -315,14 +415,22 @@
     TABS.xrefs = async function (root) {
         const ref = currentRef();
         root.innerHTML = html`
+          <h3>Related verses</h3>
+          <p class="study-hint">See cross-references for any verse. The verse you’re reading is filled in — click <em>Use current verse</em> to refresh it.</p>
           <div class="study-form">
-            <label>Reference
+            <label>Verse
               <input type="text" id="xr-ref" value="${esc(ref.book)} ${ref.chapter}:${ref.verse}" />
             </label>
+            <button class="study-btn" id="xr-here">Use current verse</button>
             <button class="study-btn primary" id="xr-go">Look up</button>
           </div>
           <div id="xr-out" class="study-out"></div>`;
         $('#xr-go').addEventListener('click', runXrefs);
+        $('#xr-here').addEventListener('click', () => {
+            const r = currentRef();
+            $('#xr-ref').value = `${r.book} ${r.chapter}:${r.verse}`;
+            runXrefs();
+        });
         $('#xr-ref').addEventListener('keydown', (e) => { if (e.key==='Enter') runXrefs(); });
         runXrefs();
     };
@@ -345,11 +453,13 @@
     TABS.lemma = async function (root) {
         const sel = currentSelectionWord();
         root.innerHTML = html`
+          <h3>Hebrew helper</h3>
+          <p class="study-hint">Paste or type a Hebrew word, or highlight one in the Hebrew column before opening this tool. <em>Bridge</em> shows English equivalents; <em>Find variants</em> searches every related form in the Hebrew Bible.</p>
           <div class="study-form">
             <label>Hebrew word
-              <input type="text" id="lm-word" dir="rtl" placeholder="בְּרֵאשִׁית" value="${esc(sel||'')}" />
+              <input type="text" id="lm-word" dir="rtl" placeholder="בְּרֵאשִׁית" value="${esc(sel||'')}" />
             </label>
-            <button class="study-btn primary" id="lm-go">Bridge</button>
+            <button class="study-btn primary" id="lm-go">Bridge to English</button>
             <button class="study-btn" id="lm-search">Find variants</button>
           </div>
           <div id="lm-out" class="study-out"></div>`;
@@ -397,52 +507,60 @@
     // ---- TAB: Tags ------------------------------------------------------
     TABS.tags = async function (root) {
         const r = await api('/api/me/tags');
+        const ref = currentRef();
         root.innerHTML = html`
+          <h3>My tags</h3>
+          <p class="study-hint">Create color-coded tags for topics like <em>Grace</em> or <em>Prayer</em>, then attach the verse you’re reading with one click.</p>
           <div class="study-form">
-            <label>New tag <input type="text" id="tg-name" maxlength="48" /></label>
-            <input type="color" id="tg-color" value="#fbbf24" />
+            <label>New tag name <input type="text" id="tg-name" maxlength="48" placeholder="e.g. Grace"/></label>
+            <label>Color <input type="color" id="tg-color" value="#c9a962" /></label>
             <button class="study-btn primary" id="tg-add">Add tag</button>
           </div>
           <ul class="study-list" id="tg-list">
             ${r.tags.map(t => `
               <li>
-                <span class="tag-dot" style="background:${esc(t.color||'#fbbf24')}"></span>
+                <span class="tag-dot" style="background:${esc(t.color||'#c9a962')}"></span>
                 <strong>${esc(t.name)}</strong>
-                <span class="study-meta">${t.verse_count} verses</span>
-                <button class="study-btn" data-act="view" data-id="${t.id}">View</button>
-                <button class="study-btn" data-act="del" data-id="${t.id}">Delete</button>
-              </li>`).join('') || '<li class="study-meta">No tags yet.</li>'}
+                <span class="study-meta">${t.verse_count} verse${t.verse_count===1?'':'s'}</span>
+                <button class="study-btn" data-act="view" data-id="${t.id}">View verses</button>
+                <button class="study-btn" data-act="del" data-id="${t.id}" data-name="${esc(t.name)}">Delete</button>
+              </li>`).join('') || '<li class="study-meta">No tags yet — add one above to get started.</li>'}
           </ul>
+          ${r.tags.length ? html`
           <div class="study-form" style="margin-top:1em;">
-            <p class="study-meta">Tag the current verse:</p>
-            <select id="tg-pick">${r.tags.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select>
-            <button class="study-btn" id="tg-link">Tag ${esc(currentRef().book)} ${currentRef().chapter}:${currentRef().verse}</button>
-          </div>
+            <label>Tag <strong>${esc(ref.book)} ${ref.chapter}:${ref.verse}</strong> with
+              <select id="tg-pick">${r.tags.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select>
+            </label>
+            <button class="study-btn primary" id="tg-link">Tag this verse</button>
+          </div>` : ''}
           <div id="tg-out" class="study-out"></div>`;
         $('#tg-add').addEventListener('click', async () => {
             const name = $('#tg-name').value.trim();
             const color = $('#tg-color').value;
-            if (!name) return;
+            if (!name) { toast('Type a tag name first'); return; }
             await api('/api/me/tags', { method: 'POST', body: { name, color } });
             switchTab('tags');
         });
-        $('#tg-link').addEventListener('click', async () => {
+        $('#tg-name') && $('#tg-name').addEventListener('keydown', (e) => { if (e.key==='Enter') $('#tg-add').click(); });
+        if ($('#tg-link')) $('#tg-link').addEventListener('click', async () => {
             const id = +$('#tg-pick').value;
             if (!id) return;
             const c = currentRef();
             await api('/api/me/tag-link', { method: 'POST', body: { tag_id: id, book: c.book, chapter: c.chapter, verse: c.verse } });
-            toast('Tagged');
+            toast('Tagged ✓');
         });
         $$('button[data-act=del]', root).forEach(b => b.addEventListener('click', async () => {
-            if (!confirm('Delete tag?')) return;
+            if (!await confirmInline(`Delete tag “${b.dataset.name}”? This won’t delete the verses.`)) return;
             await api('/api/me/tags/' + b.dataset.id, { method: 'DELETE' });
             switchTab('tags');
         }));
         $$('button[data-act=view]', root).forEach(b => b.addEventListener('click', async () => {
             const v = await api('/api/me/tags/' + b.dataset.id + '/verses');
-            $('#tg-out').innerHTML = '<ul class="study-hits">' + v.verses.map(x =>
-                `<li><a href="#" class="study-jump" data-book="${esc(x.book)}" data-ch="${x.chapter}" data-v="${x.verse}">${esc(x.book)} ${x.chapter}:${x.verse}</a></li>`
-            ).join('') + '</ul>';
+            $('#tg-out').innerHTML = v.verses.length
+                ? '<h3>Tagged verses</h3><ul class="study-hits">' + v.verses.map(x =>
+                    `<li><a href="#" class="study-jump" data-book="${esc(x.book)}" data-ch="${x.chapter}" data-v="${x.verse}">${esc(x.book)} ${x.chapter}:${x.verse}</a></li>`
+                ).join('') + '</ul>'
+                : '<p class="study-meta">No verses tagged yet. Use the form above to attach this verse.</p>';
             wireJumps($('#tg-out'));
         }));
     };
@@ -451,28 +569,34 @@
     TABS.outlines = async function (root) {
         const r = await api('/api/me/outlines');
         root.innerHTML = html`
+          <h3>Sermon outlines</h3>
+          <p class="study-hint">Plan a sermon: title, theme, free-form notes, and a list of verses. Hit <em>Print handout</em> to get a clean printable copy.</p>
           <div class="study-form">
-            <button class="study-btn primary" id="ol-new">New outline</button>
+            <label>New outline title <input type="text" id="ol-new-title" placeholder="e.g. The Good Shepherd" /></label>
+            <button class="study-btn primary" id="ol-new">Create</button>
           </div>
           <ul class="study-list" id="ol-list">
             ${r.outlines.map(o => `
               <li>
                 <strong>${esc(o.title)}</strong>
                 <span class="study-meta">updated ${esc((o.updated_at||'').slice(0,10))}</span>
-                <button class="study-btn" data-act="open" data-id="${o.id}">Open</button>
-                <a class="study-btn" href="/api/me/outlines/${o.id}/export?translation=NIV" target="_blank">Export</a>
-                <button class="study-btn" data-act="del" data-id="${o.id}">Delete</button>
-              </li>`).join('') || '<li class="study-meta">No outlines yet.</li>'}
+                <button class="study-btn primary" data-act="present" data-id="${o.id}">Present</button>
+                <button class="study-btn" data-act="open" data-id="${o.id}">Edit</button>
+                <a class="study-btn" href="/api/me/outlines/${o.id}/export?translation=NIV" target="_blank">Print handout</a>
+                <button class="study-btn" data-act="del" data-id="${o.id}" data-name="${esc(o.title)}">Delete</button>
+              </li>`).join('') || '<li class="study-meta">No outlines yet — type a title above and hit Create.</li>'}
           </ul>
           <div id="ol-edit" class="study-out"></div>`;
         $('#ol-new').addEventListener('click', async () => {
-            const t = prompt('Outline title?', 'New sermon');
-            if (!t) return;
+            const t = $('#ol-new-title').value.trim();
+            if (!t) { toast('Type a title first'); return; }
             await api('/api/me/outlines', { method: 'POST', body: { title: t } });
             switchTab('outlines');
         });
+        $('#ol-new-title').addEventListener('keydown', (e) => { if (e.key==='Enter') $('#ol-new').click(); });
+        $$('button[data-act=present]', root).forEach(b => b.addEventListener('click', () => openPresent(+b.dataset.id)));
         $$('button[data-act=del]', root).forEach(b => b.addEventListener('click', async () => {
-            if (!confirm('Delete outline?')) return;
+            if (!await confirmInline(`Delete outline “${b.dataset.name}”?`)) return;
             await api('/api/me/outlines/' + b.dataset.id, { method: 'DELETE' });
             switchTab('outlines');
         }));
@@ -481,97 +605,335 @@
             const ed = $('#ol-edit');
             ed.innerHTML = html`
               <h3>Edit outline</h3>
-              <label>Title <input type="text" id="ol-title" value="${esc(o.title)}"/></label>
-              <label>Theme <input type="text" id="ol-theme" value="${esc(o.theme||'')}"/></label>
-              <label>Body (Markdown)
-                <textarea id="ol-body" rows="10">${esc(o.body_md||'')}</textarea>
+              <p class="study-hint">Write your notes freely. Add verses one at a time using the form below — the current verse is filled in for you.</p>
+              <div class="study-form">
+                <label>Title <input type="text" id="ol-title" value="${esc(o.title)}"/></label>
+                <label>Theme <input type="text" id="ol-theme" value="${esc(o.theme||'')}"/></label>
+              </div>
+              <label class="study-form" style="flex-direction:column;align-items:stretch;">
+                Notes
+                <textarea id="ol-body" rows="8" placeholder="Write your sermon notes here…">${esc(o.body_md||'')}</textarea>
               </label>
-              <p class="study-meta">Verses (one per line, format: <code>Book ch:v | label</code>)</p>
-              <textarea id="ol-verses" rows="6">${o.verses.map(v => `${v.book} ${v.chapter}:${v.verse}${v.label?' | '+v.label:''}`).join('\n')}</textarea>
-              <button class="study-btn primary" id="ol-save">Save</button>
-              <button class="study-btn" id="ol-print">Print handout</button>`;
+              <h3 style="margin-top:18px;">Verses</h3>
+              <ul class="study-list" id="ol-vlist">
+                ${o.verses.map((v,i) => `
+                  <li data-i="${i}">
+                    <strong>${esc(v.book)} ${v.chapter}:${v.verse}</strong>
+                    ${v.label ? `<span class="study-meta">${esc(v.label)}</span>` : ''}
+                    <button class="study-btn" data-vrm="${i}">Remove</button>
+                  </li>`).join('') || '<li class="study-meta">No verses yet.</li>'}
+              </ul>
+              <div class="study-form">
+                <label>Add verse <input type="text" id="ol-vref" value="${esc(currentRef().book)} ${currentRef().chapter}:${currentRef().verse}" /></label>
+                <label>Label (optional) <input type="text" id="ol-vlabel" placeholder="e.g. Main point" /></label>
+                <button class="study-btn" id="ol-vhere">Use current verse</button>
+                <button class="study-btn primary" id="ol-vadd">Add</button>
+              </div>
+              <div class="study-form">
+                <button class="study-btn primary" id="ol-save">Save outline</button>
+                <button class="study-btn" id="ol-present">Present</button>
+                <button class="study-btn" id="ol-print">Print handout</button>
+              </div>`;
+            const verses = o.verses.slice();
+            const renderVerses = () => {
+                $('#ol-vlist', ed).innerHTML = verses.map((v,i) => `
+                    <li data-i="${i}">
+                      <strong>${esc(v.book)} ${v.chapter}:${v.verse}</strong>
+                      ${v.label ? `<span class="study-meta">${esc(v.label)}</span>` : ''}
+                      <button class="study-btn" data-vrm="${i}">Remove</button>
+                    </li>`).join('') || '<li class="study-meta">No verses yet.</li>';
+                $$('button[data-vrm]', ed).forEach(b => b.addEventListener('click', () => {
+                    verses.splice(+b.dataset.vrm, 1); renderVerses();
+                }));
+            };
+            renderVerses();
+            $('#ol-vhere').addEventListener('click', () => {
+                const r2 = currentRef();
+                $('#ol-vref').value = `${r2.book} ${r2.chapter}:${r2.verse}`;
+            });
+            $('#ol-vadd').addEventListener('click', () => {
+                const m = ($('#ol-vref').value || '').match(/^\s*(.+?)\s+(\d+):(\d+)\s*$/);
+                if (!m) { toast('Use “Book chapter:verse”, e.g. John 3:16', 'error'); return; }
+                verses.push({ book: m[1].trim(), chapter: +m[2], verse: +m[3], label: $('#ol-vlabel').value.trim() });
+                $('#ol-vlabel').value = '';
+                renderVerses();
+            });
             $('#ol-save').addEventListener('click', async () => {
-                const verses = $('#ol-verses').value.split('\n').map(line => {
-                    const m = line.match(/^\s*(.+?)\s+(\d+):(\d+)\s*(?:\|\s*(.+))?$/);
-                    return m ? { book: m[1].trim(), chapter: +m[2], verse: +m[3], label: (m[4]||'').trim() } : null;
-                }).filter(Boolean);
                 await api('/api/me/outlines/' + o.id, { method: 'PUT', body: {
                     title: $('#ol-title').value, theme: $('#ol-theme').value,
                     body_md: $('#ol-body').value, verses,
                 }});
-                toast('Saved');
+                toast('Saved ✓');
                 switchTab('outlines');
             });
             $('#ol-print').addEventListener('click', () => {
                 window.open(`/api/me/outlines/${o.id}/export?translation=NIV`, '_blank');
             });
+            $('#ol-present').addEventListener('click', () => openPresent(o.id));
         }));
     };
 
     // ---- TAB: Sermon list (playlists) -----------------------------------
     TABS.playlists = async function (root) {
         const r = await api('/api/me/playlists');
+        const ref = currentRef();
         root.innerHTML = html`
+          <h3>Verse lists</h3>
+          <p class="study-hint">Collect verses for a sermon, devotional, or memorization. <em>Preach view</em> opens a full-screen, large-text presentation.</p>
           <div class="study-form">
-            <button class="study-btn primary" id="pl-new">New sermon list</button>
+            <label>New list title <input type="text" id="pl-new-title" placeholder="e.g. Easter morning" /></label>
+            <button class="study-btn primary" id="pl-new">Create</button>
           </div>
           <ul class="study-list">
             ${r.playlists.map(p => `
               <li>
                 <strong>${esc(p.title)}</strong>
-                <span class="study-meta">${p.item_count} verses</span>
-                <button class="study-btn" data-act="preach" data-id="${p.id}">Preach view</button>
-                <button class="study-btn" data-act="add" data-id="${p.id}">Add current verse</button>
-                <button class="study-btn" data-act="del" data-id="${p.id}">Delete</button>
-              </li>`).join('') || '<li class="study-meta">No sermon lists yet.</li>'}
+                <span class="study-meta">${p.item_count} verse${p.item_count===1?'':'s'}</span>
+                <button class="study-btn primary" data-act="preach" data-id="${p.id}">Preach view</button>
+                <button class="study-btn" data-act="add" data-id="${p.id}">Add ${esc(ref.book)} ${ref.chapter}:${ref.verse}</button>
+                <button class="study-btn" data-act="del" data-id="${p.id}" data-name="${esc(p.title)}">Delete</button>
+              </li>`).join('') || '<li class="study-meta">No verse lists yet — type a title above and hit Create.</li>'}
           </ul>`;
         $('#pl-new').addEventListener('click', async () => {
-            const t = prompt('Sermon list title?', 'New sermon');
-            if (!t) return;
+            const t = $('#pl-new-title').value.trim();
+            if (!t) { toast('Type a title first'); return; }
             await api('/api/me/playlists', { method: 'POST', body: { title: t } });
             switchTab('playlists');
         });
+        $('#pl-new-title').addEventListener('keydown', (e) => { if (e.key==='Enter') $('#pl-new').click(); });
         $$('button[data-act=del]', root).forEach(b => b.addEventListener('click', async () => {
-            if (!confirm('Delete?')) return;
+            if (!await confirmInline(`Delete verse list “${b.dataset.name}”?`)) return;
             await api('/api/me/playlists/' + b.dataset.id, { method: 'DELETE' });
             switchTab('playlists');
         }));
         $$('button[data-act=add]', root).forEach(b => b.addEventListener('click', async () => {
             const c = currentRef();
             await api(`/api/me/playlists/${b.dataset.id}/items`, { method: 'POST', body: { book: c.book, chapter: c.chapter, verse_start: c.verse, verse_end: c.verse } });
-            toast('Added to sermon list');
+            toast('Added ✓');
         }));
         $$('button[data-act=preach]', root).forEach(b => b.addEventListener('click', () => openPreach(+b.dataset.id)));
     };
 
+    // ---- Presentation viewer -------------------------------------------
+    // A PowerPoint-style in-page slide deck, themed with the site's tokens.
+    // Used for outlines (Sermons tab → Present) and playlists (Preach view).
+    //
+    // slides = [{ kind: 'title'|'theme'|'note'|'verse'|'end',
+    //             eyebrow, title, body, ref, note }]
+    function buildOutlineSlides(o, fetched) {
+        const slides = [{ kind: 'title', eyebrow: o.theme || 'Sermon', title: o.title }];
+        const notes = (o.body_md || '').split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+        notes.forEach(block => {
+            // Treat a leading "# Heading" line as a section title.
+            const hm = block.match(/^#{1,3}\s+(.+)$/m);
+            if (hm && block.trim().split('\n').length === 1) {
+                slides.push({ kind: 'note', title: hm[1] });
+            } else {
+                slides.push({ kind: 'note', body: block });
+            }
+        });
+        (o.verses || []).forEach(v => {
+            const key = `${v.book}|${v.chapter}|${v.verse}`;
+            slides.push({
+                kind: 'verse',
+                eyebrow: v.label || '',
+                ref: `${v.book} ${v.chapter}:${v.verse}`,
+                body: fetched[key] || '',
+            });
+        });
+        slides.push({ kind: 'end', title: 'Amen.' });
+        return slides;
+    }
+
+    function buildPlaylistSlides(p, items) {
+        const slides = [{ kind: 'title', eyebrow: 'Verse list', title: p.title }];
+        items.forEach(it => {
+            slides.push({
+                kind: 'verse',
+                eyebrow: it.note || '',
+                ref: it.ref,
+                body: it.text || '',
+            });
+        });
+        slides.push({ kind: 'end', title: 'Amen.' });
+        return slides;
+    }
+
+    async function fetchVerseTexts(verseRefs) {
+        // verseRefs: [{book, chapter, verse}]; returns { "book|ch|v": text }
+        const out = {};
+        const chapters = new Map(); // key: book|chapter → Promise
+        const tr = (currentRef().translation || 'NIV');
+        for (const v of verseRefs) {
+            const ck = `${v.book}|${v.chapter}`;
+            if (!chapters.has(ck)) {
+                chapters.set(ck, api(`/api/parallel/${encodeURIComponent(v.book)}/${v.chapter}/${encodeURIComponent(tr)}/Hebrew`).catch(() => null));
+            }
+        }
+        for (const v of verseRefs) {
+            const ch = await chapters.get(`${v.book}|${v.chapter}`);
+            const verses = ch && ch.translation1 && ch.translation1.verses;
+            const text = verses ? (verses[v.verse] || verses[String(v.verse)] || '') : '';
+            out[`${v.book}|${v.chapter}|${v.verse}`] = text;
+        }
+        return out;
+    }
+
+    async function openPresent(outlineId) {
+        const o = (await api('/api/me/outlines/' + outlineId)).outline;
+        const fetched = await fetchVerseTexts(o.verses || []);
+        launchDeck(buildOutlineSlides(o, fetched), o.title);
+    }
+
     async function openPreach(pid) {
         const p = (await api('/api/me/playlists/' + pid)).playlist;
-        let verses = [];
-        for (const item of p.items) {
+        const tr = (currentRef().translation || 'NIV');
+        const items = [];
+        for (const item of (p.items || [])) {
             try {
-                const ch = await api(`/api/parallel/${encodeURIComponent(item.book)}/${item.chapter}/NIV/Hebrew`);
+                const ch = await api(`/api/parallel/${encodeURIComponent(item.book)}/${item.chapter}/${encodeURIComponent(tr)}/Hebrew`);
                 const start = item.verse_start || 1, end = item.verse_end || start;
                 for (let v = start; v <= end; v++) {
                     const text = (ch.translation1 && ch.translation1.verses && (ch.translation1.verses[v] || ch.translation1.verses[String(v)])) || '';
-                    if (text) verses.push({ ref: `${item.book} ${item.chapter}:${v}`, text, note: item.note });
+                    if (text) items.push({ ref: `${item.book} ${item.chapter}:${v}`, text, note: item.note });
                 }
             } catch (_) {}
         }
-        const w = window.open('', '_blank');
-        if (!w) { toast('Popup blocked'); return; }
-        w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(p.title)}</title>
-            <style>
-              body{font:24px/1.5 Georgia,serif;background:#0b1020;color:#fff;margin:0;padding:0;}
-              .slide{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:6vw;box-sizing:border-box;border-bottom:1px solid #1f2937;}
-              .slide h2{margin:0 0 .6em;color:#fbbf24;font-size:1.1em;}
-              .slide p{font-size:2em;line-height:1.4;}
-              .slide .note{margin-top:1em;color:#cbd5e1;font-size:0.7em;font-style:italic;}
-              @media print { .slide{page-break-after:always;background:#fff;color:#000;} .slide h2{color:#000;} }
-            </style></head><body>
-            <h1 style="text-align:center;padding:2em 1em;">${esc(p.title)}</h1>
-            ${verses.map(v => `<section class="slide"><h2>${esc(v.ref)}</h2><p>${esc(v.text)}</p>${v.note?`<p class="note">${esc(v.note)}</p>`:''}</section>`).join('')}
-            </body></html>`);
-        w.document.close();
+        launchDeck(buildPlaylistSlides(p, items), p.title);
+    }
+
+    function launchDeck(slides, title) {
+        if (!slides.length) { toast('Nothing to present'); return; }
+        const deck = document.createElement('div');
+        deck.className = 'study-deck';
+        deck.setAttribute('role', 'dialog');
+        deck.setAttribute('aria-label', 'Presentation: ' + title);
+        deck.innerHTML = `
+          <div class="deck-stage" id="deck-stage"></div>
+          <div class="deck-progress"><div class="deck-progress-fill" id="deck-fill"></div></div>
+          <div class="deck-bar">
+            <button class="deck-btn" id="deck-prev" title="Previous (←)" aria-label="Previous slide">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="deck-count" id="deck-count">1 / ${slides.length}</span>
+            <button class="deck-btn" id="deck-next" title="Next (→ / Space)" aria-label="Next slide">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <span class="deck-spacer"></span>
+            <button class="deck-btn" id="deck-fs" title="Fullscreen (F)" aria-label="Toggle fullscreen">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+            </button>
+            <button class="deck-btn" id="deck-print" title="Print handout (P)" aria-label="Print handout">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </button>
+            <button class="deck-btn" id="deck-close" title="Close (Esc)" aria-label="Close presentation">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+            </button>
+          </div>
+          <div class="deck-handout" id="deck-handout" aria-hidden="true"></div>`;
+        document.body.appendChild(deck);
+        document.body.classList.add('deck-open');
+
+        let idx = 0;
+        const stage = $('#deck-stage', deck);
+        const fill  = $('#deck-fill', deck);
+        const count = $('#deck-count', deck);
+
+        function renderSlide(s, dir) {
+            const card = document.createElement('section');
+            card.className = 'deck-slide deck-slide--' + s.kind;
+            card.dataset.dir = dir || 'in';
+            let inner = '';
+            if (s.eyebrow) inner += `<div class="deck-eyebrow">${esc(s.eyebrow)}</div>`;
+            if (s.kind === 'verse') {
+                inner += `<div class="deck-ref">${esc(s.ref || '')}</div>`;
+                inner += `<blockquote class="deck-verse">${esc(s.body || '(verse text unavailable)')}</blockquote>`;
+            } else if (s.kind === 'title') {
+                inner += `<h1 class="deck-title">${esc(s.title || '')}</h1>`;
+                inner += `<div class="deck-mark"></div>`;
+            } else if (s.kind === 'end') {
+                inner += `<h1 class="deck-title deck-end">${esc(s.title || 'Amen.')}</h1>`;
+            } else if (s.kind === 'note') {
+                if (s.title) inner += `<h2 class="deck-heading">${esc(s.title)}</h2>`;
+                if (s.body)  inner += `<div class="deck-body">${esc(s.body).replace(/\n/g, '<br>')}</div>`;
+            }
+            card.innerHTML = inner;
+            return card;
+        }
+
+        function show(newIdx, dir) {
+            newIdx = Math.max(0, Math.min(slides.length - 1, newIdx));
+            if (newIdx === idx && stage.firstChild) return;
+            const direction = dir || (newIdx > idx ? 'next' : 'prev');
+            const old = stage.firstChild;
+            const card = renderSlide(slides[newIdx], direction);
+            stage.appendChild(card);
+            requestAnimationFrame(() => card.classList.add('is-in'));
+            if (old) {
+                old.classList.add('is-out-' + direction);
+                setTimeout(() => old.remove(), 380);
+            }
+            idx = newIdx;
+            count.textContent = `${idx + 1} / ${slides.length}`;
+            fill.style.width = (((idx + 1) / slides.length) * 100).toFixed(2) + '%';
+        }
+
+        const next = () => show(idx + 1, 'next');
+        const prev = () => show(idx - 1, 'prev');
+
+        $('#deck-next', deck).addEventListener('click', next);
+        $('#deck-prev', deck).addEventListener('click', prev);
+        $('#deck-close', deck).addEventListener('click', close);
+        $('#deck-fs', deck).addEventListener('click', toggleFs);
+        $('#deck-print', deck).addEventListener('click', printHandout);
+
+        function onKey(e) {
+            if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); next(); }
+            else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prev(); }
+            else if (e.key === 'Escape') { close(); }
+            else if (e.key === 'Home') { show(0); }
+            else if (e.key === 'End')  { show(slides.length - 1); }
+            else if (e.key === 'f' || e.key === 'F') { toggleFs(); }
+            else if (e.key === 'p' || e.key === 'P') { printHandout(); }
+        }
+        document.addEventListener('keydown', onKey);
+
+        // Touch swipe
+        let touchX = null;
+        deck.addEventListener('touchstart', (e) => { touchX = e.touches[0].clientX; }, { passive: true });
+        deck.addEventListener('touchend', (e) => {
+            if (touchX == null) return;
+            const dx = e.changedTouches[0].clientX - touchX;
+            if (Math.abs(dx) > 50) (dx < 0 ? next : prev)();
+            touchX = null;
+        }, { passive: true });
+
+        function toggleFs() {
+            if (!document.fullscreenElement) {
+                (deck.requestFullscreen || deck.webkitRequestFullscreen || (() => {})).call(deck);
+            } else {
+                (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document);
+            }
+        }
+
+        function printHandout() {
+            const h = $('#deck-handout', deck);
+            h.innerHTML = `<h1>${esc(title)}</h1>` + slides.map(s => {
+                if (s.kind === 'title' || s.kind === 'end') return `<section class="ph"><h2>${esc(s.title || '')}</h2>${s.eyebrow?`<p class="phe">${esc(s.eyebrow)}</p>`:''}</section>`;
+                if (s.kind === 'verse') return `<section class="ph"><h3>${esc(s.ref || '')}</h3>${s.eyebrow?`<p class="phe">${esc(s.eyebrow)}</p>`:''}<blockquote>${esc(s.body || '')}</blockquote></section>`;
+                return `<section class="ph">${s.title?`<h3>${esc(s.title)}</h3>`:''}${s.body?`<p>${esc(s.body).replace(/\n/g,'<br>')}</p>`:''}</section>`;
+            }).join('');
+            window.print();
+        }
+
+        function close() {
+            document.removeEventListener('keydown', onKey);
+            if (document.fullscreenElement) { try { document.exitFullscreen(); } catch (_) {} }
+            deck.remove();
+            document.body.classList.remove('deck-open');
+        }
+
+        show(0, 'in');
     }
 
     // ---- TAB: Reading plan ----------------------------------------------
@@ -620,13 +982,18 @@
     TABS.notebooks = async function (root) {
         const r = await api('/api/me/notebooks');
         if (r.needs_login) {
-            root.innerHTML = '<p class="study-meta">Sign in to create or join shared notebooks.</p>';
+            root.innerHTML = '<h3>Group notes</h3><p class="study-hint">Sign in (top-right) to create or join a shared notebook with your study group.</p>';
             return;
         }
         root.innerHTML = html`
+          <h3>Group notes</h3>
+          <p class="study-hint">Share a notebook with friends. Each member can post a note tied to a verse, and everyone sees the same thread.</p>
           <div class="study-form">
-            <button class="study-btn primary" id="nb-new">New notebook</button>
-            <label>Join via token <input type="text" id="nb-token" /></label>
+            <label>New notebook title <input type="text" id="nb-new-title" placeholder="e.g. Wednesday study group" /></label>
+            <button class="study-btn primary" id="nb-new">Create</button>
+          </div>
+          <div class="study-form">
+            <label>Join with code <input type="text" id="nb-token" placeholder="Paste invite code…" /></label>
             <button class="study-btn" id="nb-join">Join</button>
           </div>
           <ul class="study-list">
@@ -634,17 +1001,18 @@
               <li>
                 <strong>${esc(n.title)}</strong>
                 <span class="study-meta">${n.member_count} member${n.member_count===1?'':'s'}${n.is_owner?' • owner':''}</span>
-                ${n.is_owner ? `<button class="study-btn" data-act="share" data-tok="${esc(n.share_token)}">Share link</button>` : ''}
-                <button class="study-btn" data-act="open" data-id="${n.id}">Open</button>
-              </li>`).join('') || '<li class="study-meta">No notebooks yet.</li>'}
+                ${n.is_owner ? `<button class="study-btn" data-act="share" data-tok="${esc(n.share_token)}">Copy invite link</button>` : ''}
+                <button class="study-btn primary" data-act="open" data-id="${n.id}">Open</button>
+              </li>`).join('') || '<li class="study-meta">No notebooks yet — create one above to share with your group.</li>'}
           </ul>
           <div id="nb-out" class="study-out"></div>`;
         $('#nb-new').addEventListener('click', async () => {
-            const t = prompt('Notebook title?', 'Bible study group');
-            if (!t) return;
+            const t = $('#nb-new-title').value.trim();
+            if (!t) { toast('Type a title first'); return; }
             await api('/api/me/notebooks', { method: 'POST', body: { title: t } });
             switchTab('notebooks');
         });
+        $('#nb-new-title').addEventListener('keydown', (e) => { if (e.key==='Enter') $('#nb-new').click(); });
         $('#nb-join').addEventListener('click', async () => {
             const tok = $('#nb-token').value.trim();
             if (!tok) return;
@@ -653,30 +1021,33 @@
         });
         $$('button[data-act=share]', root).forEach(b => b.addEventListener('click', () => {
             const url = location.origin + location.pathname + '#join=' + b.dataset.tok;
-            navigator.clipboard.writeText(url).then(() => toast('Share link copied'));
+            navigator.clipboard.writeText(url).then(() => toast('Invite link copied ✓'));
         }));
         $$('button[data-act=open]', root).forEach(b => b.addEventListener('click', async () => {
             const d = await api('/api/me/notebooks/' + b.dataset.id);
             const ref = currentRef();
             $('#nb-out').innerHTML = html`
               <h3>${esc(d.notebook.title)}</h3>
-              <textarea id="nb-body" rows="4" placeholder="Add a note for ${esc(ref.book)} ${ref.chapter}:${ref.verse}…"></textarea>
+              <label class="study-form" style="flex-direction:column;align-items:stretch;">
+                Add a note for <strong>${esc(ref.book)} ${ref.chapter}:${ref.verse}</strong>
+                <textarea id="nb-body" rows="3" placeholder="What stood out to you?…"></textarea>
+              </label>
               <button class="study-btn primary" id="nb-add">Post</button>
-              <ul class="study-list">${d.entries.map(e => `
+              <ul class="study-list" style="margin-top:14px;">${d.entries.length ? d.entries.map(e => `
                 <li>
                   <strong>${esc(e.author_email||'anon')}</strong>
                   ${e.book?`<span class="study-meta">${esc(e.book)} ${e.chapter}:${e.verse}</span>`:''}
-                  <p>${esc(e.body_md)}</p>
+                  <p style="flex-basis:100%;margin:6px 0 0;">${esc(e.body_md)}</p>
                   <span class="study-meta">${esc((e.created_at||'').replace('T',' ').slice(0,16))}</span>
-                </li>`).join('')}</ul>`;
+                </li>`).join('') : '<li class="study-meta">No notes yet — be the first.</li>'}</ul>`;
             $('#nb-add').addEventListener('click', async () => {
                 const body = $('#nb-body').value.trim();
-                if (!body) return;
+                if (!body) { toast('Type something first'); return; }
                 const r2 = currentRef();
                 await api('/api/me/notebooks/' + b.dataset.id + '/entries', { method: 'POST', body: {
                     body_md: body, book: r2.book, chapter: r2.chapter, verse: r2.verse,
                 }});
-                toast('Posted');
+                toast('Posted ✓');
                 $$('button[data-act=open]', root).find(x => x.dataset.id === b.dataset.id).click();
             });
         }));
@@ -760,11 +1131,13 @@
     };
 
     // ---- Permalink -----------------------------------------------------
+    // We only encode the current Bible reference in the URL hash. We do NOT
+    // encode the active study tab, so reloading the page never re-opens
+    // the study panel (it must be opened explicitly by the user).
     function updatePermalink() {
         try {
             const ref = currentRef();
-            const tab = state.lastTab;
-            const hash = `#ref=${encodeURIComponent(ref.book)}:${ref.chapter}:${ref.verse}&tr=${encodeURIComponent(ref.translation)}&study=${encodeURIComponent(tab||'')}`;
+            const hash = `#ref=${encodeURIComponent(ref.book)}:${ref.chapter}:${ref.verse}&tr=${encodeURIComponent(ref.translation)}`;
             history.replaceState(null, '', location.pathname + location.search + hash);
         } catch (_) {}
     }
@@ -773,7 +1146,6 @@
         if (!h.length) return;
         const params = new URLSearchParams(h.slice(1));
         const ref = params.get('ref');
-        const tab = params.get('study');
         const join = params.get('join');
         const br = currentReader();
         if (ref && br) {
@@ -783,7 +1155,7 @@
                 try { br.changeChapter && br.changeChapter(+m[2]); } catch (_) {}
             }
         }
-        if (tab) setTimeout(() => openPanel(tab), 600);
+        // Intentionally do NOT auto-open the study panel from the hash.
         if (join) {
             api('/api/notebooks/join/' + encodeURIComponent(join), { method: 'POST' })
                 .then(() => toast('Joined notebook'))

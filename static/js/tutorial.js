@@ -5,13 +5,18 @@
 (function () {
     'use strict';
 
-    const STORAGE_KEY = 'ritd_tutorial_seen_v3';
+    const STORAGE_KEY = 'ritd_tutorial_seen_v4';
 
     const STEPS = [
         {
             title: 'Welcome to RITDorg',
             body:  'A quick tour to show you how to read, listen and compare Scripture. You can replay this anytime from the “?” button in the header.',
             target: null,
+        },
+        {
+            title: 'Hover for hints',
+            body:  'On a desktop or laptop, hover any button for a moment and a small caption will pop up explaining what it does. Phones and tablets skip the captions so taps stay snappy.',
+            target: '#helpBtn',
         },
         {
             title: 'Pick a book',
@@ -67,6 +72,11 @@
             title: 'Focus mode',
             body:  'Distraction-free reading: hides the header and sidebar so you can stay in the Word.',
             target: '#focusModeBtn',
+        },
+        {
+            title: 'Study tools',
+            body:  'Open the briefcase icon to unlock concordance bars, phrase search, cross-references, tags, sermon outlines, verse playlists, reading plans and more — all gathered in one redesigned panel. There is also a floating shortcut on the bottom-right of every page.',
+            target: '#studyToolsBtn',
         },
         {
             title: "You're all set",

@@ -4387,3 +4387,81 @@ body.modal-open { overflow: hidden; touch-action: none; }
 @media (max-width: 480px) {
     .bw-popover { width: calc(100vw - 16px); left: 8px !important; }
 }
+
+/* ============================================================
+   Hover captions (desktop only). Driven by [data-tip], which is
+   set by static/js/tooltips.js from each element's `title`
+   attribute on hover-capable devices.
+   ============================================================ */
+
+@media (hover: hover) and (pointer: fine) {
+    [data-tip] {
+        position: relative;
+    }
+    [data-tip]::after,
+    [data-tip]::before {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 10px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.15s ease, transform 0.15s ease;
+        transform: translate(-50%, 4px);
+        z-index: 3000;
+        white-space: nowrap;
+    }
+    [data-tip]::after {
+        content: attr(data-tip);
+        background: var(--text-primary);
+        color: var(--bg-secondary);
+        font-family: var(--font-sans);
+        font-size: 0.78rem;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        line-height: 1.2;
+        padding: 6px 10px;
+        border-radius: 6px;
+        box-shadow: var(--shadow-md);
+        max-width: 240px;
+        white-space: normal;
+        text-align: center;
+    }
+    [data-tip]::before {
+        content: '';
+        bottom: calc(100% + 4px);
+        width: 0; height: 0;
+        border: 6px solid transparent;
+        border-top-color: var(--text-primary);
+        transform: translate(-50%, 0);
+    }
+    [data-tip]:hover::after,
+    [data-tip]:focus-visible::after,
+    [data-tip]:hover::before,
+    [data-tip]:focus-visible::before {
+        opacity: 1;
+        transform: translate(-50%, 0);
+        transition-delay: 0.25s;
+    }
+    /* Edge-aware: nudge tooltips on left edge of viewport. */
+    [data-tip][data-tip-pos="right"]::after,
+    [data-tip][data-tip-pos="right"]::before {
+        left: auto; right: 0;
+        transform: translate(0, 4px);
+    }
+    [data-tip][data-tip-pos="right"]:hover::after,
+    [data-tip][data-tip-pos="right"]:hover::before {
+        transform: translate(0, 0);
+    }
+    /* Render below the element when it sits near the top of the viewport. */
+    [data-tip][data-tip-pos="below"]::after {
+        top: calc(100% + 10px);
+        bottom: auto;
+    }
+    [data-tip][data-tip-pos="below"]::before {
+        top: calc(100% + 4px);
+        bottom: auto;
+        border-top-color: transparent;
+        border-bottom-color: var(--text-primary);
+    }
+}
+
