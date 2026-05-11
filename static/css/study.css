@@ -940,50 +940,138 @@ body.study-open #voiceSettingsPanel {
 
 /* ---------- Mobile ------------------------------------------ */
 
+/* Prevent iOS Safari from auto-zooming when focusing form inputs.
+   iOS only zooms when the input's computed font-size is < 16px. */
 @media (max-width: 700px) {
-    .study-overlay { padding: 0; }
+    .study-form input[type="text"],
+    .study-form input[type="number"],
+    .study-form input[type="search"],
+    .study-form input[type="email"],
+    .study-form input[type="password"],
+    .study-form select,
+    .study-form textarea {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 700px) {
+    .study-overlay { padding: 0; align-items: stretch; }
     .study-modal {
         max-width: 100%;
         max-height: 100vh;
+        max-height: 100dvh;
         height: 100vh;
+        height: 100dvh;
         border-radius: 0;
+        animation: none; /* avoid jank on small screens */
     }
     .study-head {
-        padding: 14px 16px 12px;
+        padding: 12px 14px 10px;
+        padding-top: calc(12px + env(safe-area-inset-top, 0px));
+        column-gap: 10px;
+        row-gap: 10px;
     }
-    .study-head h2 { font-size: 1.3rem; }
-    .study-head::after { left: 16px; right: 16px; }
+    .study-head h2 { font-size: 1.2rem; }
+    .study-head h2::before { width: 5px; height: 5px; margin-right: 8px; }
+    .study-head::after { left: 14px; right: 14px; }
+    .study-close { width: 40px; height: 40px; min-width: 40px; }
     .study-tabs {
         overflow-x: auto;
         flex-wrap: nowrap;
         padding-bottom: 4px;
+        margin: 0 -14px;
+        padding-left: 14px;
+        padding-right: 14px;
         -webkit-overflow-scrolling: touch;
         scrollbar-width: none;
+        scroll-snap-type: x proximity;
     }
     .study-tabs::-webkit-scrollbar { display: none; }
-    .study-tab { white-space: nowrap; flex: 0 0 auto; }
-    .study-body { padding: 16px; }
-    .study-fab {
-        right: 14px;
-        bottom: calc(124px + env(safe-area-inset-bottom, 0px));
-        width: 48px; height: 48px;
+    .study-tab {
+        white-space: nowrap;
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+        min-height: 38px; /* better tap target */
+    }
+    .study-body {
+        padding: 14px;
+        padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px));
     }
     .footnotes-drawer {
         right: 12px; left: 12px;
         width: auto;
-        bottom: calc(180px + env(safe-area-inset-bottom, 0px));
+        bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+        max-height: 50vh;
     }
-    .study-form { padding: 12px; }
-    .study-form > label { flex-basis: 100%; }
+
+    /* Forms: stack labels full-width and give inputs comfortable height. */
+    .study-form { padding: 12px; gap: 10px; }
+    .study-form > label { flex-basis: 100%; min-width: 0; }
     .study-form select[multiple] { min-height: 100px; }
+
+    /* Buttons span more comfortably; primary actions get full width. */
+    .study-btn { padding: 10px 14px; min-height: 44px; }
+    .study-form .study-btn,
+    .study-form .study-btn.primary { flex: 1 1 100%; justify-content: center; }
+
+    /* List rows: stack content vertically so buttons don't crowd. */
+    .study-list li {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .study-list li strong { font-size: 1.05rem; }
+    .study-list li .study-meta { margin-right: 0; }
+    .study-list li .study-btn { width: 100%; justify-content: center; }
+    .study-list li a.study-btn { width: 100%; justify-content: center; }
+
+    /* Concordance table: allow horizontal scroll instead of squishing. */
+    .study-bars { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .study-bars td:nth-child(4) { width: 30%; min-width: 90px; }
+
+    /* Reading plan: single column on phones. */
     .plan-days { grid-template-columns: 1fr; }
-    .study-bars td:nth-child(4) { width: 30%; }
+
+    /* Home grid: 2-up on phones (already auto-fill, but force min). */
+    .study-home-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .study-home-card { padding: 14px; }
+    .study-home-icon { width: 38px; height: 38px; }
+    .study-home-icon svg { width: 20px; height: 20px; }
+    .study-home-title { font-size: 1.02rem; }
+    .study-home-desc { font-size: 0.8rem; }
+
+    /* Chips: bigger tap target. */
+    .study-chip, .study-xrefs li { min-height: 36px; padding: 8px 14px; }
+
+    /* Hint text: tighter. */
+    .study-hint { padding: 9px 12px; font-size: 0.88rem; }
+
+    /* Confirm modal: use almost full width. */
+    .study-confirm { padding: 16px; }
+    .study-confirm-card { padding: 18px 18px; }
+    .study-confirm-actions .study-btn { flex: 1 1 0; justify-content: center; }
+}
+
+@media (max-width: 480px) {
+    .study-home-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 400px) {
-    .study-tab { font-size: 0.78rem; padding: 6px 11px; min-height: 32px; }
-    .study-btn { padding: 8px 12px; font-size: 0.84rem; }
-    .study-head h2 { font-size: 1.15rem; }
+    .study-tab { font-size: 0.8rem; padding: 7px 12px; min-height: 36px; }
+    .study-btn { padding: 9px 12px; font-size: 0.86rem; }
+    .study-head h2 { font-size: 1.08rem; }
+}
+
+/* Hide hover-only effects on touch devices to avoid sticky :hover state. */
+@media (hover: none) {
+    .study-home-card:hover { transform: none; }
+    .study-list li:hover { transform: none; }
+    .study-btn:hover { transform: none; }
+    .study-tab:hover { background: var(--bg-secondary); color: var(--text-secondary); border-color: var(--border-color); }
+    .study-tab.active:hover {
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        color: #fff; border-color: transparent;
+    }
 }
 
 /* ---------- Print handout ----------------------------------- */
@@ -1012,7 +1100,10 @@ body.deck-open { overflow: hidden; }
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
     animation: studyFade 0.35s ease;
+    touch-action: pan-y;
 }
 
 [data-theme="dark"] .study-deck {
@@ -1202,10 +1293,22 @@ body.deck-open { overflow: hidden; }
 
 /* Mobile tweaks */
 @media (max-width: 600px) {
-    .deck-progress { bottom: 64px; }
-    .deck-bar { padding: 10px 12px; gap: 6px; }
-    .deck-btn { width: 38px; height: 38px; }
-    .deck-count { min-width: 52px; font-size: 0.82rem; }
+    .deck-stage { padding: 20px 18px; }
+    .deck-progress { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+    .deck-bar {
+        padding: 8px 10px;
+        padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+        gap: 4px;
+    }
+    .deck-btn { width: 44px; height: 44px; border-radius: 8px; }
+    .deck-count { min-width: 50px; font-size: 0.82rem; }
+    .deck-verse { max-width: 100%; }
+    .deck-verse::before { left: -0.35em; font-size: 1.4em; }
+    .deck-title { font-size: clamp(2rem, 9vw, 3.4rem); }
+}
+
+@media (max-width: 380px) {
+    .deck-bar .deck-btn:not(#deck-prev):not(#deck-next):not(#deck-close) { display: none; }
 }
 
 /* Print: render the handout pages instead of the live deck. */

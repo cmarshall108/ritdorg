@@ -1057,15 +1057,52 @@
     TABS.share = async function (root) {
         const ref = currentRef();
         root.innerHTML = html`
+          <h3>Share &amp; export</h3>
+          <p class="study-hint">Quick exports for the chapter you're reading, plus full backups of everything you've saved.</p>
+
+          <h3>Current chapter</h3>
+          <p class="study-meta">${esc(ref.book)} ${ref.chapter} (${esc(ref.translation)})</p>
+          <div class="study-form">
+            <button class="study-btn primary" id="sh-md">Export chapter as Markdown</button>
+            <button class="study-btn" id="sh-copy">Copy chapter text</button>
+          </div>
+
           <h3>Share current verse</h3>
           <p class="study-meta">${esc(ref.book)} ${ref.chapter}:${ref.verse}</p>
           <div class="study-form">
             <button class="study-btn primary" id="sh-png">Download share image (PNG)</button>
             <button class="study-btn" id="sh-link">Copy permalink</button>
           </div>
-          <h3>Export everything</h3>
+
+          <h3>Notes &amp; bookmarks</h3>
+          <p class="study-hint">Export everything you've saved while studying.</p>
+          <div class="study-form">
+            <a class="study-btn primary" href="/api/me/export/notes">Export all my notes</a>
+            <a class="study-btn" href="/api/me/export/bookmarks">Export bookmarks</a>
+          </div>
+
+          <h3>Full backup</h3>
           <p class="study-meta">A ZIP of your notes, bookmarks, highlights, tags, outlines, sermon lists, plan progress and settings.</p>
           <a class="study-btn primary" href="/api/me/export/all" download>Download .zip</a>`;
+
+        $('#sh-md').addEventListener('click', () => {
+            const url = `/api/me/export/chapter/${encodeURIComponent(ref.book)}/${ref.chapter}?translation=${encodeURIComponent(ref.translation)}`;
+            window.location.href = url;
+        });
+        $('#sh-copy').addEventListener('click', async () => {
+            try {
+                const data = await api(`/api/verses/${encodeURIComponent(ref.book)}/${ref.chapter}?translation=${encodeURIComponent(ref.translation)}`);
+                const verses = data.verses || data;
+                const lines = [`${ref.book} ${ref.chapter} (${data.translation || ref.translation})`, ''];
+                for (const k of Object.keys(verses).map(Number).sort((a, b) => a - b)) {
+                    lines.push(`${k}. ${verses[k]}`);
+                }
+                await navigator.clipboard.writeText(lines.join('\n'));
+                toast('Chapter copied to clipboard');
+            } catch (_) {
+                toast('Copy failed', 'error');
+            }
+        });
         $('#sh-png').addEventListener('click', async () => {
             const text = grabCurrentVerseText() || (ref.book + ' ' + ref.chapter + ':' + ref.verse);
             const r = `${ref.book} ${ref.chapter}:${ref.verse}`;

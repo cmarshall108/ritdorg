@@ -612,51 +612,12 @@
         </div>
     </div>
 
-    <!-- Study tools modal -->
-    <div class="modal-overlay" id="studyToolsOverlay" aria-hidden="true">
-        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="studyToolsTitle">
-            <div class="modal-header">
-                <h3 id="studyToolsTitle">Study tools</h3>
-                <button class="modal-close" id="studyToolsClose" aria-label="Close">×</button>
-            </div>
-            <div class="modal-body">
-                <p class="modal-help">
-                    Tools for sermon prep and Bible study. Tap any verse number while reading to
-                    open a quick action menu (compare translations, copy with citation, add a note).
-                </p>
-
-                <div class="study-section">
-                    <div class="study-section-title">Current chapter</div>
-                    <div class="study-section-meta" id="studyCurrentLabel">—</div>
-                    <div class="study-actions">
-                        <button class="modal-btn" id="studyExportChapterMd" type="button">Export this chapter as Markdown</button>
-                        <button class="modal-btn modal-btn-secondary" id="studyCopyChapterText" type="button">Copy chapter text</button>
-                    </div>
-                </div>
-
-                <hr class="settings-divider"/>
-
-                <div class="study-section">
-                    <div class="study-section-title">Notes &amp; bookmarks</div>
-                    <div class="settings-hint">Export everything you've saved while studying.</div>
-                    <div class="study-actions">
-                        <button class="modal-btn" id="studyExportAllNotes" type="button">Export all my notes</button>
-                        <button class="modal-btn modal-btn-secondary" id="studyExportAllBookmarks" type="button">Export bookmarks</button>
-                    </div>
-                </div>
-
-                <hr class="settings-divider"/>
-
-                <div class="study-section">
-                    <div class="study-section-title">Word study</div>
-                    <div class="settings-hint">
-                        While reading the Hebrew column, tap any Hebrew word for an English gloss
-                        and a list of related (same-root) words for comparison.
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Study tools modal removed: the modern tabbed Study tools panel
+         (rendered by static/js/study.js) is the single entry point. The
+         old #studyToolsOverlay used to appear in addition to it, causing
+         two stacked popups. Its features (chapter export / copy, notes
+         export, bookmarks export, word-study help) all live inside the
+         "Share & export" tab now. -->
 
     <!-- YouTube API -->
     <script src="https://www.youtube.com/iframe_api"></script>
