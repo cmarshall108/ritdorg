@@ -1596,9 +1596,24 @@ mark.search-term {
     .nav-jump-btn {
         padding: 0 10px;
     }
+    /* On small screens the audio bar (and on landscape phones a parent
+       with overflow:auto) creates a clipping context, so the popover —
+       which opens upward — gets hidden behind the verse text. Pin it
+       to the viewport instead so it always floats over the reader. */
     .nav-jump-popover {
-        right: -4px;
-        min-width: 200px;
+        position: fixed;
+        right: 8px;
+        left: auto;
+        bottom: auto;
+        top: auto;
+        margin-bottom: 8px;
+        /* Sit just above the bottom audio bar (~56px tall on mobile). */
+        bottom: 64px;
+        z-index: 2000;
+        min-width: 220px;
+        max-width: calc(100vw - 16px);
+        max-height: 70vh;
+        overflow-y: auto;
     }
 }
 
