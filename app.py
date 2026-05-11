@@ -778,7 +778,10 @@ def get_playlist_for_book(book):
             "playlist_id": RITDORG_PLAYLISTS[book],
             "playlist_url": f"https://www.youtube.com/playlist?list={RITDORG_PLAYLISTS[book]}"
         })
-    return jsonify({"error": f"No playlist found for {book}"}), 404@app.route('/videos')
+    return jsonify({"error": f"No playlist found for {book}"}), 404
+
+
+@app.route('/videos')
 def videos():
     video_dir = os.path.join(app.static_folder, 'videos')
     video_files = []
