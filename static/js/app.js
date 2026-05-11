@@ -584,6 +584,9 @@ class BibleReader {
         } catch (error) {
             console.error('Failed to load verses:', error);
             this.showToast('Failed to load verses', 'error');
+            // If we were mid auto-advance, abort it so a stale flag doesn't
+            // surprise the user the next time they manually change chapter.
+            this._autoplayAfterLoad = false;
         }
     }
     

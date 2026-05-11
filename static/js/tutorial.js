@@ -56,7 +56,7 @@
         {
             title: 'Highlights, notes & bookmarks',
             body:  'Tap any verse to highlight it, attach a note, or bookmark it. Sign in (top-right) and your annotations and last-read spot follow you across devices.',
-            target: '.user-menu, #userMenuBtn, #signInBtn',
+            target: '#bookmarksBtn',
         },
         {
             title: 'Focus mode',
