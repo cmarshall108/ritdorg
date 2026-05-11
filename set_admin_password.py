@@ -29,7 +29,11 @@ def main() -> None:
     print()
     print("Add this to your environment (e.g. .env):")
     print()
-    print(f"ADMIN_PASS_HASH='{generate_password_hash(password)}'")
+    # Use pbkdf2:sha256 explicitly — Werkzeug's default 'scrypt' depends
+    # on hashlib.scrypt, which isn't available on every Python build
+    # (e.g. some macOS system Pythons), so verification would fail at
+    # runtime even though hashing succeeded.
+    print(f"ADMIN_PASS_HASH='{generate_password_hash(password, method='pbkdf2:sha256')}'")
 
 
 if __name__ == "__main__":

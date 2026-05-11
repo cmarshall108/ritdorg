@@ -3464,5 +3464,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+    // Hide images marked with [data-hide-on-error] when they fail to load.
+    // Used on sub-pages that reference legacy external images which may
+    // be unreachable (e.g. the original ritd.info host going offline).
+    // We use a global handler instead of inline `onerror=` so it works
+    // even with strict Content-Security-Policy and survives DOM cloning.
+    // We also set a generous timeout so an image whose host hangs
+    // (DNS pending forever) still gets hidden after a few seconds.
+    document.querySelectorAll('img[data-hide-on-error]').forEach(img => {
+        const hide = () => { img.style.display = 'none'; };
+        if (img.complete && img.naturalWidth === 0) { hide(); return; }
+        if (img.complete) return;
+        let done = false;
+        const finish = (failed) => {
+            if (done) return;
+            done = true;
+            if (failed) hide();
+        };
+        img.addEventListener('error', () => finish(true), { once: true });
+        img.addEventListener('load',  () => finish(false), { once: true });
+        setTimeout(() => {
+            if (done) return;
+            finish(!(img.complete && img.naturalWidth > 0));
+        }, 6000);
+    });
+
+    // app.js is included on every page (so the theme toggle, header
+    // nav, etc. work everywhere), but the Bible reader UI only exists
+    // on the home page. Bail out early on other pages so we don't
+    // throw NPEs binding events to elements that don't exist.
+    if (!document.getElementById('bookSelect')) return;
     window.bibleReader = new BibleReader();
 });
