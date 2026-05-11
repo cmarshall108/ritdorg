@@ -84,6 +84,62 @@ def _ensure_device_key(response):
     return auth.ensure_device_key(response)
 
 
+# ---------------------------------------------------------------------------
+# CORS for the native mobile app (Capacitor iOS / Android WKWebView).
+# Origins seen in practice:
+#   iOS      -> capacitor://localhost
+#   Android  -> https://localhost  (also http://localhost when allowMixedContent)
+#   Web dev  -> http://localhost[:port]  /  http://127.0.0.1[:port]
+# We echo the Origin (can't use "*" with credentialed requests) and allow
+# cookies so the existing session/device-cookie auth keeps working.
+# ---------------------------------------------------------------------------
+
+_ALLOWED_CORS_ORIGINS = {
+    "capacitor://localhost",
+    "ionic://localhost",
+    "https://localhost",
+    "http://localhost",
+}
+
+
+def _origin_is_allowed(origin: str) -> bool:
+    if not origin:
+        return False
+    if origin in _ALLOWED_CORS_ORIGINS:
+        return True
+    # Local dev: http://localhost:PORT and http://127.0.0.1:PORT
+    if origin.startswith(("http://localhost:", "http://127.0.0.1:")):
+        return True
+    return False
+
+
+@app.after_request
+def _add_cors_headers(response):
+    origin = request.headers.get("Origin", "")
+    if _origin_is_allowed(origin):
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Vary"] = "Origin"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Allow-Headers"] = (
+            request.headers.get("Access-Control-Request-Headers")
+            or "Content-Type, Authorization, X-Requested-With"
+        )
+        response.headers["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+        )
+        response.headers["Access-Control-Max-Age"] = "86400"
+    return response
+
+
+@app.before_request
+def _handle_cors_preflight():
+    if request.method == "OPTIONS" and request.headers.get(
+        "Access-Control-Request-Method"
+    ):
+        # Empty 204; the after_request hook above adds the CORS headers.
+        return make_response("", 204)
+
+
 @app.context_processor
 def _inject_user():
     user = g.get("current_user")
