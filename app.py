@@ -452,6 +452,323 @@ def tts_voices():
         out[lang].append({'id': 'gtts', 'label': '— Legacy Google voice —'})
     return jsonify(out)
 
+
+# ----- Hebrew word study -----------------------------------------------------
+# Curated dictionary file mapping fully-pointed Hebrew words to short English
+# glosses. Loaded once at import time. Lookup strips Hebrew vowel points and
+# cantillation marks (U+0591..U+05C7) when an exact match isn't found, so users
+# can tap a word in any verse and still get a definition.
+
+_HEB_DICT_PATH = os.path.join(app.static_folder, 'data', 'hebrew_dictionary.json')
+_HEB_DICT = None
+_HEB_DICT_NORM = None  # consonant-only key -> (original_key, gloss)
+
+
+def _strip_hebrew_marks(s):
+    # Remove cantillation/nikud and the maqaf join character so e.g.
+    # "בְּרֵאשִׁית" and "ברישית" both reduce to "בראשית"-ish forms.
+    return ''.join(c for c in (s or '') if not ('\u0591' <= c <= '\u05C7')).replace('\u05BE', ' ').strip()
+
+
+def _load_hebrew_dict():
+    global _HEB_DICT, _HEB_DICT_NORM
+    if _HEB_DICT is not None:
+        return _HEB_DICT, _HEB_DICT_NORM
+    try:
+        with open(_HEB_DICT_PATH, 'r', encoding='utf-8') as f:
+            _HEB_DICT = json.load(f)
+    except Exception as e:
+        logger.warning("Could not load Hebrew dictionary: %s", e)
+        _HEB_DICT = {}
+    _HEB_DICT_NORM = {}
+    for k, v in _HEB_DICT.items():
+        nk = _strip_hebrew_marks(k)
+        if nk and nk not in _HEB_DICT_NORM:
+            _HEB_DICT_NORM[nk] = (k, v)
+    return _HEB_DICT, _HEB_DICT_NORM
+
+
+@app.route('/api/hebrew/define')
+def hebrew_define():
+    """Return a short English gloss for a Hebrew word.
+
+    Query: ?word=<hebrew word, with or without nikud>
+    Response: { word, gloss, matched, normalized } or 404.
+    """
+    word = (request.args.get('word') or '').strip()
+    if not word:
+        return jsonify({'error': 'word required'}), 400
+    # Trim trailing punctuation/maqaf and surrounding whitespace.
+    word = word.strip(' \t\n\r,.;:!?\u05BE\u00B7"\'()[]{}')
+    direct, norm_map = _load_hebrew_dict()
+    if word in direct:
+        return jsonify({'word': word, 'gloss': direct[word], 'matched': word, 'source': 'exact'})
+    n = _strip_hebrew_marks(word)
+    if n and n in norm_map:
+        matched, gloss = norm_map[n]
+        return jsonify({'word': word, 'gloss': gloss, 'matched': matched, 'normalized': n, 'source': 'normalized'})
+    return jsonify({'word': word, 'gloss': None, 'normalized': n, 'source': 'none'}), 404
+
+
+@app.route('/api/hebrew/dictionary')
+def hebrew_dictionary():
+    """Return the full curated dictionary (for client-side caching)."""
+    direct, _ = _load_hebrew_dict()
+    return jsonify(direct)
+
+
+# ---------------------------------------------------------------------------
+# Word-occurrence counter (used by the per-word study popover for every
+# language). For Hebrew we strip cantillation/nikud and split on maqaf;
+# for other languages we lowercase and split on Unicode word boundaries.
+# Each translation's full corpus is loaded lazily on first request and
+# cached in process memory.
+# ---------------------------------------------------------------------------
+
+_TRANSLATION_CORPUS = {}    # translation_display -> list[(book, ch, v, raw_text, norm_text)]
+_TRANSLATION_CORPUS_LOCK = None
+
+# Filesystem-slug per translation. Mirrors the on-disk layout under
+# static/data/bible/<slug>/<book_slug>/<chapter>.json.
+TRANSLATION_DIR_SLUGS = {
+    'NIV': 'niv',
+    'NKJV': 'nkjv',
+    'KJV': 'kjv',
+    'ESV': 'esv',
+    'NASB1995': 'nasb1995',
+    'Hungarian': 'hungarian',
+    'Hungarian-Revised': 'hungarian-revised',
+    'Hebrew': 'hebrew',
+}
+
+# BCP-47-ish language code per translation (used to pick a TTS voice).
+TRANSLATION_LANG = {
+    'NIV': 'en', 'NKJV': 'en', 'KJV': 'en', 'ESV': 'en', 'NASB1995': 'en',
+    'Hungarian': 'hu', 'Hungarian-Revised': 'hu',
+    'Hebrew': 'he',
+}
+
+
+def _normalize_word_for_lang(word, lang):
+    """Return a canonical comparable form of ``word`` for the given language."""
+    if not word:
+        return ''
+    if lang == 'he':
+        return _strip_hebrew_marks(word).strip()
+    # Generic case (English / Hungarian): lowercase + strip surrounding
+    # punctuation. Hungarian needs casefold for ő/ű.
+    import re
+    cleaned = re.sub(r'^[\s\W_]+|[\s\W_]+$', '', word, flags=re.UNICODE)
+    return cleaned.casefold()
+
+
+def _tokenize_for_lang(text, lang):
+    """Return a list of comparable tokens from ``text`` in ``lang``."""
+    if not text:
+        return []
+    if lang == 'he':
+        return _strip_hebrew_marks(text).split()
+    # Word characters (Unicode-aware) — works for English and Hungarian.
+    import re
+    return [m.group(0).casefold() for m in re.finditer(r"[^\W_]+(?:'[^\W_]+)?", text, re.UNICODE)]
+
+
+def _load_translation_corpus(translation):
+    """Scan static/data/bible/<slug>/**/*.json once and return a flat list
+    of (book_display, chapter, verse, raw_text, normalized_text) tuples.
+    Skips entries whose value isn't a real verse (e.g. section headers,
+    or non-Hebrew strings inside the Hebrew folder)."""
+    global _TRANSLATION_CORPUS_LOCK
+    cached = _TRANSLATION_CORPUS.get(translation)
+    if cached is not None:
+        return cached
+    if _TRANSLATION_CORPUS_LOCK is None:
+        import threading
+        _TRANSLATION_CORPUS_LOCK = threading.Lock()
+    with _TRANSLATION_CORPUS_LOCK:
+        cached = _TRANSLATION_CORPUS.get(translation)
+        if cached is not None:
+            return cached
+        slug = TRANSLATION_DIR_SLUGS.get(translation)
+        if not slug:
+            _TRANSLATION_CORPUS[translation] = []
+            return []
+        lang = TRANSLATION_LANG.get(translation, 'en')
+        import re
+        heb_re = re.compile(r'[\u0590-\u05FF]')
+        slug_to_display = {b.lower().replace(' ', '_'): b for b in ALL_BOOKS.keys()}
+        root = os.path.join(app.static_folder, 'data', 'bible', slug)
+        corpus = []
+        if os.path.isdir(root):
+            for book_slug in os.listdir(root):
+                book_dir = os.path.join(root, book_slug)
+                if not os.path.isdir(book_dir):
+                    continue
+                display = slug_to_display.get(book_slug, book_slug.replace('_', ' ').title())
+                for fname in os.listdir(book_dir):
+                    if not fname.endswith('.json'):
+                        continue
+                    try:
+                        chapter = int(fname.rsplit('.', 1)[0])
+                    except ValueError:
+                        continue
+                    try:
+                        with open(os.path.join(book_dir, fname), 'r', encoding='utf-8') as f:
+                            verses = json.load(f)
+                    except Exception:
+                        continue
+                    if not isinstance(verses, dict):
+                        continue
+                    for vk, vt in verses.items():
+                        if not isinstance(vt, str) or not vt.strip():
+                            continue
+                        # For Hebrew, skip section-header entries that
+                        # only contain English text.
+                        if lang == 'he' and not heb_re.search(vt):
+                            continue
+                        try:
+                            vnum = int(vk)
+                        except (ValueError, TypeError):
+                            continue
+                        if lang == 'he':
+                            norm = _strip_hebrew_marks(vt)
+                        else:
+                            norm = ' '.join(_tokenize_for_lang(vt, lang))
+                        corpus.append((display, chapter, vnum, vt, norm))
+        _TRANSLATION_CORPUS[translation] = corpus
+        return corpus
+
+
+def _load_hebrew_corpus():
+    """Backwards-compatible wrapper used by the Hebrew-only endpoint."""
+    return _load_translation_corpus('Hebrew')
+
+
+@app.route('/api/hebrew/occurrences')
+def hebrew_occurrences():
+    """Count occurrences of a Hebrew word across the entire cached
+    Hebrew corpus.
+
+    Matches by consonant-only normalization (cantillation/nikud
+    stripped, maqaf treated as word boundary), so a single query like
+    בֶּן will match both pointed and unpointed forms anywhere in the
+    canon.
+
+    Query params:
+      word   — Hebrew word (required, may include points/cantillation).
+      limit  — maximum number of sample references to return (default 25).
+
+    Returns:
+      {
+        word, normalized,
+        count,                 // total tokens matched across the corpus
+        verses_with_matches,   // distinct verses containing ≥1 match
+        samples: [{book, chapter, verse, text, hits}]
+      }
+    """
+    raw = (request.args.get('word') or '').strip()
+    try:
+        limit = max(1, min(200, int(request.args.get('limit') or 25)))
+    except ValueError:
+        limit = 25
+    if not raw:
+        return jsonify({'error': 'word required'}), 400
+    target = _strip_hebrew_marks(raw).strip()
+    if not target:
+        return jsonify({'error': 'word has no Hebrew letters'}), 400
+
+    corpus = _load_hebrew_corpus()
+    total_hits = 0
+    verses_with_matches = 0
+    samples = []
+    for (book, chapter, verse, text, norm_text) in corpus:
+        # Token-level match on the normalized verse — split on any
+        # whitespace (the normalizer already converted maqaf to space).
+        tokens = norm_text.split()
+        hits = sum(1 for t in tokens if t == target)
+        if hits == 0:
+            continue
+        total_hits += hits
+        verses_with_matches += 1
+        if len(samples) < limit:
+            samples.append({
+                'book': book, 'chapter': chapter, 'verse': verse,
+                'text': text, 'hits': hits,
+            })
+    return jsonify({
+        'word': raw,
+        'normalized': target,
+        'count': total_hits,
+        'verses_with_matches': verses_with_matches,
+        'corpus_size': len(corpus),
+        'samples': samples,
+    })
+
+
+@app.route('/api/words/occurrences')
+def word_occurrences():
+    """Count occurrences of a word in any cached translation.
+
+    Query params:
+      word         — the word to search (required).
+      translation  — display name of the translation (default: NIV).
+      limit        — max sample references to return (default 25).
+
+    Matching is language-aware: Hebrew uses consonant-only normalization,
+    other languages use Unicode-word casefolded comparison.
+    """
+    raw = (request.args.get('word') or '').strip()
+    translation = (request.args.get('translation') or 'NIV').strip()
+    try:
+        limit = max(1, min(200, int(request.args.get('limit') or 25)))
+    except ValueError:
+        limit = 25
+    if not raw:
+        return jsonify({'error': 'word required'}), 400
+    if translation not in TRANSLATION_DIR_SLUGS:
+        return jsonify({'error': 'unknown translation'}), 400
+    lang = TRANSLATION_LANG.get(translation, 'en')
+    target = _normalize_word_for_lang(raw, lang)
+    if not target:
+        return jsonify({'error': 'word is empty after normalization'}), 400
+
+    corpus = _load_translation_corpus(translation)
+    total_hits = 0
+    verses_with_matches = 0
+    samples = []
+    for (book, chapter, verse, text, norm_text) in corpus:
+        tokens = norm_text.split() if lang == 'he' else norm_text.split(' ')
+        hits = sum(1 for t in tokens if t == target)
+        if hits == 0:
+            continue
+        total_hits += hits
+        verses_with_matches += 1
+        if len(samples) < limit:
+            samples.append({
+                'book': book, 'chapter': chapter, 'verse': verse,
+                'text': text, 'hits': hits,
+            })
+    return jsonify({
+        'word': raw,
+        'normalized': target,
+        'translation': translation,
+        'lang': lang,
+        'count': total_hits,
+        'verses_with_matches': verses_with_matches,
+        'corpus_size': len(corpus),
+        'samples': samples,
+    })
+
+
+@app.route('/api/words/lang')
+def word_lang_map():
+    """Expose the translation→language map to the client."""
+    return jsonify({
+        'languages': TRANSLATION_LANG,
+        'translations': sorted(TRANSLATION_DIR_SLUGS.keys()),
+    })
+
+
 @app.route('/api/playlists/<book>')
 def get_playlist_for_book(book):
     """Get the RITDorg playlist for a specific book"""
@@ -461,9 +778,7 @@ def get_playlist_for_book(book):
             "playlist_id": RITDORG_PLAYLISTS[book],
             "playlist_url": f"https://www.youtube.com/playlist?list={RITDORG_PLAYLISTS[book]}"
         })
-    return jsonify({"error": f"No playlist found for {book}"}), 404
-
-@app.route('/videos')
+    return jsonify({"error": f"No playlist found for {book}"}), 404@app.route('/videos')
 def videos():
     video_dir = os.path.join(app.static_folder, 'videos')
     video_files = []
@@ -652,6 +967,108 @@ def api_set_highlight():
     if new_id is None:
         return jsonify({'ok': False, 'error': 'invalid color'}), 400
     return jsonify({'ok': True, 'id': new_id, 'color': color})
+
+
+# ----- Pastor study tools: bulk export ---------------------------------------
+# Markdown exports of the user's notes / bookmarks / a single chapter, suitable
+# for sermon prep. Returned as text/markdown with a Content-Disposition so the
+# browser offers a download dialog.
+
+def _md_escape(s):
+    """Escape characters that have meaning in Markdown."""
+    return (s or '').replace('\\', '\\\\').replace('*', '\\*').replace('_', '\\_')
+
+
+@app.route('/api/me/export/notes')
+def api_export_all_notes():
+    notes = auth.list_notes()
+    lines = ["# My Bible study notes", ""]
+    if not notes:
+        lines.append("_No notes yet._")
+    else:
+        # Group by book/chapter for readability.
+        by_loc = {}
+        for n in notes:
+            key = (n['book'], int(n['chapter']))
+            by_loc.setdefault(key, []).append(n)
+        for (book, chapter) in sorted(by_loc.keys(), key=lambda k: (list(ALL_BOOKS.keys()).index(k[0]) if k[0] in ALL_BOOKS else 999, k[1])):
+            lines.append(f"## {book} {chapter}")
+            lines.append("")
+            for n in sorted(by_loc[(book, chapter)], key=lambda x: int(x['verse'])):
+                stamp = n.get('updated_at') or n.get('created_at') or ''
+                lines.append(f"### v{n['verse']}  \n_{stamp}_")
+                lines.append("")
+                lines.append((n.get('body') or '').strip())
+                lines.append("")
+    body = "\n".join(lines) + "\n"
+    resp = make_response(body)
+    resp.headers['Content-Type'] = 'text/markdown; charset=utf-8'
+    resp.headers['Content-Disposition'] = 'attachment; filename="bible-notes.md"'
+    return resp
+
+
+@app.route('/api/me/export/bookmarks')
+def api_export_all_bookmarks():
+    bm = auth.list_bookmarks()
+    lines = ["# My bookmarks", ""]
+    if not bm:
+        lines.append("_No bookmarks yet._")
+    else:
+        for b in bm:
+            label = b.get('label') or ''
+            ref = f"{b['book']} {b['chapter']}:{b['verse']}"
+            stamp = b.get('created_at') or ''
+            if label:
+                lines.append(f"- **{ref}** — {_md_escape(label)}  _{stamp}_")
+            else:
+                lines.append(f"- **{ref}**  _{stamp}_")
+    body = "\n".join(lines) + "\n"
+    resp = make_response(body)
+    resp.headers['Content-Type'] = 'text/markdown; charset=utf-8'
+    resp.headers['Content-Disposition'] = 'attachment; filename="bible-bookmarks.md"'
+    return resp
+
+
+@app.route('/api/me/export/chapter/<book>/<int:chapter>')
+def api_export_chapter(book, chapter):
+    """Markdown export of a single chapter: the verse text from a chosen
+    translation, with the user's notes interleaved verse-by-verse. Useful
+    as a sermon-prep starter."""
+    if book not in ALL_BOOKS:
+        return jsonify({'error': 'unknown book'}), 404
+    translation = (request.args.get('translation') or 'NIV').strip()
+    verses = bible_fetcher.get_verses(translation, book, chapter) or {}
+    actual_translation = translation
+    if not verses:
+        # Fall back to NIV so the export is never empty.
+        verses = bible_fetcher.get_verses('NIV', book, chapter) or {}
+        actual_translation = 'NIV'
+
+    notes = {int(n['verse']): n for n in auth.list_notes(book, chapter)}
+    lines = [
+        f"# {book} {chapter} ({actual_translation})",
+        "",
+    ]
+    # Verse keys may come back as either int or str depending on cache origin.
+    norm_verses = {int(k): v for k, v in verses.items()}
+    for vnum in sorted(norm_verses.keys()):
+        text = norm_verses[vnum] or ''
+        lines.append(f"**{vnum}.** {text}")
+        lines.append("")
+        if vnum in notes:
+            body = (notes[vnum].get('body') or '').strip()
+            if body:
+                # Render the user's note as a blockquote so it's visually
+                # distinct from the verse text.
+                for ln in body.splitlines():
+                    lines.append(f"> {ln}")
+                lines.append("")
+    body = "\n".join(lines) + "\n"
+    resp = make_response(body)
+    resp.headers['Content-Type'] = 'text/markdown; charset=utf-8'
+    safe = f"{book.lower().replace(' ', '_')}-{chapter}.md"
+    resp.headers['Content-Disposition'] = f'attachment; filename="{safe}"'
+    return resp
 
 
 # ---------------------------------------------------------------------------

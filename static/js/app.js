@@ -408,6 +408,15 @@ class BibleReader {
 
         // Voice / TTS settings dialog
         this.bindTTSSettings();
+
+        // Hebrew word definition popover
+        this.bindHebrewWordLookup();
+        // Generic word study popover (count + optional pronunciation)
+        this.bindGenericWordLookup();
+
+        // Pastor study tools (per-verse menu + Study Tools dialog).
+        this.bindVerseActions();
+        this.bindStudyTools();
         
         // Chapter navigation
         document.getElementById('prevChapterBtn').addEventListener('click', () => this.prevChapter());
@@ -651,13 +660,20 @@ class BibleReader {
         if (verseNums.length === 0) {
             return '<p class="empty-page" style="color: var(--text-muted); font-style: italic; text-align: center; margin-top: 40%;">End of chapter</p>';
         }
-        
-        return verseNums.map(num => `
+        const HEB = /[\u0590-\u05FF]/;
+        return verseNums.map(num => {
+            const text = this.verses[num] || '';
+            const body = text.split(' ').map(w => HEB.test(w)
+                ? this._wrapHebrewToken(w)
+                : this._wrapWordToken(w)
+            ).join(' ');
+            return `
             <p class="verse" data-verse="${num}">
                 <span class="verse-num">${num}</span>
-                ${this.verses[num]}
+                ${body}
             </p>
-        `).join('');
+        `;
+        }).join('');
     }
     
     updateNavigation() {
@@ -883,13 +899,21 @@ class BibleReader {
     renderParallelColumn(elementId, verses) {
         const container = document.getElementById(elementId);
         const verseNums = Object.keys(verses).map(Number).sort((a, b) => a - b);
-        
-        container.innerHTML = verseNums.map(num => `
+        const HEB = /[\u0590-\u05FF]/;
+
+        container.innerHTML = verseNums.map(num => {
+            const text = verses[num] || '';
+            const body = text.split(' ').map(w => HEB.test(w)
+                ? this._wrapHebrewToken(w)
+                : this._wrapWordToken(w)
+            ).join(' ');
+            return `
             <div class="parallel-verse" data-verse="${num}">
                 <span class="verse-num">${num}</span>
-                <span class="verse-text">${verses[num]}</span>
+                <span class="verse-text">${body}</span>
             </div>
-        `).join('');
+        `;
+        }).join('');
         
         // Add click handlers for verse highlighting
         container.querySelectorAll('.parallel-verse').forEach(verse => {
@@ -1078,16 +1102,22 @@ class BibleReader {
     
     renderSyncVerses(verses, withWordSync) {
         const verseNums = Object.keys(verses).map(Number).sort((a, b) => a - b);
-        
+        const HEB = /[\u0590-\u05FF]/;
+
         return verseNums.map(verseNum => {
             const verseText = verses[verseNum];
-            
-            // Always wrap words in spans for dynamic highlighting
+
+            // Always wrap words in spans for dynamic highlighting.
+            // Hebrew words additionally get the .heb-word class so they
+            // can be tapped to look up an English gloss; non-Hebrew
+            // words get .bw-word so they can be tapped for the generic
+            // word-study popover (count occurrences / pronounce).
             const words = verseText.split(' ');
-            const wordSpans = words.map((word, idx) => {
-                return `<span class="sync-word">${word}</span>`;
+            const wordSpans = words.map((word) => {
+                if (HEB.test(word)) return this._wrapHebrewToken(word, 'sync-word');
+                return this._wrapWordToken(word, 'sync-word');
             }).join(' ');
-            
+
             return `
                 <p class="sync-verse" data-verse="${verseNum}">
                     <span class="verse-num">${verseNum}</span>
@@ -1134,13 +1164,24 @@ class BibleReader {
     
     renderSimpleVerses(verses) {
         const verseNums = Object.keys(verses).map(Number).sort((a, b) => a - b);
-        
-        return verseNums.map(num => `
+        const HEB = /[\u0590-\u05FF]/;
+
+        return verseNums.map(num => {
+            const text = verses[num] || '';
+            // Wrap each word so individual words are tappable —
+            // Hebrew gets .heb-word (dictionary lookup); everything
+            // else gets .bw-word (count occurrences / pronounce).
+            const body = text.split(' ').map(w => HEB.test(w)
+                ? this._wrapHebrewToken(w)
+                : this._wrapWordToken(w)
+            ).join(' ');
+            return `
             <p class="sync-verse" data-verse="${num}">
                 <span class="verse-num">${num}</span>
-                ${verses[num]}
+                ${body}
             </p>
-        `).join('');
+        `;
+        }).join('');
     }
 
     applySyncColumnVisibility(fb1, fb2) {
@@ -1572,6 +1613,1069 @@ class BibleReader {
             this.saveTTSSettings();
             this.populateVoiceSettings();
             this.showToast('Voice settings reset', 'info');
+        });
+    }
+
+    // ===== Hebrew word lookup popover =====
+    // Click/tap any Hebrew word in a verse to see its English gloss and a
+    // short list of related (same-root) words for comparison.
+    bindHebrewWordLookup() {
+        // Single delegated handler so it works for words rendered later.
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            if (!(target instanceof HTMLElement)) return;
+            // Close popover when clicking outside it (and not on a heb-word).
+            if (this._hebPopover && !this._hebPopover.contains(target)
+                && !target.classList.contains('heb-word')) {
+                this.closeHebrewPopover();
+            }
+            if (target.classList.contains('heb-word')) {
+                e.stopPropagation();
+                this.openHebrewPopover(target);
+            }
+        }, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this._hebPopover) this.closeHebrewPopover();
+        });
+        window.addEventListener('scroll', (e) => {
+            // Don't dismiss when the scroll happens INSIDE the popover
+            // itself (e.g. scrolling the occurrences list).
+            if (this._hebPopover && e.target instanceof Node
+                && this._hebPopover.contains(e.target)) return;
+            this.closeHebrewPopover();
+        }, true);
+        window.addEventListener('resize', () => this.closeHebrewPopover());
+    }
+
+    async _fetchHebrewDictionary() {
+        if (this._hebDictCache) return this._hebDictCache;
+        try {
+            const r = await fetch('/api/hebrew/dictionary');
+            if (!r.ok) return {};
+            this._hebDictCache = await r.json();
+        } catch (e) {
+            console.warn('Failed to load Hebrew dictionary', e);
+            this._hebDictCache = {};
+        }
+        // Pre-build a normalized (consonant-only) index for fuzzy lookup
+        // and "compare" suggestions.
+        const stripMarks = (s) => (s || '').replace(/[\u0591-\u05C7]/g, '').replace(/\u05BE/g, ' ').trim();
+        this._hebDictNorm = {};
+        for (const [k, v] of Object.entries(this._hebDictCache)) {
+            const nk = stripMarks(k);
+            if (nk && !this._hebDictNorm[nk]) this._hebDictNorm[nk] = { key: k, gloss: v };
+        }
+        this._hebStripMarks = stripMarks;
+        return this._hebDictCache;
+    }
+
+    closeHebrewPopover() {
+        if (this._hebPopover) {
+            this._hebPopover.remove();
+            this._hebPopover = null;
+        }
+    }
+
+    async openHebrewPopover(wordEl) {
+        const raw = (wordEl.textContent || '').trim();
+        // Strip surrounding punctuation including Hebrew sof-pasuq (׃),
+        // gershayim (״), geresh (׳), maqaf (־), and the usual ASCII set.
+        const word = raw.replace(/^[\s,.;:!?\u05BE\u05C0-\u05C7\u05F3\u05F4"'()\[\]{}\u00B7]+|[\s,.;:!?\u05BE\u05C0-\u05C7\u05F3\u05F4"'()\[\]{}\u00B7]+$/g, '');
+        if (!word) return;
+
+        this.closeHebrewPopover();
+
+        // Build the popover shell immediately so the user gets feedback.
+        const pop = document.createElement('div');
+        pop.className = 'heb-popover';
+        pop.setAttribute('role', 'dialog');
+        pop.setAttribute('aria-label', 'Hebrew word definition');
+        pop.innerHTML = `
+            <button class="heb-popover-close" aria-label="Close">×</button>
+            <div class="heb-popover-word" dir="rtl" lang="he">${word}</div>
+            <div class="heb-popover-gloss heb-popover-loading">Looking up…</div>
+            <div class="heb-popover-related"></div>
+            <div class="heb-popover-occurrences"></div>
+            <div class="heb-popover-foot">
+                <button type="button" class="heb-action heb-action-speak" aria-label="Hear pronunciation" title="Hear pronunciation">
+                    <span class="heb-action-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                        </svg>
+                    </span>
+                    <span class="heb-action-label">Pronounce</span>
+                </button>
+                <button type="button" class="heb-action heb-action-count" aria-label="Count occurrences across the Hebrew Bible" title="Count occurrences across the Hebrew Bible">
+                    <span class="heb-action-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="4"  y1="9"  x2="20" y2="9"></line>
+                            <line x1="4"  y1="15" x2="20" y2="15"></line>
+                            <line x1="10" y1="3"  x2="8"  y2="21"></line>
+                            <line x1="16" y1="3"  x2="14" y2="21"></line>
+                        </svg>
+                    </span>
+                    <span class="heb-action-label">Count occurrences</span>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(pop);
+        this._hebPopover = pop;
+        pop.querySelector('.heb-popover-close').addEventListener('click', () => this.closeHebrewPopover());
+        pop.addEventListener('click', (e) => e.stopPropagation());
+
+        // Pronunciation is intentionally restricted to the right-side
+        // study column so the primary reading column stays distraction-free.
+        if (!this._isRightSideContainer(wordEl)) {
+            pop.querySelector('.heb-action-speak')?.remove();
+        }
+
+        // Wire up the pronounce + count actions. They use the original
+        // (pointed) Hebrew word so the TTS engine can apply nikud and the
+        // count endpoint can normalize on its own side.
+        pop.querySelector('.heb-action-speak')
+            ?.addEventListener('click', () => this._speakHebrewWord(word, pop));
+        pop.querySelector('.heb-action-count')
+            .addEventListener('click', () => this._countHebrewOccurrences(word, pop));
+
+        this._positionHebrewPopover(wordEl, pop);
+
+        // Mark the active word so it's visually linked to the popover.
+        document.querySelectorAll('.heb-word.active').forEach(n => n.classList.remove('active'));
+        wordEl.classList.add('active');
+
+        // Load dictionary (cached) and resolve gloss locally; fall back to
+        // server endpoint if local lookup misses (e.g. dict updated server-side).
+        const dict = await this._fetchHebrewDictionary();
+        if (this._hebPopover !== pop) return; // user dismissed
+        const stripMarks = this._hebStripMarks;
+        const normWord = stripMarks(word);
+
+        let matched = null, gloss = null;
+        if (dict[word]) { matched = word; gloss = dict[word]; }
+        else if (this._hebDictNorm[normWord]) {
+            matched = this._hebDictNorm[normWord].key;
+            gloss   = this._hebDictNorm[normWord].gloss;
+        } else {
+            try {
+                const r = await fetch(`/api/hebrew/define?word=${encodeURIComponent(word)}`);
+                if (r.ok) {
+                    const j = await r.json();
+                    matched = j.matched; gloss = j.gloss;
+                }
+            } catch {}
+        }
+        if (this._hebPopover !== pop) return;
+
+        const glossEl = pop.querySelector('.heb-popover-gloss');
+        glossEl.classList.remove('heb-popover-loading');
+        if (gloss) {
+            glossEl.innerHTML = `
+                <div class="heb-gloss-text">${this._escapeHtml(gloss)}</div>
+                <div class="heb-gloss-meta">
+                    <span class="heb-gloss-pointed" dir="rtl" lang="he">${matched || word}</span>
+                    <span class="heb-gloss-bare" dir="rtl" lang="he">${normWord}</span>
+                </div>
+            `;
+        } else {
+            glossEl.innerHTML = `
+                <div class="heb-gloss-empty">No definition in the curated dictionary yet.</div>
+                <div class="heb-gloss-meta">
+                    <span class="heb-gloss-bare" dir="rtl" lang="he">${normWord}</span>
+                </div>
+            `;
+        }
+
+        // "Compare" panel: other dictionary entries whose consonant root
+        // shares ≥3 contiguous letters with this word — handy for spotting
+        // related verbal forms and shared roots across passages.
+        const related = this._findRelatedHebrewWords(normWord, matched, 6);
+        const relEl = pop.querySelector('.heb-popover-related');
+        if (related.length) {
+            relEl.innerHTML = `
+                <div class="heb-related-title">Compare</div>
+                <ul class="heb-related-list">
+                    ${related.map(r => `
+                        <li>
+                            <button type="button" class="heb-related-item" data-word="${this._escapeHtml(r.key)}">
+                                <span class="heb-related-word" dir="rtl" lang="he">${this._escapeHtml(r.key)}</span>
+                                <span class="heb-related-gloss">${this._escapeHtml(r.gloss)}</span>
+                            </button>
+                        </li>
+                    `).join('')}
+                </ul>
+            `;
+            relEl.querySelectorAll('.heb-related-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const w = btn.dataset.word;
+                    // Re-open popover anchored to the same word in the page.
+                    const fake = document.createElement('span');
+                    fake.className = 'heb-word';
+                    fake.textContent = w;
+                    fake.style.position = 'absolute';
+                    const r = wordEl.getBoundingClientRect();
+                    fake.style.left = (r.left + window.scrollX) + 'px';
+                    fake.style.top  = (r.top  + window.scrollY) + 'px';
+                    document.body.appendChild(fake);
+                    this.openHebrewPopover(fake);
+                    setTimeout(() => fake.remove(), 0);
+                });
+            });
+        }
+
+        this._positionHebrewPopover(wordEl, pop);
+    }
+
+    _findRelatedHebrewWords(normWord, exclude, limit) {
+        if (!normWord || !this._hebDictNorm) return [];
+        const out = [];
+        for (const [nk, info] of Object.entries(this._hebDictNorm)) {
+            if (info.key === exclude) continue;
+            // Score by length of longest shared substring.
+            const score = this._longestCommonSubstring(normWord, nk);
+            if (score >= 3) out.push({ key: info.key, gloss: info.gloss, score });
+        }
+        out.sort((a, b) => b.score - a.score);
+        return out.slice(0, limit);
+    }
+
+    // Play a TTS pronunciation of the given Hebrew word using the existing
+    // /api/tts endpoint (Edge neural Hebrew voice). Reuses a single audio
+    // element so rapid taps don't stack overlapping playbacks.
+    async _speakHebrewWord(word, pop) {
+        if (!word) return;
+        const btn = pop?.querySelector('.heb-action-speak');
+        if (btn) btn.classList.add('is-loading');
+        // Stop any prior playback BEFORE wiring new listeners. We mark the
+        // old audio as superseded so its later 'error' / 'ended' events
+        // (fired when we clear its src) don't trigger a misleading toast.
+        if (this._hebAudio) {
+            this._hebAudio._superseded = true;
+            try { this._hebAudio.pause(); } catch {}
+            try { this._hebAudio.removeAttribute('src'); this._hebAudio.load(); } catch {}
+        }
+        const audio = new Audio(`/api/tts?text=${encodeURIComponent(word)}&lang=he`);
+        this._hebAudio = audio;
+        audio.addEventListener('ended', () => {
+            if (audio._superseded) return;
+            if (btn) btn.classList.remove('is-playing');
+        });
+        // Only treat 'error' as a real failure if it fires before/during
+        // playback (i.e. the audio never reached a playable state). After
+        // a successful play we ignore subsequent errors triggered by src
+        // clearing on the next click.
+        let played = false;
+        audio.addEventListener('error', () => {
+            if (audio._superseded || played) return;
+            if (btn) btn.classList.remove('is-loading', 'is-playing');
+            this.showToast?.('Pronunciation failed', 'error');
+        });
+        try {
+            await audio.play();
+            played = true;
+            if (btn) {
+                btn.classList.remove('is-loading');
+                btn.classList.add('is-playing');
+            }
+        } catch (e) {
+            if (audio._superseded) return;
+            if (btn) btn.classList.remove('is-loading', 'is-playing');
+            this.showToast?.('Pronunciation failed', 'error');
+        }
+    }
+
+    // Query the server for how many times this word appears across the
+    // cached Hebrew Bible. Renders a small results panel inside the
+    // popover with the totals and a few clickable sample references.
+    async _countHebrewOccurrences(word, pop) {
+        const target = pop?.querySelector('.heb-popover-occurrences');
+        const btn = pop?.querySelector('.heb-action-count');
+        if (!target || !word) return;
+        target.innerHTML = `<div class="heb-occ-loading">Counting…</div>`;
+        if (btn) btn.disabled = true;
+        try {
+            const r = await fetch(`/api/hebrew/occurrences?word=${encodeURIComponent(word)}&limit=15`);
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            if (this._hebPopover !== pop) return; // user dismissed
+            if (!data.count) {
+                target.innerHTML = `
+                    <div class="heb-occ-summary">
+                        No occurrences found in the cached Hebrew Bible (${data.corpus_size || 0} verses).
+                    </div>`;
+            } else {
+                const samples = (data.samples || []).map(s => `
+                    <li>
+                        <button type="button" class="heb-occ-ref" data-book="${this._escapeHtml(s.book)}" data-chapter="${s.chapter}" data-verse="${s.verse}">
+                            <span class="heb-occ-ref-label">${this._escapeHtml(s.book)} ${s.chapter}:${s.verse}</span>
+                            ${s.hits > 1 ? `<span class="heb-occ-ref-hits">×${s.hits}</span>` : ''}
+                        </button>
+                    </li>
+                `).join('');
+                const more = data.verses_with_matches > (data.samples || []).length
+                    ? `<div class="heb-occ-more">…and ${data.verses_with_matches - (data.samples || []).length} more verse(s).</div>`
+                    : '';
+                target.innerHTML = `
+                    <div class="heb-occ-summary">
+                        <strong>${data.count}</strong> occurrence${data.count === 1 ? '' : 's'}
+                        in <strong>${data.verses_with_matches}</strong> verse${data.verses_with_matches === 1 ? '' : 's'}
+                        across the Hebrew Bible.
+                    </div>
+                    <ul class="heb-occ-list">${samples}</ul>
+                    ${more}
+                `;
+                target.querySelectorAll('.heb-occ-ref').forEach(ref => {
+                    ref.addEventListener('click', () => {
+                        const book = ref.dataset.book;
+                        const chapter = parseInt(ref.dataset.chapter, 10);
+                        // Jump to the verse in the current view if the
+                        // reader supports it; otherwise just navigate.
+                        if (typeof this.navigateToReference === 'function') {
+                            this.navigateToReference(book, chapter);
+                        } else {
+                            this.currentBook = book;
+                            this.currentChapter = chapter;
+                            this.loadVerses?.();
+                        }
+                        this.closeHebrewPopover();
+                    });
+                });
+            }
+            // Reposition since the popover just grew.
+            if (this._hebPopover === pop) {
+                const anchor = document.querySelector('.heb-word.active');
+                if (anchor) this._positionHebrewPopover(anchor, pop);
+            }
+        } catch (e) {
+            target.innerHTML = `<div class="heb-occ-error">Failed to count occurrences.</div>`;
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    _longestCommonSubstring(a, b) {
+        if (!a || !b) return 0;
+        let best = 0;
+        const m = a.length, n = b.length;
+        // Rolling 1-D DP — strings are short (a few chars) so this is cheap.
+        let prev = new Array(n + 1).fill(0);
+        for (let i = 1; i <= m; i++) {
+            const cur = new Array(n + 1).fill(0);
+            for (let j = 1; j <= n; j++) {
+                if (a[i - 1] === b[j - 1]) {
+                    cur[j] = prev[j - 1] + 1;
+                    if (cur[j] > best) best = cur[j];
+                }
+            }
+            prev = cur;
+        }
+        return best;
+    }
+
+    _escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[c]));
+    }
+
+    // Wrap a whitespace-delimited Hebrew token for the dictionary popover.
+    // Tokens joined by maqaf (־ U+05BE) such as "בֶּן־הָאֱלֹהִים" are split into
+    // separately-tappable parts so each lemma can be looked up on its own.
+    // The trailing sof-pasuq (׃) and zero-width joiners are stripped from
+    // the lookup key but kept visible.
+    _wrapHebrewToken(word, extraClass) {
+        const cls = extraClass ? `${extraClass} heb-word` : 'heb-word';
+        if (!word.includes('\u05BE')) {
+            return `<span class="${cls}">${this._escapeHtml(word)}</span>`;
+        }
+        // Split on maqaf, keep it as a visible separator outside the
+        // tappable spans so the gloss applies only to the part you tap.
+        const parts = word.split('\u05BE');
+        return parts
+            .map(p => p ? `<span class="${cls}">${this._escapeHtml(p)}</span>` : '')
+            .filter(Boolean)
+            .join('<span class="heb-maqaf">\u05BE</span>');
+    }
+
+    // Wrap a non-Hebrew word for the generic word-study popover.
+    // Strips no characters from the visible text — punctuation is left
+    // attached visually so the verse reads naturally — but the popover
+    // strips it again before sending to the server.
+    _wrapWordToken(word, extraClass) {
+        const cls = extraClass ? `${extraClass} bw-word` : 'bw-word';
+        // Skip empty, pure-punctuation, or numeric tokens.
+        if (!word || !/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/.test(word)) {
+            return extraClass
+                ? `<span class="${extraClass}">${this._escapeHtml(word || '')}</span>`
+                : this._escapeHtml(word || '');
+        }
+        return `<span class="${cls}">${this._escapeHtml(word)}</span>`;
+    }
+
+    // Right-side containers (sermon-prep "study" side). Pronunciation is
+    // intentionally limited to these so the reader's primary side stays
+    // distraction-free.
+    _isRightSideContainer(node) {
+        const RIGHT_IDS = new Set(['rightVerses', 'col2Verses', 'syncVerses2']);
+        let n = node;
+        while (n && n !== document.body) {
+            if (n.id && RIGHT_IDS.has(n.id)) return true;
+            n = n.parentElement;
+        }
+        return false;
+    }
+
+    // Determine which translation a word came from based on its container.
+    _translationForNode(node) {
+        let n = node;
+        while (n && n !== document.body) {
+            const id = n.id;
+            if (id === 'col1Verses')   return this.parallelTrans1;
+            if (id === 'col2Verses')   return this.parallelTrans2;
+            if (id === 'syncVerses1')  return this.syncTrans1;
+            if (id === 'syncVerses2')  return this.syncTrans2;
+            if (id === 'leftVerses' || id === 'rightVerses') return this.currentTranslation;
+            n = n.parentElement;
+        }
+        return this.currentTranslation;
+    }
+
+    // ----- Generic word popover (non-Hebrew languages) -----
+    // The Hebrew popover is its own thing because it has dictionary
+    // glosses and root comparisons. For every other word the user can
+    // tap to count occurrences across the same translation, plus
+    // (right column only) hear it pronounced via TTS.
+    bindGenericWordLookup() {
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            if (!(target instanceof HTMLElement)) return;
+            // Close on outside click.
+            if (this._wordPopover && !this._wordPopover.contains(target)
+                && !target.classList.contains('bw-word')) {
+                this.closeWordPopover();
+            }
+            if (target.classList.contains('bw-word')) {
+                e.stopPropagation();
+                this.openWordPopover(target);
+            }
+        }, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this._wordPopover) this.closeWordPopover();
+        });
+        window.addEventListener('scroll', (e) => {
+            // Don't dismiss when the scroll happens inside the popover.
+            if (this._wordPopover && e.target instanceof Node
+                && this._wordPopover.contains(e.target)) return;
+            this.closeWordPopover();
+        }, true);
+        window.addEventListener('resize', () => this.closeWordPopover());
+    }
+
+    closeWordPopover() {
+        if (this._wordPopover) {
+            this._wordPopover.remove();
+            this._wordPopover = null;
+        }
+    }
+
+    // Map a translation display name to a TTS BCP-47 lang code.
+    _langForTranslation(translation) {
+        const en = ['NIV', 'NKJV', 'KJV', 'ESV', 'NASB1995'];
+        if (en.includes(translation)) return 'en';
+        if (translation === 'Hungarian' || translation === 'Hungarian-Revised') return 'hu';
+        if (translation === 'Hebrew') return 'he';
+        return 'en';
+    }
+
+    async openWordPopover(wordEl) {
+        // Clean up any other popovers first so only one is visible.
+        this.closeWordPopover();
+        this.closeHebrewPopover();
+
+        const raw = (wordEl.textContent || '').trim();
+        // Strip leading/trailing punctuation but preserve apostrophes
+        // mid-word (e.g. don't, l'âme).
+        const word = raw.replace(/^[\s\W_]+|[\s\W_]+$/gu, '');
+        if (!word) return;
+
+        const translation = this._translationForNode(wordEl);
+        const lang = this._langForTranslation(translation);
+        const isRight = this._isRightSideContainer(wordEl);
+
+        const pop = document.createElement('div');
+        pop.className = 'bw-popover';
+        pop.setAttribute('role', 'dialog');
+        pop.setAttribute('aria-label', 'Word study');
+        pop.innerHTML = `
+            <button class="bw-popover-close" aria-label="Close">×</button>
+            <div class="bw-popover-word">${this._escapeHtml(word)}</div>
+            <div class="bw-popover-meta">${this._escapeHtml(translation)}</div>
+            <div class="bw-popover-occurrences"></div>
+            <div class="bw-popover-foot">
+                ${isRight ? `
+                    <button type="button" class="heb-action bw-action-speak" aria-label="Hear pronunciation" title="Hear pronunciation">
+                        <span class="heb-action-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                            </svg>
+                        </span>
+                        <span class="heb-action-label">Pronounce</span>
+                    </button>
+                ` : ''}
+                <button type="button" class="heb-action bw-action-count" aria-label="Count occurrences across this translation" title="Count occurrences across this translation">
+                    <span class="heb-action-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="4"  y1="9"  x2="20" y2="9"></line>
+                            <line x1="4"  y1="15" x2="20" y2="15"></line>
+                            <line x1="10" y1="3"  x2="8"  y2="21"></line>
+                            <line x1="16" y1="3"  x2="14" y2="21"></line>
+                        </svg>
+                    </span>
+                    <span class="heb-action-label">Count occurrences</span>
+                </button>
+            </div>
+        `;
+        document.body.appendChild(pop);
+        this._wordPopover = pop;
+        pop.addEventListener('click', (e) => e.stopPropagation());
+        pop.querySelector('.bw-popover-close').addEventListener('click', () => this.closeWordPopover());
+        pop.querySelector('.bw-action-speak')
+            ?.addEventListener('click', () => this._speakWord(word, lang, pop));
+        pop.querySelector('.bw-action-count')
+            ?.addEventListener('click', () => this._countWordOccurrences(word, translation, pop));
+
+        document.querySelectorAll('.bw-word.active').forEach(n => n.classList.remove('active'));
+        wordEl.classList.add('active');
+        this._positionPopoverNear(wordEl, pop);
+    }
+
+    _positionPopoverNear(anchor, pop) {
+        // Generic copy of _positionHebrewPopover for the bw popover.
+        const margin = 8;
+        const aRect = anchor.getBoundingClientRect();
+        const pRect = pop.getBoundingClientRect();
+        const vw = window.innerWidth, vh = window.innerHeight;
+        let top = aRect.bottom + window.scrollY + margin;
+        if (aRect.bottom + pRect.height + margin > vh) {
+            top = aRect.top + window.scrollY - pRect.height - margin;
+        }
+        let left = aRect.left + window.scrollX + (aRect.width / 2) - (pRect.width / 2);
+        const minLeft = window.scrollX + margin;
+        const maxLeft = window.scrollX + vw - pRect.width - margin;
+        if (left < minLeft) left = minLeft;
+        if (left > maxLeft) left = maxLeft;
+        if (top < window.scrollY + margin) top = window.scrollY + margin;
+        pop.style.top = top + 'px';
+        pop.style.left = left + 'px';
+    }
+
+    // Same playback strategy as _speakHebrewWord; lang is whatever
+    // BCP-47 code matches the TTS engine.
+    async _speakWord(word, lang, pop) {
+        if (!word) return;
+        const btn = pop?.querySelector('.bw-action-speak');
+        if (btn) btn.classList.add('is-loading');
+        if (this._bwAudio) {
+            this._bwAudio._superseded = true;
+            try { this._bwAudio.pause(); } catch {}
+            try { this._bwAudio.removeAttribute('src'); this._bwAudio.load(); } catch {}
+        }
+        const audio = new Audio(`/api/tts?text=${encodeURIComponent(word)}&lang=${encodeURIComponent(lang || 'en')}`);
+        this._bwAudio = audio;
+        let played = false;
+        audio.addEventListener('ended', () => {
+            if (audio._superseded) return;
+            if (btn) btn.classList.remove('is-playing');
+        });
+        audio.addEventListener('error', () => {
+            if (audio._superseded || played) return;
+            if (btn) btn.classList.remove('is-loading', 'is-playing');
+            this.showToast?.('Pronunciation failed', 'error');
+        });
+        try {
+            await audio.play();
+            played = true;
+            if (btn) {
+                btn.classList.remove('is-loading');
+                btn.classList.add('is-playing');
+            }
+        } catch (e) {
+            if (audio._superseded) return;
+            if (btn) btn.classList.remove('is-loading', 'is-playing');
+            this.showToast?.('Pronunciation failed', 'error');
+        }
+    }
+
+    async _countWordOccurrences(word, translation, pop) {
+        const target = pop?.querySelector('.bw-popover-occurrences');
+        const btn = pop?.querySelector('.bw-action-count');
+        if (!target || !word) return;
+        target.innerHTML = `<div class="heb-occ-loading">Counting…</div>`;
+        if (btn) btn.disabled = true;
+        try {
+            const r = await fetch(
+                `/api/words/occurrences?word=${encodeURIComponent(word)}` +
+                `&translation=${encodeURIComponent(translation)}&limit=15`
+            );
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const data = await r.json();
+            if (this._wordPopover !== pop) return;
+            if (!data.count) {
+                target.innerHTML = `
+                    <div class="heb-occ-summary">
+                        No occurrences found in ${this._escapeHtml(translation)}
+                        (${data.corpus_size || 0} verses).
+                    </div>`;
+            } else {
+                const samples = (data.samples || []).map(s => `
+                    <li>
+                        <button type="button" class="heb-occ-ref"
+                            data-book="${this._escapeHtml(s.book)}"
+                            data-chapter="${s.chapter}" data-verse="${s.verse}">
+                            <span class="heb-occ-ref-label">${this._escapeHtml(s.book)} ${s.chapter}:${s.verse}</span>
+                            ${s.hits > 1 ? `<span class="heb-occ-ref-hits">×${s.hits}</span>` : ''}
+                        </button>
+                    </li>
+                `).join('');
+                const more = data.verses_with_matches > (data.samples || []).length
+                    ? `<div class="heb-occ-more">…and ${data.verses_with_matches - (data.samples || []).length} more verse(s).</div>`
+                    : '';
+                target.innerHTML = `
+                    <div class="heb-occ-summary">
+                        <strong>${data.count}</strong> occurrence${data.count === 1 ? '' : 's'}
+                        in <strong>${data.verses_with_matches}</strong> verse${data.verses_with_matches === 1 ? '' : 's'}
+                        across ${this._escapeHtml(translation)}.
+                    </div>
+                    <ul class="heb-occ-list">${samples}</ul>
+                    ${more}
+                `;
+                target.querySelectorAll('.heb-occ-ref').forEach(ref => {
+                    ref.addEventListener('click', () => {
+                        const book = ref.dataset.book;
+                        const chapter = parseInt(ref.dataset.chapter, 10);
+                        if (typeof this.navigateToReference === 'function') {
+                            this.navigateToReference(book, chapter);
+                        } else {
+                            this.currentBook = book;
+                            this.currentChapter = chapter;
+                            this.loadVerses?.();
+                        }
+                        this.closeWordPopover();
+                    });
+                });
+            }
+            if (this._wordPopover === pop) {
+                const anchor = document.querySelector('.bw-word.active');
+                if (anchor) this._positionPopoverNear(anchor, pop);
+            }
+        } catch (e) {
+            target.innerHTML = `<div class="heb-occ-error">Failed to count occurrences.</div>`;
+        } finally {
+            if (btn) btn.disabled = false;
+        }
+    }
+
+    _positionHebrewPopover(anchor, pop) {
+        const margin = 8;
+        const aRect = anchor.getBoundingClientRect();
+        const pRect = pop.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        // Prefer placing the popover below the word; if it would overflow
+        // vertically, place it above. Always clamp to the viewport.
+        let top = aRect.bottom + window.scrollY + margin;
+        if (aRect.bottom + pRect.height + margin > vh) {
+            top = aRect.top + window.scrollY - pRect.height - margin;
+        }
+        let left = aRect.left + window.scrollX + (aRect.width / 2) - (pRect.width / 2);
+        const minLeft = window.scrollX + margin;
+        const maxLeft = window.scrollX + vw - pRect.width - margin;
+        if (left < minLeft) left = minLeft;
+        if (left > maxLeft) left = maxLeft;
+        if (top < window.scrollY + margin) top = window.scrollY + margin;
+        pop.style.top  = top + 'px';
+        pop.style.left = left + 'px';
+    }
+
+    // ===== Pastor study tools =====
+    // Per-verse action menu opens when the verse-number badge is tapped on
+    // any verse in any view (3D book, parallel, or sync). Provides quick
+    // access to: Compare translations, Copy with citation, Add/edit note,
+    // Toggle bookmark, Highlight cycle.
+    bindVerseActions() {
+        document.addEventListener('click', (e) => {
+            const target = e.target;
+            if (!(target instanceof HTMLElement)) return;
+            // Close menu when clicking outside it.
+            if (this._verseMenu && !this._verseMenu.contains(target)
+                && !target.classList.contains('verse-num')) {
+                this.closeVerseActionMenu();
+            }
+            if (target.classList.contains('verse-num')) {
+                e.stopPropagation();
+                this.openVerseActionMenu(target);
+            }
+        }, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this._verseMenu) this.closeVerseActionMenu();
+        });
+        window.addEventListener('scroll', () => this.closeVerseActionMenu(), true);
+        window.addEventListener('resize', () => this.closeVerseActionMenu());
+    }
+
+    closeVerseActionMenu() {
+        if (this._verseMenu) { this._verseMenu.remove(); this._verseMenu = null; }
+    }
+
+    // Determine which (book, chapter, translation) a verse element belongs
+    // to by walking up to a known container. Falls back to the reader's
+    // current state for the 3D book view.
+    _verseContext(verseEl) {
+        const book = this.currentBook;
+        const chapter = this.currentChapter;
+        const verse = parseInt(verseEl.closest('[data-verse]')?.dataset.verse, 10);
+        let translation = this.currentTranslation;
+        // Walk up looking for the container that tells us which translation.
+        let n = verseEl;
+        while (n && n !== document.body) {
+            const id = n.id;
+            if (id === 'col1Verses')      { translation = this.parallelTrans1; break; }
+            if (id === 'col2Verses')      { translation = this.parallelTrans2; break; }
+            if (id === 'syncVerses1')     { translation = this.syncTrans1; break; }
+            if (id === 'syncVerses2')     { translation = this.syncTrans2; break; }
+            if (id === 'leftVerses' || id === 'rightVerses') { translation = this.currentTranslation; break; }
+            n = n.parentElement;
+        }
+        return { book, chapter, verse, translation };
+    }
+
+    openVerseActionMenu(verseNumEl) {
+        this.closeVerseActionMenu();
+        this.closeHebrewPopover();
+        const verseEl = verseNumEl.closest('[data-verse]');
+        if (!verseEl) return;
+        const ctx = this._verseContext(verseNumEl);
+        if (!ctx.verse) return;
+
+        const ud = window.userdata;
+        const isBookmarked = ud?.isBookmarked?.(ctx.book, ctx.chapter, ctx.verse);
+        const note = ud?.getNote?.(ctx.verse);
+        const hl = ud?.getHighlight?.(ctx.verse);
+
+        const menu = document.createElement('div');
+        menu.className = 'verse-menu';
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML = `
+            <div class="verse-menu-header">
+                <strong>${ctx.book} ${ctx.chapter}:${ctx.verse}</strong>
+                <span class="verse-menu-trans">${this._escapeHtml(ctx.translation || '')}</span>
+            </div>
+            <button type="button" class="verse-menu-item" data-act="compare">
+                <span class="vm-icon">⇄</span> Compare translations
+            </button>
+            <button type="button" class="verse-menu-item" data-act="copy">
+                <span class="vm-icon">⧉</span> Copy with citation
+            </button>
+            <button type="button" class="verse-menu-item" data-act="note">
+                <span class="vm-icon">✎</span> ${note ? 'Edit note' : 'Add note'}
+            </button>
+            <button type="button" class="verse-menu-item" data-act="bookmark">
+                <span class="vm-icon">${isBookmarked ? '★' : '☆'}</span>
+                ${isBookmarked ? 'Remove bookmark' : 'Add bookmark'}
+            </button>
+            <button type="button" class="verse-menu-item" data-act="highlight">
+                <span class="vm-icon" style="background:${hl?.color || 'transparent'};border-radius:3px;display:inline-block;width:14px;height:14px;border:1px solid var(--border-color);"></span>
+                ${hl ? 'Change highlight' : 'Highlight'}
+            </button>
+        `;
+        document.body.appendChild(menu);
+        this._verseMenu = menu;
+        menu.addEventListener('click', (e) => e.stopPropagation());
+        this._positionFloatingNear(verseNumEl, menu);
+
+        menu.querySelectorAll('.verse-menu-item').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const act = btn.dataset.act;
+                this.closeVerseActionMenu();
+                if (act === 'compare')   return this.openCompareTranslations(ctx);
+                if (act === 'copy')      return this.copyVerseWithCitation(ctx);
+                if (act === 'note')      return this.promptVerseNote(ctx);
+                if (act === 'bookmark')  return this.toggleVerseBookmark(ctx);
+                if (act === 'highlight') return this.cycleVerseHighlight(ctx);
+            });
+        });
+    }
+
+    _positionFloatingNear(anchor, el) {
+        // Generic copy of _positionHebrewPopover, kept separate so the two
+        // floating widgets can have different sizes / margins later.
+        const margin = 8;
+        const aRect = anchor.getBoundingClientRect();
+        const eRect = el.getBoundingClientRect();
+        const vw = window.innerWidth, vh = window.innerHeight;
+        let top = aRect.bottom + window.scrollY + margin;
+        if (aRect.bottom + eRect.height + margin > vh) {
+            top = aRect.top + window.scrollY - eRect.height - margin;
+        }
+        let left = aRect.left + window.scrollX;
+        const maxLeft = window.scrollX + vw - eRect.width - margin;
+        if (left > maxLeft) left = maxLeft;
+        if (left < window.scrollX + margin) left = window.scrollX + margin;
+        if (top < window.scrollY + margin) top = window.scrollY + margin;
+        el.style.top = top + 'px';
+        el.style.left = left + 'px';
+    }
+
+    // ----- Compare translations modal -----
+    async openCompareTranslations(ctx) {
+        const overlay = document.getElementById('compareOverlay');
+        if (!overlay) return;
+        const list = document.getElementById('compareList');
+        const cite = document.getElementById('compareCitation');
+        const title = document.getElementById('compareTitle');
+        title.textContent = `Compare — ${ctx.book} ${ctx.chapter}:${ctx.verse}`;
+        cite.textContent = `Showing ${ctx.book} ${ctx.chapter}:${ctx.verse} across all available translations.`;
+        list.innerHTML = `<div class="compare-loading">Loading translations…</div>`;
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+
+        // Make sure the catalog is loaded.
+        let trans = (this.allTranslations || []).map(t => (typeof t === 'string' ? t : t.value));
+        if (!trans.length) {
+            try {
+                const r = await fetch('/api/translations');
+                if (r.ok) {
+                    const data = await r.json();
+                    trans = Array.isArray(data) ? data : (data.translations || []);
+                }
+            } catch {}
+        }
+
+        // Fetch all translations for this chapter in parallel.
+        const results = await Promise.all(trans.map(async (t) => {
+            try {
+                const r = await fetch(`/api/verses/${ctx.book}/${ctx.chapter}?translation=${encodeURIComponent(t)}`);
+                if (!r.ok) return { t, err: true };
+                const data = await r.json();
+                const verses = data.verses || data;
+                const text = verses[ctx.verse] || verses[String(ctx.verse)] || '';
+                return { t, actual: data.translation || t, fallback: !!data.fallback, text };
+            } catch {
+                return { t, err: true };
+            }
+        }));
+
+        const HEB = /[\u0590-\u05FF]/;
+        list.innerHTML = results.map(r => {
+            if (r.err) {
+                return `
+                    <div class="compare-row compare-row-empty">
+                        <div class="compare-trans">${this._escapeHtml(r.t)}</div>
+                        <div class="compare-text compare-text-empty">Failed to load.</div>
+                    </div>`;
+            }
+            if (!r.text) {
+                return `
+                    <div class="compare-row compare-row-empty">
+                        <div class="compare-trans">${this._escapeHtml(r.t)}</div>
+                        <div class="compare-text compare-text-empty">Not available for this verse.</div>
+                    </div>`;
+            }
+            const isHeb = HEB.test(r.text);
+            const label = r.fallback
+                ? `${this._escapeHtml(r.t)} <span class="compare-fallback">→ ${this._escapeHtml(r.actual)}</span>`
+                : this._escapeHtml(r.t);
+            return `
+                <div class="compare-row">
+                    <div class="compare-trans">${label}</div>
+                    <div class="compare-text"${isHeb ? ' dir="rtl" lang="he"' : ''}>${this._escapeHtml(r.text)}</div>
+                    <button type="button" class="compare-copy" data-trans="${this._escapeHtml(r.actual || r.t)}" data-text="${this._escapeHtml(r.text)}" title="Copy this translation with citation">⧉</button>
+                </div>`;
+        }).join('');
+
+        list.querySelectorAll('.compare-copy').forEach(btn => {
+            btn.addEventListener('click', () => {
+                this._copyToClipboard(this._formatCitation(
+                    ctx.book, ctx.chapter, ctx.verse,
+                    btn.dataset.text, btn.dataset.trans));
+                this.showToast('Copied with citation', 'info');
+            });
+        });
+    }
+
+    closeCompareModal() {
+        const overlay = document.getElementById('compareOverlay');
+        if (!overlay) return;
+        overlay.classList.remove('active');
+        overlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('modal-open');
+    }
+
+    // ----- Per-verse actions -----
+    _formatCitation(book, chapter, verse, text, translation) {
+        return `"${(text || '').trim()}" — ${book} ${chapter}:${verse} (${translation || ''})`.trim();
+    }
+
+    async _copyToClipboard(text) {
+        try {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch {}
+        // Fallback for non-secure contexts (e.g. http://).
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            ta.remove();
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    async copyVerseWithCitation(ctx) {
+        // Pull the verse text out of the rendered DOM if we can; otherwise fetch.
+        let text = '';
+        const containerEl = document.querySelector(
+            `#${this._containerIdFor(ctx)} [data-verse="${ctx.verse}"]`
+        );
+        if (containerEl) {
+            text = containerEl.textContent.replace(/^\s*\d+\s*/, '').trim();
+        } else {
+            try {
+                const r = await fetch(`/api/verses/${ctx.book}/${ctx.chapter}?translation=${encodeURIComponent(ctx.translation)}`);
+                if (r.ok) {
+                    const data = await r.json();
+                    text = (data.verses || data)[ctx.verse] || '';
+                }
+            } catch {}
+        }
+        const cit = this._formatCitation(ctx.book, ctx.chapter, ctx.verse, text, ctx.translation);
+        const ok = await this._copyToClipboard(cit);
+        this.showToast(ok ? 'Copied with citation' : 'Copy failed', ok ? 'info' : 'error');
+    }
+
+    _containerIdFor(ctx) {
+        // Pick whichever DOM container currently holds the verse text for
+        // the supplied translation. Used for in-place text extraction.
+        if (this.parallelTrans1 === ctx.translation) return 'col1Verses';
+        if (this.parallelTrans2 === ctx.translation) return 'col2Verses';
+        if (this.syncTrans1 === ctx.translation)     return 'syncVerses1';
+        if (this.syncTrans2 === ctx.translation)     return 'syncVerses2';
+        return 'leftVerses'; // best-effort
+    }
+
+    async promptVerseNote(ctx) {
+        const ud = window.userdata;
+        if (!ud?.setNote) return this.showToast('Notes unavailable', 'error');
+        const existing = (ud.getNote?.(ctx.verse) || {}).body || '';
+        const updated = window.prompt(
+            `Note for ${ctx.book} ${ctx.chapter}:${ctx.verse}`,
+            existing
+        );
+        if (updated === null) return;
+        const ok = await ud.setNote(ctx.book, ctx.chapter, ctx.verse, updated.trim());
+        this.showToast(ok ? 'Note saved' : 'Note failed to save', ok ? 'info' : 'error');
+        if (ok && typeof this._applyVerseAnnotations === 'function') {
+            this._applyVerseAnnotations();
+        }
+    }
+
+    async toggleVerseBookmark(ctx) {
+        const ud = window.userdata;
+        if (!ud) return this.showToast('Bookmarks unavailable', 'error');
+        if (ud.isBookmarked?.(ctx.book, ctx.chapter, ctx.verse)) {
+            const found = ud.bookmarks?.find(b =>
+                b.book === ctx.book && b.chapter === ctx.chapter && +b.verse === +ctx.verse);
+            if (found) await ud.removeBookmark(found.id);
+            this.showToast('Bookmark removed', 'info');
+        } else {
+            await ud.addBookmark(ctx.book, ctx.chapter, ctx.verse, '');
+            this.showToast('Bookmark added', 'info');
+        }
+        if (typeof this._applyVerseAnnotations === 'function') this._applyVerseAnnotations();
+    }
+
+    async cycleVerseHighlight(ctx) {
+        const ud = window.userdata;
+        if (!ud?.setHighlight) return this.showToast('Highlights unavailable', 'error');
+        const order = ['yellow', 'green', 'blue', 'pink', ''];
+        const current = ud.getHighlight?.(ctx.verse)?.color || '';
+        const next = order[(order.indexOf(current) + 1) % order.length];
+        const ok = await ud.setHighlight(ctx.book, ctx.chapter, ctx.verse, next);
+        this.showToast(ok ? (next ? `Highlighted ${next}` : 'Highlight cleared') : 'Highlight failed',
+            ok ? 'info' : 'error');
+        if (ok && typeof this._applyVerseAnnotations === 'function') {
+            this._applyVerseAnnotations();
+        }
+    }
+
+    // ----- Study Tools dialog -----
+    bindStudyTools() {
+        const btn = document.getElementById('studyToolsBtn');
+        const overlay = document.getElementById('studyToolsOverlay');
+        if (!btn || !overlay) return;
+        const closeBtn = document.getElementById('studyToolsClose');
+        const compareCloseBtn = document.getElementById('compareClose');
+        const compareOverlay  = document.getElementById('compareOverlay');
+
+        const open = () => {
+            const lbl = document.getElementById('studyCurrentLabel');
+            if (lbl) lbl.textContent = `${this.currentBook} ${this.currentChapter} (${this.currentTranslation})`;
+            overlay.classList.add('active');
+            overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+        };
+        const close = () => {
+            overlay.classList.remove('active');
+            overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+        };
+        btn.addEventListener('click', open);
+        closeBtn?.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+        compareCloseBtn?.addEventListener('click', () => this.closeCompareModal());
+        compareOverlay?.addEventListener('click', (e) => {
+            if (e.target === compareOverlay) this.closeCompareModal();
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Escape') return;
+            if (overlay.classList.contains('active')) close();
+            if (compareOverlay?.classList.contains('active')) this.closeCompareModal();
+        });
+
+        document.getElementById('studyExportChapterMd')?.addEventListener('click', () => {
+            const url = `/api/me/export/chapter/${encodeURIComponent(this.currentBook)}/${this.currentChapter}?translation=${encodeURIComponent(this.currentTranslation)}`;
+            window.location.href = url;
+        });
+        document.getElementById('studyCopyChapterText')?.addEventListener('click', async () => {
+            const r = await fetch(`/api/verses/${this.currentBook}/${this.currentChapter}?translation=${encodeURIComponent(this.currentTranslation)}`);
+            if (!r.ok) return this.showToast('Failed to load chapter', 'error');
+            const data = await r.json();
+            const verses = data.verses || data;
+            const lines = [`${this.currentBook} ${this.currentChapter} (${data.translation || this.currentTranslation})`, ''];
+            for (const k of Object.keys(verses).map(Number).sort((a, b) => a - b)) {
+                lines.push(`${k}. ${verses[k]}`);
+            }
+            const ok = await this._copyToClipboard(lines.join('\n'));
+            this.showToast(ok ? 'Chapter copied to clipboard' : 'Copy failed', ok ? 'info' : 'error');
+        });
+        document.getElementById('studyExportAllNotes')?.addEventListener('click', () => {
+            window.location.href = '/api/me/export/notes';
+        });
+        document.getElementById('studyExportAllBookmarks')?.addEventListener('click', () => {
+            window.location.href = '/api/me/export/bookmarks';
         });
     }
 

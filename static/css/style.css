@@ -1374,24 +1374,26 @@ mark.search-term {
 .audio-controls-bar {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 16px 24px;
+    gap: 10px;
+    padding: 8px 16px;
     background: var(--bg-secondary);
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-md);
     flex-shrink: 0;
+    min-height: 0;
 }
 
 .audio-controls-bar .now-playing {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-left: auto;
-    padding-left: 16px;
+    padding-left: 12px;
     border-left: 1px solid var(--border-color);
     color: var(--text-muted);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
 }
 
 .audio-controls-bar .now-playing svg {
@@ -1403,15 +1405,17 @@ mark.search-term {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     background: transparent;
     border: 1px solid var(--border-color);
     border-radius: 50%;
     cursor: pointer;
     color: var(--text-secondary);
     transition: all 0.2s ease;
+    flex-shrink: 0;
 }
+.chapter-nav-btn svg { width: 16px; height: 16px; }
 
 .chapter-nav-btn:hover {
     background: var(--accent-primary);
@@ -1435,16 +1439,18 @@ mark.search-term {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     cursor: pointer;
     color: var(--text-muted);
     transition: all 0.2s ease;
-    margin-left: 12px;
+    margin-left: 8px;
+    flex-shrink: 0;
 }
+.video-toggle-btn svg { width: 16px; height: 16px; }
 
 .video-toggle-btn:hover {
     background: var(--bg-secondary);
@@ -1475,8 +1481,8 @@ mark.search-term {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -1485,6 +1491,7 @@ mark.search-term {
     transition: all 0.2s ease;
     flex-shrink: 0;
 }
+.auto-advance-btn svg { width: 16px; height: 16px; }
 .auto-advance-btn:hover {
     background: var(--bg-secondary);
     color: var(--accent-primary);
@@ -1500,15 +1507,17 @@ mark.search-term {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     cursor: pointer;
     color: var(--text-muted);
     transition: all 0.2s ease;
+    flex-shrink: 0;
 }
+.focus-mode-btn svg { width: 16px; height: 16px; }
 
 /* ===== Bottom-bar verse selector (visible in focus / mobile) ===== */
 .nav-jump-wrap {
@@ -1521,18 +1530,20 @@ mark.search-term {
     display: flex;
     align-items: center;
     gap: 6px;
-    height: 40px;
-    padding: 0 12px;
+    height: 32px;
+    padding: 0 10px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: 8px;
     cursor: pointer;
     color: var(--text-muted);
     transition: all 0.2s ease;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 500;
     white-space: nowrap;
+    flex-shrink: 0;
 }
+.nav-jump-btn svg { width: 16px; height: 16px; }
 
 .nav-jump-btn:hover,
 .nav-jump-btn[aria-expanded="true"] {
@@ -1716,8 +1727,8 @@ body.focus-reading-mode .audio-controls-bar {
 }
 
 .control-btn {
-    width: 44px;
-    height: 44px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1727,7 +1738,9 @@ body.focus-reading-mode .audio-controls-bar {
     cursor: pointer;
     color: white;
     transition: all var(--transition-fast);
+    flex-shrink: 0;
 }
+.control-btn svg { width: 18px; height: 18px; }
 
 .control-btn:hover {
     transform: scale(1.1);
@@ -1748,7 +1761,8 @@ body.focus-reading-mode .audio-controls-bar {
 
 .progress-bar {
     flex: 1;
-    height: 8px;
+    min-width: 60px;
+    height: 6px;
     background: var(--bg-tertiary);
     border-radius: 4px;
     cursor: pointer;
@@ -1764,29 +1778,31 @@ body.focus-reading-mode .audio-controls-bar {
 }
 
 .time-display {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     color: var(--text-muted);
     font-variant-numeric: tabular-nums;
-    min-width: 100px;
+    min-width: 84px;
     text-align: right;
+    white-space: nowrap;
 }
 
 .playback-rate {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 4px 8px;
+    gap: 6px;
+    padding: 2px 8px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    margin-left: 12px;
-    min-width: 120px;
+    border-radius: 10px;
+    margin-left: 4px;
+    min-width: 0;
+    flex-shrink: 0;
 }
 
 .playback-rate input[type="range"] {
     -webkit-appearance: none;
     appearance: none;
-    width: 110px;
+    width: 80px;
     height: 6px;
     background: transparent;
     cursor: pointer;
@@ -2705,17 +2721,19 @@ body.focus-reading-mode .audio-controls-bar {
 
     .audio-controls-bar {
         flex-wrap: wrap;
-        gap: 10px;
-        padding: 12px;
+        gap: 8px;
+        padding: 8px 10px;
     }
 
     .progress-bar {
         order: 10;
         flex-basis: 100%;
+        min-width: 0;
     }
 
     .time-display {
-        min-width: 80px;
+        min-width: 76px;
+        font-size: 0.75rem;
     }
 
     .playback-rate {
@@ -2807,30 +2825,39 @@ body.focus-reading-mode .audio-controls-bar {
     }
 
     .audio-controls-bar {
-        gap: 8px;
-        padding: 10px;
+        gap: 6px;
+        padding: 6px 8px;
     }
 
     .audio-controls-bar .now-playing {
         display: none;
     }
 
+    /* Touch tap targets — at least 36px, but no larger than necessary. */
     .chapter-nav-btn,
     .control-btn,
     .video-toggle-btn,
-    .focus-mode-btn {
+    .focus-mode-btn,
+    .auto-advance-btn,
+    .nav-jump-btn {
         width: 36px;
         height: 36px;
     }
+    .nav-jump-btn { width: auto; padding: 0 10px; }
+    .control-btn { width: 40px; height: 40px; }
+    .control-btn svg { width: 20px; height: 20px; }
 
     .playback-rate {
-        min-width: 96px;
+        min-width: 0;
         gap: 6px;
+        padding: 2px 6px;
     }
 
     .playback-rate input[type="range"] {
-        width: 76px;
+        width: 64px;
     }
+
+    #rateLabel { min-width: 28px; font-size: 0.78rem; }
 
     body.focus-reading-mode .video-container {
         height: calc(100vh - 12px);
@@ -3217,11 +3244,14 @@ body.tutorial-open { overflow: hidden; }
         max-height: 70vh;
     }
 
-    /* Bigger tap targets on the audio bar */
-    .control-btn { width: 52px; height: 52px; }
+    /* Bigger tap targets on the audio bar (touch-friendly but not bulky) */
+    .control-btn { width: 42px; height: 42px; }
+    .control-btn svg { width: 20px; height: 20px; }
     .chapter-nav-btn,
     .video-toggle-btn,
-    .focus-mode-btn { min-width: 40px; min-height: 40px; }
+    .focus-mode-btn,
+    .auto-advance-btn { min-width: 36px; min-height: 36px; }
+    .nav-jump-btn { min-height: 36px; }
 
     /* Sync translation row wraps cleanly with the new swap btn */
     .sync-translations {
@@ -3890,4 +3920,455 @@ body.modal-open { overflow: hidden; touch-action: none; }
     /* In landscape the URL bar eats height; allow the dialog to use the
        full visual viewport and rely on internal scroll. */
     .modal-card { max-height: 100vh; max-height: 100dvh; }
+}
+
+/* ===== Hebrew word lookup ===== */
+.heb-word {
+    cursor: pointer;
+    border-bottom: 1px dashed transparent;
+    transition: background 0.12s ease, border-color 0.12s ease;
+    border-radius: 3px;
+    padding: 0 1px;
+}
+.heb-word:hover,
+.heb-word:focus-visible {
+    background: var(--accent-light, rgba(99,102,241,0.18));
+    border-bottom-color: var(--accent-primary, #6366f1);
+    outline: none;
+}
+.heb-word.active {
+    background: var(--accent-light, rgba(99,102,241,0.28));
+    border-bottom-color: var(--accent-primary, #6366f1);
+}
+@media (pointer: coarse) {
+    /* Slightly larger tap target on touch devices. */
+    .heb-word { padding: 2px 3px; }
+}
+
+.heb-popover {
+    position: absolute;
+    z-index: 9500;
+    width: min(320px, calc(100vw - 16px));
+    max-height: 60vh;
+    overflow: auto;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+    padding: 14px 16px 12px;
+    font-size: 0.92rem;
+    animation: hebPop 0.14s ease;
+}
+@keyframes hebPop {
+    from { transform: translateY(4px); opacity: 0; }
+    to   { transform: none; opacity: 1; }
+}
+.heb-popover-close {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    min-width: 32px;
+    min-height: 32px;
+}
+.heb-popover-close:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+.heb-popover-word {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 28px 8px 0;
+    line-height: 1.3;
+    color: var(--text-primary);
+}
+.heb-popover-gloss { margin-bottom: 10px; }
+.heb-popover-loading {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.85rem;
+}
+.heb-gloss-text {
+    font-size: 1rem;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.heb-gloss-empty {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+.heb-gloss-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+}
+.heb-gloss-pointed,
+.heb-gloss-bare { font-family: serif; }
+.heb-gloss-bare { opacity: 0.75; }
+.heb-related-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin: 8px 0 6px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 8px;
+}
+.heb-related-list { list-style: none; padding: 0; margin: 0; }
+.heb-related-list li { margin: 0; }
+.heb-related-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-primary);
+    font: inherit;
+}
+.heb-related-item:hover { background: var(--bg-tertiary); }
+.heb-related-word { font-size: 1rem; }
+.heb-related-gloss {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    flex: 1 1 auto;
+    text-align: left;
+    padding-left: 10px;
+}
+.heb-popover-foot {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+@media (max-width: 480px) {
+    .heb-popover {
+        width: calc(100vw - 16px);
+        left: 8px !important;
+        right: 8px;
+    }
+}
+.heb-maqaf {
+    /* Maqaf shown between two tappable Hebrew lemmas — visually glued
+       to the surrounding text but not itself clickable. */
+    display: inline;
+    color: var(--text-muted);
+    user-select: none;
+    pointer-events: none;
+}
+
+/* ===== Pastor study tools ===== */
+
+/* Verse-number badge: hint that it's tappable. */
+.verse-num {
+    cursor: pointer;
+    user-select: none;
+}
+.verse-num:hover { color: var(--accent); }
+
+/* Compact floating action menu anchored to a tapped verse number. */
+.verse-menu {
+    position: absolute;
+    z-index: 9400;
+    min-width: 220px;
+    background: var(--bg-elev, #fff);
+    color: var(--text);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+    padding: 6px;
+    font-size: 0.95rem;
+    animation: hebPop 120ms ease-out;
+}
+.verse-menu-header {
+    padding: 6px 10px 8px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 8px;
+}
+.verse-menu-trans { color: var(--text-muted); font-size: 0.85rem; }
+.verse-menu-item {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%; padding: 8px 10px; margin: 2px 0;
+    background: transparent; color: inherit;
+    border: 0; border-radius: 6px;
+    font: inherit; text-align: left; cursor: pointer;
+    min-height: 40px;
+}
+.verse-menu-item:hover, .verse-menu-item:focus-visible {
+    background: var(--accent-light, rgba(0, 0, 0, 0.05));
+}
+.vm-icon {
+    display: inline-flex; justify-content: center; align-items: center;
+    width: 18px; height: 18px; flex-shrink: 0;
+    color: var(--accent);
+}
+
+/* Compare-translations modal body. */
+.compare-list { display: flex; flex-direction: column; gap: 12px; }
+.compare-loading { color: var(--text-muted); font-style: italic; }
+.compare-row {
+    display: grid;
+    grid-template-columns: 110px 1fr auto;
+    gap: 10px; align-items: start;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-elev, #fff);
+}
+.compare-row-empty { opacity: 0.7; }
+.compare-trans {
+    font-weight: 600; color: var(--accent);
+    word-break: break-word;
+}
+.compare-fallback {
+    display: block;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+.compare-text { line-height: 1.55; }
+.compare-text-empty { color: var(--text-muted); font-style: italic; }
+.compare-text[dir="rtl"] {
+    font-size: 1.2rem;
+    line-height: 1.9;
+    font-family: "SBL Hebrew", "Times New Roman", serif;
+}
+.compare-copy {
+    background: transparent; border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    border-radius: 6px;
+    width: 32px; height: 32px;
+    cursor: pointer; font-size: 1rem;
+    align-self: center;
+}
+.compare-copy:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Study Tools dialog sections. */
+.study-section { padding: 6px 0; }
+.study-section-title {
+    font-weight: 600; color: var(--accent);
+    margin-bottom: 4px;
+}
+.study-section-meta {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+}
+.study-actions {
+    display: flex; flex-wrap: wrap; gap: 8px;
+}
+.study-actions .modal-btn { flex: 1 1 220px; min-height: 44px; }
+
+@media (max-width: 600px) {
+    .compare-row {
+        grid-template-columns: 1fr auto;
+    }
+    .compare-trans { grid-column: 1 / -1; }
+    .compare-copy { grid-row: 1; grid-column: 2; }
+}
+
+/* ===== Hebrew popover: pronounce + count occurrences ===== */
+
+/* The footer is now an action bar with two buttons. */
+.heb-popover-foot {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+    margin-top: 10px;
+}
+.heb-action {
+    flex: 1 1 0;
+    min-width: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-height: 40px;
+    transition: background 120ms, color 120ms, border-color 120ms;
+}
+.heb-action:hover, .heb-action:focus-visible {
+    background: var(--accent-light, rgba(0, 0, 0, 0.05));
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.heb-action[disabled] { opacity: 0.55; cursor: progress; }
+/* The speaker uses a soft pulse while audio is loading or playing; the
+   "count" button uses the same pulse for its loading state. Other action
+   buttons share the same class but get no animation by default. */
+.heb-action.is-loading .heb-action-icon,
+.heb-action-speak.is-playing .heb-action-icon,
+.bw-action-speak.is-playing .heb-action-icon {
+    animation: hebPulse 1.1s ease-in-out infinite;
+    display: inline-flex;
+    transform-origin: center;
+}
+.heb-action.is-playing { color: var(--accent); border-color: var(--accent); }
+.heb-action-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    line-height: 1;
+}
+.heb-action-icon svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.heb-action-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+@keyframes hebPulse {
+    0%, 100% { transform: scale(1);    opacity: 0.85; }
+    50%      { transform: scale(1.18); opacity: 1; }
+}
+
+/* Occurrences result panel inside the popover. */
+.heb-popover-occurrences:empty { display: none; }
+.heb-popover-occurrences {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+}
+.heb-occ-loading, .heb-occ-error {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-style: italic;
+}
+.heb-occ-error { color: #b00020; font-style: normal; }
+.heb-occ-summary {
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+}
+.heb-occ-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 180px;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+}
+.heb-occ-ref {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    color: inherit;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 6px 8px;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 6px;
+}
+.heb-occ-ref:hover, .heb-occ-ref:focus-visible {
+    background: var(--accent-light, rgba(0, 0, 0, 0.05));
+    color: var(--accent);
+    border-color: var(--accent);
+}
+.heb-occ-ref-hits { color: var(--text-muted); font-size: 0.8rem; }
+.heb-occ-more { color: var(--text-muted); font-size: 0.8rem; margin-top: 6px; }
+
+@media (max-width: 480px) {
+    .heb-occ-list { grid-template-columns: 1fr; }
+    .heb-action-label { font-size: 0.85rem; }
+}
+
+/* ===== Generic word study (non-Hebrew) ===== */
+
+.bw-word {
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background-color 80ms;
+    padding: 0 1px;
+}
+.bw-word:hover, .bw-word:focus-visible, .bw-word.active {
+    background: var(--accent-light, rgba(0, 0, 0, 0.06));
+    outline: none;
+}
+@media (pointer: coarse) {
+    .bw-word { padding: 1px 2px; }
+}
+
+.bw-popover {
+    position: absolute;
+    z-index: 9500;
+    width: 320px;
+    max-width: calc(100vw - 16px);
+    background: var(--bg-elev, #fff);
+    color: var(--text);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+    padding: 14px 16px 12px;
+    animation: hebPop 120ms ease-out;
+}
+.bw-popover-close {
+    position: absolute;
+    top: 6px; right: 8px;
+    background: transparent; border: 0;
+    font-size: 1.4rem; line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.bw-popover-close:hover { color: var(--text); }
+.bw-popover-word {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+    word-break: break-word;
+}
+.bw-popover-meta {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+}
+.bw-popover-occurrences:empty { display: none; }
+.bw-popover-occurrences {
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+}
+.bw-popover-foot {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+    margin-top: 12px;
+}
+
+@media (max-width: 480px) {
+    .bw-popover { width: calc(100vw - 16px); left: 8px !important; }
 }
