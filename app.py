@@ -13,6 +13,7 @@ from bible_data import NT_BOOKS, ALL_BOOKS, NT_TRANSLATIONS
 import bible_fetcher
 import auth
 import video_transcode
+import study
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,6 +33,8 @@ bible_fetcher.export_hardcoded_to_cache()
 
 # Initialize the auth database (users, sessions, newsletters).
 auth.init_db()
+# Add the study-tools tables (tags, outlines, playlists, etc.).
+study.init_study_db()
 # If no ADMIN_PASS_HASH is provided in the environment, fall back to the
 # documented default account so the panel is reachable on a fresh install.
 auth.ensure_default_admin()
@@ -347,8 +350,15 @@ def tts_audio():
         voice = DEFAULT_EDGE_VOICE.get(lang) or DEFAULT_EDGE_VOICE['en']
 
     if engine == 'edge':
+        cached = study.tts_cache_lookup(text, lang, voice)
+        if cached:
+            resp = Response(cached, mimetype='audio/mpeg')
+            resp.headers['Cache-Control'] = 'public, max-age=86400'
+            resp.headers['X-TTS-Cache'] = 'hit'
+            return resp
         try:
             audio_bytes = _synthesize_edge(text, voice)
+            study.tts_cache_store(text, lang, voice, audio_bytes)
             resp = Response(audio_bytes, mimetype='audio/mpeg')
             resp.headers['Cache-Control'] = 'public, max-age=86400'
             return resp
@@ -1420,6 +1430,11 @@ def admin_video_rename(name: str):
     os.rename(src, dst)
     flash(f"Renamed to {new_safe}.", "info")
     return redirect(url_for("admin_videos"))
+
+
+# Register the study-tools blueprint (cross-translation concordance,
+# tags, outlines, playlists, reading plans, notebooks, exports, etc.).
+app.register_blueprint(study.study_bp, url_prefix='/api')
 
 
 if __name__ == '__main__':
