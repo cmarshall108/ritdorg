@@ -1520,10 +1520,12 @@ class BibleReader {
             await this.populateVoiceSettings();
             overlay.classList.add('active');
             overlay.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
         };
         const close = () => {
             overlay.classList.remove('active');
             overlay.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
         };
 
         btn.addEventListener('click', open);

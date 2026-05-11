@@ -3713,13 +3713,20 @@ body.tutorial-open { overflow: hidden; }
     backdrop-filter: blur(2px);
 }
 .modal-overlay.active { display: flex; }
+/* While a modal is open, lock background scroll so iOS Safari doesn't
+   scroll the page behind the dialog. */
+body.modal-open { overflow: hidden; touch-action: none; }
 .modal-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 14px;
     width: min(520px, 100%);
     max-height: 90vh;
+    /* dvh accounts for the iOS Safari URL bar; fall back to vh above. */
+    max-height: 90dvh;
     overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     box-shadow: 0 12px 48px rgba(0,0,0,0.4);
     color: var(--text-primary);
     animation: modalPop 0.18s ease;
@@ -3734,6 +3741,11 @@ body.tutorial-open { overflow: hidden; }
     justify-content: space-between;
     padding: 14px 18px;
     border-bottom: 1px solid var(--border-color);
+    /* Keep header (and close button) reachable while scrolling on mobile. */
+    position: sticky;
+    top: 0;
+    background: var(--bg-secondary);
+    z-index: 1;
 }
 .modal-header h3 {
     margin: 0;
@@ -3749,6 +3761,10 @@ body.tutorial-open { overflow: hidden; }
     cursor: pointer;
     padding: 4px 8px;
     border-radius: 6px;
+    /* Comfortable touch target on phones. */
+    min-width: 40px;
+    min-height: 40px;
+    touch-action: manipulation;
 }
 .modal-close:hover { background: var(--bg-tertiary); color: var(--text-primary); }
 .modal-body {
@@ -3800,10 +3816,12 @@ body.tutorial-open { overflow: hidden; }
     background: var(--accent-primary);
     color: #fff;
     border: none;
-    padding: 8px 14px;
+    padding: 10px 16px;
     border-radius: 8px;
     cursor: pointer;
     font-size: 0.9rem;
+    min-height: 40px;
+    touch-action: manipulation;
     transition: background 0.15s ease;
 }
 .modal-btn:hover { background: var(--accent-secondary); }
@@ -3811,12 +3829,19 @@ body.tutorial-open { overflow: hidden; }
     background: var(--bg-tertiary);
     color: var(--text-secondary);
     border: 1px solid var(--border-color);
-    margin-left: 8px;
 }
 .modal-btn-secondary:hover {
     background: var(--bg-secondary);
     color: var(--text-primary);
 }
+/* Action button row inside the voice settings modal. Switch to a wrapping
+   horizontal layout so the two buttons sit side-by-side on phones too. */
+.settings-row.modal-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.settings-row.modal-actions .modal-btn { flex: 1 1 auto; }
 
 .settings-details {
     margin: 4px 0 14px;
@@ -3842,3 +3867,27 @@ body.tutorial-open { overflow: hidden; }
 }
 .settings-details[open] > summary::before { content: '▾ '; }
 .settings-details > .settings-row:first-of-type { margin-top: 8px; }
+
+/* ===== Mobile / phone tuning for the generic modal ===== */
+@media (max-width: 480px) {
+    .modal-overlay { padding: 0; align-items: stretch; }
+    .modal-card {
+        width: 100%;
+        max-width: 100%;
+        max-height: 100vh;
+        max-height: 100dvh;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+    }
+    .modal-header { padding: 12px 14px; }
+    .modal-body { padding: 14px 14px 18px; }
+    /* Bigger native tap target for selects on phones (Apple HIG ≥44px). */
+    .modal-card .styled-select { min-height: 44px; padding: 11px 14px; }
+    .modal-card .modal-btn { min-height: 44px; }
+}
+@media (max-width: 480px) and (orientation: landscape) {
+    /* In landscape the URL bar eats height; allow the dialog to use the
+       full visual viewport and rely on internal scroll. */
+    .modal-card { max-height: 100vh; max-height: 100dvh; }
+}
