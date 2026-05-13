@@ -18,6 +18,7 @@
 </h1>
 
 {% set t = data.totals %}
+{% set e = data.engagement %}
 {% set delta = (t.views_24h - t.views_prev_24h) %}
 <div class="card">
     <div class="stat-grid">
@@ -51,6 +52,22 @@
         <div class="stat">
             <div class="num">{{ t.all_time_visitors }}</div>
             <div class="lbl">All-time visitors</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ e.sessions_window }}</div>
+            <div class="lbl">Tracked page sessions · last {{ days }}d</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ e.events_window }}</div>
+            <div class="lbl">Tracked activity events · last {{ days }}d</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ (e.active_seconds_window / 3600) | round(1) }}h</div>
+            <div class="lbl">Total active time · last {{ days }}d</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ (e.avg_active_seconds_per_session / 60) | round(1) }}m</div>
+            <div class="lbl">Avg active time per page session</div>
         </div>
     </div>
 </div>
@@ -106,6 +123,58 @@
         </table>
         {% else %}<p style="margin:0;color:#94a3b8;">No external referrers in this window.</p>{% endif %}
     </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Top activity types</h2>
+        <canvas id="activityChart" height="180"></canvas>
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Most common actions</h2>
+        {% if data.top_activities %}
+        <table>
+            <thead><tr><th>Action</th><th style="text-align:right;">Events</th></tr></thead>
+            <tbody>
+                {% for r in data.top_activities %}
+                <tr>
+                    <td style="word-break:break-all;font-size:0.86rem;">{{ r.name }}</td>
+                    <td style="text-align:right;">{{ r.n }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<p style="margin:0;color:#94a3b8;">No interaction events in this window yet.</p>{% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Page engagement (active time)</h2>
+    {% if data.page_engagement %}
+    <table>
+        <thead>
+            <tr>
+                <th>Path</th>
+                <th style="text-align:right;">Sessions</th>
+                <th style="text-align:right;">Events</th>
+                <th style="text-align:right;">Total active</th>
+                <th style="text-align:right;">Avg active / session</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in data.page_engagement %}
+            <tr>
+                <td style="word-break:break-all;"><a href="{{ r.path }}" target="_blank" style="color:#cbd5e1;">{{ r.path }}</a></td>
+                <td style="text-align:right;">{{ r.sessions }}</td>
+                <td style="text-align:right;">{{ r.events }}</td>
+                <td style="text-align:right;">{{ (r.active_seconds / 60) | round(1) }}m</td>
+                <td style="text-align:right;color:#94a3b8;">{{ (r.avg_active_seconds / 60) | round(1) }}m</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}<p style="margin:0;color:#94a3b8;">No engagement data yet. Let a few users browse pages and interact, then refresh.</p>{% endif %}
 </div>
 
 <div class="card">
@@ -167,6 +236,63 @@
         {% else %}<p style="margin:0;color:#94a3b8;">No pageviews recorded yet. Visit the public site once to populate this.</p>{% endif %}
     </div>
 </div>
+
+<div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px;">
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Recent page sessions (detailed)</h2>
+        {% if data.recent_sessions %}
+        <div style="max-height:420px;overflow:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Path</th>
+                        <th style="text-align:right;">Wall time</th>
+                        <th style="text-align:right;">Active time</th>
+                        <th style="text-align:right;">Scroll</th>
+                        <th>What they did</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in data.recent_sessions %}
+                    <tr>
+                        <td style="word-break:break-all;font-size:0.85rem;">
+                            <a href="{{ url_for('admin_analytics_session', session_id=s.session_id) }}" style="color:#cbd5e1;" title="Open session detail">
+                                {{ s.path }}
+                            </a>
+                        </td>
+                        <td style="text-align:right;white-space:nowrap;">{{ (s.wall_seconds / 60) | round(1) }}m</td>
+                        <td style="text-align:right;white-space:nowrap;">{{ (s.active_seconds / 60) | round(1) }}m</td>
+                        <td style="text-align:right;white-space:nowrap;">{{ s.max_scroll }}%</td>
+                        <td style="font-size:0.83rem;color:#94a3b8;max-width:320px;">{{ s.actions_summary }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}<p style="margin:0;color:#94a3b8;">No session-level interaction data yet.</p>{% endif %}
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Recent interactions</h2>
+        {% if data.recent_actions %}
+        <div style="max-height:420px;overflow:auto;">
+            <table>
+                <thead><tr><th>When (UTC)</th><th>Action</th><th>Path</th><th>Detail</th></tr></thead>
+                <tbody>
+                    {% for r in data.recent_actions %}
+                    <tr>
+                        <td style="white-space:nowrap;color:#94a3b8;font-size:0.82rem;">{{ r.ts[:16].replace('T',' ') }}</td>
+                        <td style="font-size:0.84rem;">{{ r.event_name }}</td>
+                        <td style="word-break:break-all;font-size:0.84rem;">{{ r.path }}</td>
+                        <td style="word-break:break-all;font-size:0.82rem;color:#94a3b8;">{{ r.detail or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}<p style="margin:0;color:#94a3b8;">No interaction events yet.</p>{% endif %}
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -225,6 +351,31 @@
     }
     donut('deviceChart',  {{ data.devices  | tojson }});
     donut('browserChart', {{ data.browsers | tojson }});
+
+    const act = {{ data.top_activities | tojson }};
+    if (act.length) {
+        new Chart(document.getElementById('activityChart'), {
+            type: 'bar',
+            data: {
+                labels: act.slice(0, 10).map(r => r.name),
+                datasets: [{
+                    label: 'Events',
+                    data: act.slice(0, 10).map(r => r.n),
+                    backgroundColor: '#22d3ee',
+                    borderColor: '#67e8f9',
+                    borderWidth: 1,
+                }],
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { color: '#162033' }, beginAtZero: true, ticks: { precision: 0 } },
+                    y: { grid: { color: '#162033' } },
+                },
+            },
+        });
+    }
 })();
 </script>
 {% endblock %}

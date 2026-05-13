@@ -2,6 +2,7 @@
 (function () {
     var el = document.getElementById('emailPrompt');
     if (!el) return;
+    var backdrop = document.getElementById('emailPromptBackdrop');
 
     var form = document.getElementById('emailPromptForm');
     var status = el.querySelector('.email-prompt__status');
@@ -14,23 +15,23 @@
 
     function hide() {
         el.classList.add('email-prompt--hidden');
-        setTimeout(function () { el.remove(); }, 250);
+        if (backdrop) backdrop.classList.add('email-prompt--hidden');
+        setTimeout(function () {
+            if (backdrop) backdrop.remove();
+            el.remove();
+        }, 250);
     }
 
     function dismiss() {
-        try {
-            fetch('/auth/dismiss-email-prompt', {
-                method: 'POST',
-                headers: { 'X-Requested-With': 'fetch' },
-                credentials: 'same-origin'
-            });
-        } catch (_) { /* best-effort */ }
         hide();
     }
 
     el.querySelectorAll('[data-action="dismiss"]').forEach(function (b) {
         b.addEventListener('click', dismiss);
     });
+    if (backdrop) {
+        backdrop.addEventListener('click', dismiss);
+    }
 
     form.addEventListener('submit', function (ev) {
         ev.preventDefault();

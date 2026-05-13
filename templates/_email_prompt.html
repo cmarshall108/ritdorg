@@ -1,21 +1,22 @@
-{# Dismissible, optional email-capture banner. Shown only when:
-   - the visitor isn't already recognised (no session cookie), AND
-   - they haven't dismissed it recently (no DISMISS cookie), AND
+{# Dismissible email-capture modal. Shown when:
+   - the visitor is not logged with an email session, AND
    - we're not in the /admin section.
-   Rendered server-side via show_email_prompt; hides itself instantly with JS. #}
+   It appears on each return visit until an email is saved. #}
 {% if show_email_prompt %}
+<div id="emailPromptBackdrop" class="email-prompt-backdrop" data-action="dismiss"></div>
 <div id="emailPrompt" class="email-prompt" role="dialog" aria-label="Stay in touch">
     <button type="button" class="email-prompt__close" aria-label="Dismiss" data-action="dismiss">&times;</button>
     <div class="email-prompt__body">
         <strong class="email-prompt__title">Stay in touch</strong>
-        <p class="email-prompt__msg">Drop your email to get occasional updates from RITDorg. Totally optional &mdash; you can keep browsing without it.</p>
+        <p class="email-prompt__msg">Get occasional updates, new studies, and announcements from RITDorg. Add your email to continue where you left off next time.</p>
         <form id="emailPromptForm" class="email-prompt__form" autocomplete="email">
-            <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address">
-            <button type="submit">Save</button>
+            <input type="email" name="email" placeholder="you@example.com" required aria-label="Email address" autofocus>
+            <button type="submit">Keep me updated</button>
         </form>
-        <button type="button" class="email-prompt__skip" data-action="dismiss">No thanks</button>
+        <button type="button" class="email-prompt__skip" data-action="dismiss">Not now</button>
         <div class="email-prompt__status" aria-live="polite"></div>
     </div>
 </div>
 <script src="{{ url_for('static', filename='js/email-prompt.js') }}" defer></script>
 {% endif %}
+<script src="{{ url_for('static', filename='js/analytics-tracker.js') }}" defer></script>

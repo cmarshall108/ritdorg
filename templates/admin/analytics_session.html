@@ -1,0 +1,215 @@
+{% extends "admin/base.html" %}
+{% block title %}Session Detail · Analytics · Admin{% endblock %}
+{% block content %}
+<div class="toolbar" style="margin-bottom:14px;">
+    <a class="btn btn-secondary" href="{{ url_for('admin_analytics') }}">← Back to analytics</a>
+    {% if detail.newer_session_id %}
+    <a class="btn btn-ghost" href="{{ url_for('admin_analytics_session', session_id=detail.newer_session_id) }}">← Newer session</a>
+    {% endif %}
+    {% if detail.older_session_id %}
+    <a class="btn btn-ghost" href="{{ url_for('admin_analytics_session', session_id=detail.older_session_id) }}">Older session →</a>
+    {% endif %}
+</div>
+
+<h1 style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    Session detail
+    <span style="font-size:0.9rem;color:#94a3b8;font-weight:500;">{{ detail.path }}</span>
+</h1>
+
+<div class="card">
+    <div class="stat-grid">
+        <div class="stat">
+            <div class="num">{{ (detail.wall_seconds / 60) | round(1) }}m</div>
+            <div class="lbl">Wall time on page</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ (detail.active_seconds / 60) | round(1) }}m</div>
+            <div class="lbl">Active time on page</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ detail.max_scroll }}%</div>
+            <div class="lbl">Max scroll depth</div>
+        </div>
+        <div class="stat">
+            <div class="num">{{ detail.event_count }}</div>
+            <div class="lbl">Total tracked events</div>
+        </div>
+    </div>
+
+    <div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;color:#94a3b8;font-size:0.86rem;">
+        <div><strong style="color:#cbd5e1;">Started:</strong> {{ detail.started_at[:19].replace('T', ' ') }} UTC</div>
+        <div><strong style="color:#cbd5e1;">Last event:</strong> {{ detail.last_event_at[:19].replace('T', ' ') }} UTC</div>
+        <div><strong style="color:#cbd5e1;">Device:</strong> {{ detail.device }}</div>
+        <div><strong style="color:#cbd5e1;">Browser:</strong> {{ detail.browser }}</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:20px;">
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Activity sparkline</h2>
+        <div style="display:flex;align-items:center;gap:8px;margin:0 0 10px;">
+            <label for="sparkMode" style="font-size:0.8rem;color:#94a3b8;">Mode</label>
+            <select id="sparkMode" style="padding:5px 8px;border-radius:6px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;font-size:0.8rem;">
+                <option value="event">Per-event active seconds</option>
+                <option value="cumulative">Cumulative active time</option>
+                <option value="smooth">Rolling-average (smoothed)</option>
+            </select>
+        </div>
+        <canvas id="sessionSparkline" height="90" style="width:100%;display:block;"></canvas>
+        <p id="sparklineHint" style="margin:8px 0 14px;color:#64748b;font-size:0.8rem;">Per-event active seconds over this session timeline.</p>
+
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Top actions in this session</h2>
+        {% if detail.top_actions %}
+        <table>
+            <thead><tr><th>Action</th><th style="text-align:right;">Count</th></tr></thead>
+            <tbody>
+                {% for a in detail.top_actions %}
+                <tr>
+                    <td style="word-break:break-all;font-size:0.86rem;">{{ a.name }}</td>
+                    <td style="text-align:right;">{{ a.n }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="margin:0;color:#94a3b8;">No actions recorded for this session.</p>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2 style="margin:0 0 12px;font-size:1.05rem;color:#cbd5e1;">Event timeline</h2>
+        <div style="max-height:560px;overflow:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time (UTC)</th>
+                        <th>Event</th>
+                        <th>Path</th>
+                        <th style="text-align:right;">Active +s</th>
+                        <th style="text-align:right;">Scroll</th>
+                        <th>Detail</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in detail.timeline %}
+                    <tr>
+                        <td style="white-space:nowrap;color:#94a3b8;font-size:0.82rem;">{{ e.ts[:19].replace('T', ' ') }}</td>
+                        <td style="font-size:0.84rem;">
+                            <span style="color:#94a3b8;">{{ e.event_type }}</span>
+                            <span style="color:#cbd5e1;">/ {{ e.event_name }}</span>
+                        </td>
+                        <td style="word-break:break-all;font-size:0.84rem;">{{ e.path }}</td>
+                        <td style="text-align:right;white-space:nowrap;">{{ e.active_seconds }}</td>
+                        <td style="text-align:right;white-space:nowrap;">{{ e.scroll_depth if e.scroll_depth is not none else '—' }}{% if e.scroll_depth is not none %}%{% endif %}</td>
+                        <td style="word-break:break-all;font-size:0.82rem;color:#94a3b8;">{{ e.detail or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    const timeline = {{ detail.timeline | tojson }};
+    const canvas = document.getElementById('sessionSparkline');
+    const modeSelect = document.getElementById('sparkMode');
+    const hint = document.getElementById('sparklineHint');
+    if (!canvas || !timeline.length) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || 640;
+    const cssH = canvas.clientHeight || 90;
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+
+    const pad = 10;
+    const w = cssW - pad * 2;
+    const h = cssH - pad * 2;
+    function seriesForMode(mode) {
+        const base = timeline.map(e => Math.max(0, Number(e.active_seconds || 0)));
+        if (mode === 'smooth') {
+            const windowSize = 5;
+            const out = [];
+            for (let i = 0; i < base.length; i++) {
+                const start = Math.max(0, i - Math.floor(windowSize / 2));
+                const end = Math.min(base.length, i + Math.ceil(windowSize / 2));
+                const slice = base.slice(start, end);
+                const avg = slice.reduce((sum, n) => sum + n, 0) / Math.max(1, slice.length);
+                out.push(avg);
+            }
+            return out;
+        }
+        if (mode !== 'cumulative') return base;
+        let running = 0;
+        return base.map(v => {
+            running += v;
+            return running;
+        });
+    }
+
+    function draw(mode) {
+        const values = seriesForMode(mode);
+        const maxVal = Math.max(1, ...values);
+
+        ctx.clearRect(0, 0, cssW, cssH);
+
+        // Background guide lines.
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 2; i++) {
+            const y = pad + (h / 2) * i;
+            ctx.beginPath();
+            ctx.moveTo(pad, y);
+            ctx.lineTo(pad + w, y);
+            ctx.stroke();
+        }
+
+        // Draw sparkline path.
+        ctx.strokeStyle = '#22d3ee';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        values.forEach((v, i) => {
+            const x = pad + (values.length === 1 ? 0 : (i / (values.length - 1)) * w);
+            const y = pad + h - (Math.max(0, v) / maxVal) * h;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+
+        // Soft fill under line.
+        ctx.lineTo(pad + w, pad + h);
+        ctx.lineTo(pad, pad + h);
+        ctx.closePath();
+        const grad = ctx.createLinearGradient(0, pad, 0, pad + h);
+        grad.addColorStop(0, 'rgba(34,211,238,0.28)');
+        grad.addColorStop(1, 'rgba(34,211,238,0.02)');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        if (hint) {
+            hint.textContent = mode === 'cumulative'
+                ? 'Cumulative active seconds across this session timeline.'
+                : mode === 'smooth'
+                    ? 'Rolling-average smoothed active seconds (5-event window).'
+                    : 'Per-event active seconds over this session timeline.';
+        }
+    }
+
+    const initialMode = (modeSelect && modeSelect.value) || 'event';
+    draw(initialMode);
+    if (modeSelect) {
+        modeSelect.addEventListener('change', function() {
+            draw(modeSelect.value || 'event');
+        });
+    }
+})();
+</script>
+{% endblock %}

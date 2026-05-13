@@ -17,11 +17,12 @@ import os
 import re
 import secrets
 import sqlite3
+import json
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from typing import Optional
+from typing import Optional, Any
 
 from flask import g, request, session
 
@@ -196,6 +197,31 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS pageviews_ts_idx     ON pageviews(ts);
             CREATE INDEX IF NOT EXISTS pageviews_path_idx   ON pageviews(path);
             CREATE INDEX IF NOT EXISTS pageviews_visitor_idx ON pageviews(visitor_key);
+
+            -- Fine-grained activity events captured from browser JS.
+            -- One row per significant interaction/heartbeat within a
+            -- single page session (session_id).
+            CREATE TABLE IF NOT EXISTS activity_events (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                ts             TEXT NOT NULL,
+                session_id     TEXT NOT NULL,
+                path           TEXT NOT NULL,
+                event_type     TEXT,
+                event_name     TEXT,
+                active_seconds INTEGER NOT NULL DEFAULT 0,
+                scroll_depth   INTEGER,
+                details        TEXT,
+                user_agent     TEXT,
+                ip             TEXT,
+                visitor_key    TEXT,
+                user_id        INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                device         TEXT,
+                browser        TEXT
+            );
+            CREATE INDEX IF NOT EXISTS activity_events_ts_idx      ON activity_events(ts);
+            CREATE INDEX IF NOT EXISTS activity_events_path_idx    ON activity_events(path);
+            CREATE INDEX IF NOT EXISTS activity_events_session_idx ON activity_events(session_id);
+            CREATE INDEX IF NOT EXISTS activity_events_event_idx   ON activity_events(event_name);
             """
         )
 
@@ -890,15 +916,85 @@ def _maybe_prune_pageviews() -> None:
     try:
         with _connect() as c:
             c.execute("DELETE FROM pageviews WHERE ts < ?", (cutoff,))
+            c.execute("DELETE FROM activity_events WHERE ts < ?", (cutoff,))
     except Exception:
         pass
+
+
+def log_activity_event(
+    *,
+    session_id: str,
+    path: str,
+    event_type: str = "",
+    event_name: str = "",
+    active_seconds: int = 0,
+    scroll_depth: Optional[int] = None,
+    details: Optional[dict[str, Any]] = None,
+    user_agent: str = "",
+    ip: str = "",
+    visitor_key: Optional[str] = None,
+    user_id: Optional[int] = None,
+) -> None:
+    if not session_id or not path:
+        return
+    device, browser = _ua_summary(user_agent or "")
+    try:
+        active_seconds = int(active_seconds or 0)
+    except Exception:
+        active_seconds = 0
+    if active_seconds < 0:
+        active_seconds = 0
+    if active_seconds > 12 * 3600:
+        active_seconds = 12 * 3600
+
+    sd = None
+    if scroll_depth is not None:
+        try:
+            sd = max(0, min(100, int(scroll_depth)))
+        except Exception:
+            sd = None
+
+    details_json = ""
+    if isinstance(details, dict) and details:
+        try:
+            details_json = json.dumps(details, ensure_ascii=True)[:2000]
+        except Exception:
+            details_json = ""
+
+    try:
+        with _connect() as c:
+            c.execute(
+                "INSERT INTO activity_events(ts, session_id, path, event_type, event_name, "
+                "active_seconds, scroll_depth, details, user_agent, ip, visitor_key, user_id, "
+                "device, browser) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    _now_iso(),
+                    session_id[:80],
+                    path[:300],
+                    (event_type or "")[:48],
+                    (event_name or "")[:64],
+                    active_seconds,
+                    sd,
+                    details_json,
+                    (user_agent or "")[:500],
+                    ip or "",
+                    visitor_key,
+                    user_id,
+                    device,
+                    browser,
+                ),
+            )
+    except Exception:
+        import logging as _l
+        _l.getLogger(__name__).exception("activity event log failed")
 
 
 def analytics_summary(days: int = 30) -> dict:
     """Aggregate stats covering the last ``days`` days for the admin dashboard.
 
     Returns a dict with totals, top paths/referrers/countries/devices/browsers,
-    a per-day timeseries, and the most recent pageviews list.
+    detailed engagement/session activity reports, a per-day timeseries, and
+    the most recent pageviews list.
     """
     days = max(1, min(int(days or 30), 365))
     cutoff = _iso(_utcnow() - timedelta(days=days))
@@ -990,15 +1086,277 @@ def analytics_summary(days: int = 30) -> dict:
             (cutoff,),
         )
 
+        # Activity totals and behavior details from client-side event tracking.
+        engagement_row = c.execute(
+            "SELECT COUNT(*) AS events, "
+            "       COUNT(DISTINCT session_id) AS sessions, "
+            "       COALESCE(SUM(active_seconds), 0) AS active_seconds "
+            "FROM activity_events WHERE ts >= ?",
+            (cutoff,),
+        ).fetchone()
+        avg_active_row = c.execute(
+            "SELECT COALESCE(AVG(active_sum), 0) AS avg_active "
+            "FROM ("
+            "   SELECT SUM(active_seconds) AS active_sum "
+            "   FROM activity_events WHERE ts >= ? GROUP BY session_id"
+            ")",
+            (cutoff,),
+        ).fetchone()
+        engagement = {
+            "events_window": int((engagement_row["events"] if engagement_row else 0) or 0),
+            "sessions_window": int((engagement_row["sessions"] if engagement_row else 0) or 0),
+            "active_seconds_window": int((engagement_row["active_seconds"] if engagement_row else 0) or 0),
+            "avg_active_seconds_per_session": round(float((avg_active_row["avg_active"] if avg_active_row else 0) or 0), 1),
+        }
+
+        top_activities = rows(
+            "SELECT event_name AS name, COUNT(*) AS n "
+            "FROM activity_events WHERE ts >= ? AND event_name != '' "
+            "GROUP BY event_name ORDER BY n DESC LIMIT 20",
+            (cutoff,),
+        )
+
+        page_engagement = rows(
+            "SELECT path, "
+            "       COUNT(DISTINCT session_id) AS sessions, "
+            "       COUNT(*) AS events, "
+            "       COALESCE(SUM(active_seconds), 0) AS active_seconds, "
+            "       ROUND(COALESCE(CAST(SUM(active_seconds) AS REAL) / NULLIF(COUNT(DISTINCT session_id), 0), 0), 1) AS avg_active_seconds "
+            "FROM activity_events WHERE ts >= ? "
+            "GROUP BY path ORDER BY active_seconds DESC LIMIT 20",
+            (cutoff,),
+        )
+
+        raw_session_events = c.execute(
+            "SELECT ts, session_id, path, event_type, event_name, active_seconds, "
+            "       scroll_depth, details, device, browser, COALESCE(visitor_key, ip) AS visitor "
+            "FROM activity_events WHERE ts >= ? "
+            "ORDER BY ts DESC LIMIT 3000",
+            (cutoff,),
+        ).fetchall()
+
+        sessions_index: dict[str, dict] = {}
+        recent_actions = []
+        for row in raw_session_events:
+            d = dict(row)
+            sid = d.get("session_id") or ""
+            if not sid:
+                continue
+            ts = d.get("ts") or ""
+            info = sessions_index.get(sid)
+            if not info:
+                info = {
+                    "session_id": sid,
+                    "path": d.get("path") or "",
+                    "visitor": d.get("visitor") or "—",
+                    "device": d.get("device") or "Other",
+                    "browser": d.get("browser") or "Other",
+                    "started_at": ts,
+                    "last_event_at": ts,
+                    "active_seconds": 0,
+                    "event_count": 0,
+                    "max_scroll": 0,
+                    "actions": {},
+                }
+                sessions_index[sid] = info
+            else:
+                # raw rows are DESC; oldest timestamp should overwrite start.
+                if ts < info["started_at"]:
+                    info["started_at"] = ts
+                if ts > info["last_event_at"]:
+                    info["last_event_at"] = ts
+
+            info["event_count"] += 1
+            info["active_seconds"] += int(d.get("active_seconds") or 0)
+            if d.get("scroll_depth") is not None:
+                info["max_scroll"] = max(info["max_scroll"], int(d.get("scroll_depth") or 0))
+
+            name = (d.get("event_name") or "").strip()
+            if name and name != "heartbeat":
+                info["actions"][name] = info["actions"].get(name, 0) + 1
+                detail_text = ""
+                if d.get("details"):
+                    try:
+                        parsed = json.loads(d["details"])
+                        if isinstance(parsed, dict):
+                            label = parsed.get("label") or parsed.get("target") or parsed.get("value") or ""
+                            if label:
+                                detail_text = str(label)[:80]
+                    except Exception:
+                        detail_text = ""
+                recent_actions.append({
+                    "ts": ts,
+                    "path": d.get("path") or "",
+                    "event_name": name,
+                    "detail": detail_text,
+                    "session_id": sid,
+                    "device": d.get("device") or "Other",
+                })
+
+        session_rows = []
+        for s in sessions_index.values():
+            wall_seconds = 0
+            try:
+                wall_seconds = int((_parse(s["last_event_at"]) - _parse(s["started_at"])).total_seconds())
+            except Exception:
+                wall_seconds = 0
+            action_items = sorted(s["actions"].items(), key=lambda x: x[1], reverse=True)[:3]
+            session_rows.append({
+                "session_id": s["session_id"],
+                "path": s["path"],
+                "visitor": s["visitor"],
+                "device": s["device"],
+                "browser": s["browser"],
+                "started_at": s["started_at"],
+                "last_event_at": s["last_event_at"],
+                "active_seconds": s["active_seconds"],
+                "wall_seconds": max(0, wall_seconds),
+                "event_count": s["event_count"],
+                "max_scroll": s["max_scroll"],
+                "actions_summary": ", ".join(f"{k} ({v})" for k, v in action_items) if action_items else "—",
+            })
+
+        session_rows.sort(key=lambda x: x.get("last_event_at") or "", reverse=True)
+        recent_actions.sort(key=lambda x: x.get("ts") or "", reverse=True)
+
     return {
         "days":          days,
         "totals":        totals,
+        "engagement":    engagement,
         "timeseries":    full,
         "top_paths":     top_paths,
+        "page_engagement": page_engagement,
+        "top_activities": top_activities,
         "top_referrers": top_referrers,
         "top_countries": top_countries,
         "devices":       devices,
         "browsers":      browsers,
         "recent":        recent,
         "heatmap":       heat,
+        "recent_sessions": session_rows[:40],
+        "recent_actions": recent_actions[:120],
+    }
+
+
+def analytics_session_detail(session_id: str) -> Optional[dict]:
+    """Return a full event timeline and summary for one tracked page session."""
+    sid = (session_id or "").strip()
+    if not sid:
+        return None
+
+    with _connect() as c:
+        rows = [
+            dict(r)
+            for r in c.execute(
+                "SELECT ts, session_id, path, event_type, event_name, active_seconds, "
+                "       scroll_depth, details, device, browser, COALESCE(visitor_key, ip) AS visitor "
+                "FROM activity_events WHERE session_id = ? "
+                "ORDER BY ts ASC LIMIT 5000",
+                (sid[:80],),
+            ).fetchall()
+        ]
+
+    if not rows:
+        return None
+
+    started_at = rows[0].get("ts") or ""
+    last_event_at = rows[-1].get("ts") or started_at
+    active_seconds_total = 0
+    max_scroll = 0
+    action_counts: dict[str, int] = {}
+    timeline = []
+
+    for r in rows:
+        n = (r.get("event_name") or "").strip()
+        active_seconds_total += int(r.get("active_seconds") or 0)
+        if r.get("scroll_depth") is not None:
+            max_scroll = max(max_scroll, int(r.get("scroll_depth") or 0))
+        if n and n != "heartbeat":
+            action_counts[n] = action_counts.get(n, 0) + 1
+
+        detail_text = ""
+        details_raw = r.get("details")
+        if details_raw:
+            try:
+                parsed = json.loads(details_raw)
+                if isinstance(parsed, dict):
+                    parts = []
+                    if parsed.get("label"):
+                        parts.append(str(parsed["label"]))
+                    if parsed.get("target"):
+                        parts.append(str(parsed["target"]))
+                    if parsed.get("value"):
+                        parts.append(f"value={parsed['value']}")
+                    if parsed.get("href"):
+                        parts.append(str(parsed["href"]))
+                    if parsed.get("depth") is not None:
+                        parts.append(f"depth={parsed['depth']}%")
+                    detail_text = " | ".join(parts)[:220]
+            except Exception:
+                detail_text = ""
+
+        timeline.append({
+            "ts": r.get("ts") or "",
+            "path": r.get("path") or "",
+            "event_type": r.get("event_type") or "",
+            "event_name": n or "event",
+            "active_seconds": int(r.get("active_seconds") or 0),
+            "scroll_depth": r.get("scroll_depth"),
+            "detail": detail_text,
+        })
+
+    wall_seconds = 0
+    try:
+        wall_seconds = int((_parse(last_event_at) - _parse(started_at)).total_seconds())
+    except Exception:
+        wall_seconds = 0
+
+    top_actions = [
+        {"name": k, "n": v}
+        for k, v in sorted(action_counts.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    first = rows[0]
+
+    # Find the nearest newer and older sessions by last event timestamp.
+    newer_session_id = None
+    older_session_id = None
+    with _connect() as c:
+        current_last = c.execute(
+            "SELECT MAX(ts) AS last_ts FROM activity_events WHERE session_id = ?",
+            (sid,),
+        ).fetchone()
+        current_last_ts = current_last["last_ts"] if current_last else None
+        if current_last_ts:
+            newer = c.execute(
+                "SELECT session_id FROM ("
+                "  SELECT session_id, MAX(ts) AS last_ts FROM activity_events GROUP BY session_id"
+                ") s WHERE s.last_ts > ? ORDER BY s.last_ts ASC LIMIT 1",
+                (current_last_ts,),
+            ).fetchone()
+            older = c.execute(
+                "SELECT session_id FROM ("
+                "  SELECT session_id, MAX(ts) AS last_ts FROM activity_events GROUP BY session_id"
+                ") s WHERE s.last_ts < ? ORDER BY s.last_ts DESC LIMIT 1",
+                (current_last_ts,),
+            ).fetchone()
+            newer_session_id = newer["session_id"] if newer else None
+            older_session_id = older["session_id"] if older else None
+
+    return {
+        "session_id": sid,
+        "path": first.get("path") or "",
+        "device": first.get("device") or "Other",
+        "browser": first.get("browser") or "Other",
+        "visitor": first.get("visitor") or "—",
+        "started_at": started_at,
+        "last_event_at": last_event_at,
+        "wall_seconds": max(0, wall_seconds),
+        "active_seconds": max(0, active_seconds_total),
+        "max_scroll": max_scroll,
+        "event_count": len(rows),
+        "top_actions": top_actions,
+        "timeline": timeline,
+        "newer_session_id": newer_session_id,
+        "older_session_id": older_session_id,
     }

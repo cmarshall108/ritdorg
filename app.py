@@ -145,7 +145,6 @@ def _inject_user():
     user = g.get("current_user")
     show_prompt = (
         user is None
-        and not request.cookies.get(auth.DISMISS_COOKIE_NAME)
         and not (request.path or "/").startswith("/admin")
     )
     return {
@@ -347,6 +346,51 @@ def get_sync_data(book, chapter):
 def get_playlists():
     """Get all RITDorg playlists"""
     return jsonify(RITDORG_PLAYLISTS)
+
+
+@app.route('/api/analytics/activity', methods=['POST'])
+def api_analytics_activity():
+    """Receive lightweight interaction + active-time events from the browser."""
+    payload = request.get_json(silent=True) or {}
+    events = payload.get('events') if isinstance(payload, dict) else None
+    if not isinstance(events, list):
+        events = [payload] if isinstance(payload, dict) else []
+
+    user = g.get('current_user') or {}
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr or '')
+    if ',' in ip:
+        ip = ip.split(',', 1)[0].strip()
+    ua = request.headers.get('User-Agent') or ''
+    visitor_key = request.cookies.get(auth.DEVICE_COOKIE_NAME)
+
+    accepted = 0
+    for ev in events[:50]:
+        if not isinstance(ev, dict):
+            continue
+        session_id = (ev.get('session_id') or '').strip()
+        path = (ev.get('path') or request.path or '').strip()
+        if not session_id or not path.startswith('/'):
+            continue
+        details = ev.get('details') if isinstance(ev.get('details'), dict) else None
+        try:
+            auth.log_activity_event(
+                session_id=session_id,
+                path=path,
+                event_type=(ev.get('event_type') or '')[:48],
+                event_name=(ev.get('event_name') or '')[:64],
+                active_seconds=int(ev.get('active_seconds') or 0),
+                scroll_depth=ev.get('scroll_depth'),
+                details=details,
+                user_agent=ua,
+                ip=ip[:64],
+                visitor_key=visitor_key,
+                user_id=user.get('id'),
+            )
+            accepted += 1
+        except Exception:
+            continue
+
+    return jsonify({'ok': True, 'accepted': accepted})
 
 @app.route('/api/tts')
 def tts_audio():
@@ -1259,6 +1303,16 @@ def admin_analytics():
     days = max(1, min(days, 365))
     data = auth.analytics_summary(days=days)
     return render_template("admin/analytics.html", data=data, days=days)
+
+
+@app.route("/admin/analytics/session/<session_id>")
+@auth.admin_required
+def admin_analytics_session(session_id: str):
+    detail = auth.analytics_session_detail(session_id)
+    if not detail:
+        flash("Session not found or expired.", "error")
+        return redirect(url_for("admin_analytics"))
+    return render_template("admin/analytics_session.html", detail=detail)
 
 
 @app.route("/admin/users")
