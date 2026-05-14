@@ -35,6 +35,8 @@ bible_fetcher.export_hardcoded_to_cache()
 auth.init_db()
 # Add the study-tools tables (tags, outlines, playlists, etc.).
 study.init_study_db()
+# Initialize editable pages with defaults
+auth.init_default_pages()
 # If no ADMIN_PASS_HASH is provided in the environment, fall back to the
 # documented default account so the panel is reachable on a fresh install.
 auth.ensure_default_admin()
@@ -156,6 +158,14 @@ def _inject_user():
 def index():
     books = list(ALL_BOOKS.keys())
     return render_template('index.html', books=books, translations=NT_TRANSLATIONS)
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, 'static', 'images'),
+        'ritd-logo.png',
+    )
 
 @app.route('/api/books')
 def get_books():
@@ -318,6 +328,40 @@ def search_bible():
         "truncated": False,
         "results": results,
     })
+
+@app.route('/api/verse-of-the-day')
+def get_verse_of_the_day():
+    """Get the verse of the day.
+    
+    Query params:
+        date - ISO date (YYYY-MM-DD), or None for today UTC
+        include_text - boolean, whether to fetch the actual verse text
+    
+    Returns:
+        {
+            book, chapter, verse, translation, computed_date,
+            text (optional) - the actual verse text from the specified translation
+        }
+    """
+    date_str = request.args.get('date')
+    include_text = request.args.get('include_text', 'false').lower() in ('true', '1', 'yes')
+    
+    # Generate/fetch the verse of the day
+    votd = auth.generate_verse_of_the_day(date_str)
+    if not votd:
+        return jsonify({'error': 'Failed to generate verse of the day'}), 500
+    
+    # Optionally fetch the text
+    if include_text:
+        verses = bible_fetcher.get_verses(
+            votd['translation'], votd['book'], votd['chapter']
+        )
+        if verses:
+            text = verses.get(str(votd['verse'])) or verses.get(votd['verse'])
+            if text:
+                votd['text'] = text
+    
+    return jsonify(votd)
 
 @app.route('/api/sync/<book>/<int:chapter>')
 def get_sync_data(book, chapter):
@@ -965,6 +1009,11 @@ def hebrew_lessons():
 def downloads():
     return render_template('downloads.html')
 
+
+@app.route('/vision')
+def vision():
+    return render_template('vision.html')
+
 # ---------------------------------------------------------------------------
 # Per-visitor reading state, bookmarks, notes, highlights
 # Tied to either the logged-in user or a long-lived device-key cookie,
@@ -1540,6 +1589,86 @@ def admin_video_rename(name: str):
     os.rename(src, dst)
     flash(f"Renamed to {new_safe}.", "info")
     return redirect(url_for("admin_videos"))
+
+
+# ---------------------------------------------------------------------------
+# Admin: editable pages
+# ---------------------------------------------------------------------------
+
+@app.route("/admin/pages")
+@auth.admin_required
+def admin_pages():
+    """List all editable pages"""
+    pages = auth.list_pages()
+    return render_template("admin/pages.html", pages=pages)
+
+
+@app.route("/admin/pages/<slug>", methods=["GET", "POST"])
+@auth.admin_required
+def admin_page_edit(slug: str):
+    """Edit a page"""
+    page = auth.get_page_content(slug)
+    if not page:
+        abort(404)
+    
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        body_html = request.form.get("body_html") or ""
+        user_id = g.get("current_user", {}).get("id")
+        
+        if not title:
+            flash("Title is required.", "error")
+        else:
+            success = auth.set_page_content(slug, title, body_html, user_id=user_id)
+            if success:
+                flash("Page saved.", "info")
+            else:
+                flash("Save failed.", "error")
+        return redirect(url_for("admin_page_edit", slug=slug))
+    
+    return render_template("admin/page_edit.html", page=page)
+
+
+@app.route("/admin/pages/new", methods=["GET", "POST"])
+@auth.admin_required
+def admin_page_new():
+    """Create a new page"""
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        slug = (request.form.get("slug") or "").strip().lower()
+        slug = re.sub(r'[^a-z0-9-]', '', slug).strip('-')
+        body_html = request.form.get("body_html") or ""
+        user_id = g.get("current_user", {}).get("id")
+        
+        if not title or not slug:
+            flash("Title and slug are required.", "error")
+            return render_template("admin/page_edit.html", page=None, new_page=True)
+        
+        # Check if slug already exists
+        existing = auth.get_page_content(slug)
+        if existing:
+            flash("A page with that slug already exists.", "error")
+            return render_template("admin/page_edit.html", page=None, new_page=True)
+        
+        success = auth.set_page_content(slug, title, body_html, user_id=user_id)
+        if success:
+            flash("Page created.", "info")
+            return redirect(url_for("admin_page_edit", slug=slug))
+        else:
+            flash("Failed to create page.", "error")
+    
+    return render_template("admin/page_edit.html", page=None, new_page=True)
+
+
+@app.route("/admin/pages/<slug>/delete", methods=["POST"])
+@auth.admin_required
+def admin_page_delete(slug: str):
+    """Delete a page"""
+    if auth.delete_page(slug):
+        flash("Page deleted.", "info")
+    else:
+        flash("Failed to delete page.", "error")
+    return redirect(url_for("admin_pages"))
 
 
 # Register the study-tools blueprint (cross-translation concordance,

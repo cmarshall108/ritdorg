@@ -1,0 +1,899 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ page.title if page else 'New Page' }} — Admin · RITDorg{% endblock %}
+
+{% block content %}
+<div class="admin-main page-builder">
+    {% if page %}
+        <h1>{{ page.title }}</h1>
+        <p class="subtitle">Edit your page by adding and arranging blocks</p>
+    {% else %}
+        <h1>Create New Page</h1>
+        <p class="subtitle">Build your page using blocks</p>
+    {% endif %}
+
+    <div class="toolbar">
+        <a href="{{ url_for('admin_pages') }}" class="btn btn-ghost">← Back</a>
+        <button type="button" class="btn btn-primary" id="savePage">Save Page</button>
+        {% if page %}
+            <button type="button" class="btn btn-danger" id="deletePage">Delete</button>
+        {% endif %}
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="flash {% if category == 'error' %}error{% else %}info{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="builder-container">
+        <!-- Left sidebar: blocks library and page metadata -->
+        <div class="builder-sidebar">
+            <div class="sidebar-section">
+                <h3>Page Settings</h3>
+                <input type="text" id="pageTitle" class="styled-input" placeholder="Page Title" value="{{ page.title if page else '' }}" />
+                {% if not page %}
+                    <input type="text" id="pageSlug" class="styled-input" placeholder="Page Slug (e.g., my-page)" pattern="[a-z0-9-]+" title="Use lowercase letters, numbers, and hyphens only" />
+                {% endif %}
+            </div>
+
+            <div class="sidebar-section">
+                <h3>Add Blocks</h3>
+                <div class="blocks-library" id="blocksLibrary">
+                    <button class="block-btn" data-block-type="heading">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        Heading
+                    </button>
+                    <button class="block-btn" data-block-type="paragraph">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        Paragraph
+                    </button>
+                    <button class="block-btn" data-block-type="image">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                        </svg>
+                        Image
+                    </button>
+                    <button class="block-btn" data-block-type="button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="9"/><line x1="9" y1="15" x2="15" y2="15"/>
+                        </svg>
+                        Button
+                    </button>
+                    <button class="block-btn" data-block-type="features">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+                        </svg>
+                        Features
+                    </button>
+                    <button class="block-btn" data-block-type="cta">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2l9.18 3.75L21 13v7H3v-7l-.18-7.25L12 2z"/><path d="M12 12l4-2 4 2"/>
+                        </svg>
+                        Call-to-Action
+                    </button>
+                    <button class="block-btn" data-block-type="divider">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Divider
+                    </button>
+                    <button class="block-btn" data-block-type="raw_html">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="16 18 22 12 16 6"/>
+                            <polyline points="8 6 2 12 8 18"/>
+                        </svg>
+                        Raw HTML
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Center: canvas with blocks -->
+        <div class="builder-canvas">
+            <div class="canvas-content">
+                <div id="blocksContainer" class="blocks-container"></div>
+                <div class="empty-state" id="emptyState">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 11l3 3 5-5"/>
+                    </svg>
+                    <p>No blocks yet. Add one from the left panel to get started.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right sidebar: block editor -->
+        <div class="builder-sidebar builder-editor">
+            <div id="blockEditor" class="block-editor">
+                <p style="color: #94a3b8; text-align: center; padding: 20px;">
+                    Click a block to edit it
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="body_html" name="body_html" />
+</div>
+
+<!-- Sortable.js for drag-and-drop -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+
+<script>
+let blocks = [];
+let nextBlockId = 0;
+
+const BLOCK_TEMPLATES = {
+    heading: {
+        type: 'heading',
+        level: 'h2',
+        text: 'New Heading'
+    },
+    paragraph: {
+        type: 'paragraph',
+        text: 'Add your paragraph text here.'
+    },
+    image: {
+        type: 'image',
+        src: '/static/images/placeholder.png',
+        alt: 'Image',
+        caption: ''
+    },
+    button: {
+        type: 'button',
+        text: 'Click Me',
+        url: '#',
+        style: 'primary'
+    },
+    features: {
+        type: 'features',
+        items: [
+            { title: 'Feature 1', description: 'Description here' },
+            { title: 'Feature 2', description: 'Description here' },
+            { title: 'Feature 3', description: 'Description here' }
+        ]
+    },
+    cta: {
+        type: 'cta',
+        heading: 'Ready to Get Started?',
+        description: 'Join us today and see the difference.',
+        buttonText: 'Get Started',
+        buttonUrl: '#'
+    },
+    divider: {
+        type: 'divider'
+    },
+    raw_html: {
+        type: 'raw_html',
+        html: '<p>Paste HTML here</p>'
+    }
+};
+
+function addBlock(type) {
+    const block = {
+        id: nextBlockId++,
+        ...BLOCK_TEMPLATES[type]
+    };
+    blocks.push(block);
+    renderBlocks();
+    editBlock(block.id);
+}
+
+function deleteBlock(id) {
+    blocks = blocks.filter(b => b.id !== id);
+    renderBlocks();
+    updateEditor();
+}
+
+function renderBlocks() {
+    const container = document.getElementById('blocksContainer');
+    const emptyState = document.getElementById('emptyState');
+    
+    container.innerHTML = blocks.map((block, idx) => `
+        <div class="block-item" data-id="${block.id}">
+            <div class="block-header">
+                <span class="block-type">${block.type.toUpperCase()}</span>
+                <div class="block-actions">
+                    <button class="icon-btn" title="Edit">✎</button>
+                    <button class="icon-btn delete" title="Delete">✕</button>
+                </div>
+            </div>
+            <div class="block-preview">${getBlockPreview(block)}</div>
+        </div>
+    `).join('');
+
+    emptyState.style.display = blocks.length === 0 ? 'block' : 'none';
+
+    // Initialize Sortable for drag-and-drop
+    Sortable.create(container, {
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        onEnd: function() {
+            const order = Array.from(container.querySelectorAll('[data-id]')).map(el => 
+                parseInt(el.dataset.id)
+            );
+            blocks = order.map(id => blocks.find(b => b.id === id));
+        }
+    });
+}
+
+function getBlockPreview(block) {
+    switch(block.type) {
+        case 'heading':
+            return `<${block.level}>${block.text}</${block.level}>`;
+        case 'paragraph':
+            return `<p>${block.text.substring(0, 80)}${block.text.length > 80 ? '...' : ''}</p>`;
+        case 'image':
+            return `<img src="${block.src}" alt="${block.alt}" style="max-width: 100%; max-height: 120px; border-radius: 4px;">`;
+        case 'button':
+            return `<button class="preview-btn">${block.text}</button>`;
+        case 'features':
+            return `<div style="font-size: 0.85rem; color: #94a3b8;">${block.items.length} features</div>`;
+        case 'cta':
+            return `<div style="font-size: 0.85rem; color: #94a3b8;">${block.heading}</div>`;
+        case 'divider':
+            return `<hr>`;
+        case 'raw_html': {
+            const preview = String(block.html || '')
+                .replace(/<[^>]+>/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const short = preview.substring(0, 100);
+            return `<div style="font-size: 0.85rem; color: #64748b;">${escapeHtml(short)}${preview.length > 100 ? '...' : ''}</div>`;
+        }
+        default:
+            return '';
+    }
+}
+
+function editBlock(id) {
+    const block = blocks.find(b => b.id === id);
+    if (!block) return;
+
+    const editor = document.getElementById('blockEditor');
+    let html = `<div class="block-editor-form" data-block-id="${id}"><h4>Edit ${block.type}</h4>`;
+
+    switch(block.type) {
+        case 'heading':
+            html += `
+                <div class="editor-field">
+                    <label>Level</label>
+                    <select data-prop="level">
+                        <option value="h1" ${block.level === 'h1' ? 'selected' : ''}>H1 (Large)</option>
+                        <option value="h2" ${block.level === 'h2' ? 'selected' : ''}>H2 (Medium)</option>
+                        <option value="h3" ${block.level === 'h3' ? 'selected' : ''}>H3 (Small)</option>
+                    </select>
+                </div>
+                <div class="editor-field">
+                    <label>Text</label>
+                    <input type="text" data-prop="text" value="${escapeHtml(block.text)}">
+                </div>
+            `;
+            break;
+        case 'paragraph':
+            html += `
+                <div class="editor-field">
+                    <label>Text</label>
+                    <textarea data-prop="text" style="min-height: 120px;">${escapeHtml(block.text)}</textarea>
+                </div>
+            `;
+            break;
+        case 'image':
+            html += `
+                <div class="editor-field">
+                    <label>Image URL</label>
+                    <input type="text" data-prop="src" value="${escapeHtml(block.src)}">
+                </div>
+                <div class="editor-field">
+                    <label>Alt Text</label>
+                    <input type="text" data-prop="alt" value="${escapeHtml(block.alt)}">
+                </div>
+                <div class="editor-field">
+                    <label>Caption</label>
+                    <input type="text" data-prop="caption" value="${escapeHtml(block.caption)}">
+                </div>
+            `;
+            break;
+        case 'button':
+            html += `
+                <div class="editor-field">
+                    <label>Button Text</label>
+                    <input type="text" data-prop="text" value="${escapeHtml(block.text)}">
+                </div>
+                <div class="editor-field">
+                    <label>URL</label>
+                    <input type="text" data-prop="url" value="${escapeHtml(block.url)}">
+                </div>
+                <div class="editor-field">
+                    <label>Style</label>
+                    <select data-prop="style">
+                        <option value="primary" ${block.style === 'primary' ? 'selected' : ''}>Primary</option>
+                        <option value="secondary" ${block.style === 'secondary' ? 'selected' : ''}>Secondary</option>
+                    </select>
+                </div>
+            `;
+            break;
+        case 'cta':
+            html += `
+                <div class="editor-field">
+                    <label>Heading</label>
+                    <input type="text" data-prop="heading" value="${escapeHtml(block.heading)}">
+                </div>
+                <div class="editor-field">
+                    <label>Description</label>
+                    <textarea data-prop="description" style="min-height: 80px;">${escapeHtml(block.description)}</textarea>
+                </div>
+                <div class="editor-field">
+                    <label>Button Text</label>
+                    <input type="text" data-prop="buttonText" value="${escapeHtml(block.buttonText)}">
+                </div>
+                <div class="editor-field">
+                    <label>Button URL</label>
+                    <input type="text" data-prop="buttonUrl" value="${escapeHtml(block.buttonUrl)}">
+                </div>
+            `;
+            break;
+        case 'raw_html':
+            html += `
+                <div class="editor-field">
+                    <label>HTML</label>
+                    <textarea data-prop="html" style="min-height: 260px; font-family: ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${escapeHtml(block.html)}</textarea>
+                </div>
+            `;
+            break;
+    }
+
+    html += '</div>';
+    editor.innerHTML = html;
+}
+
+function updateBlockProperty(id, prop, value) {
+    const block = blocks.find(b => b.id === id);
+    if (block) {
+        block[prop] = value;
+        renderBlocks();
+    }
+}
+
+function updateEditor() {
+    const editor = document.getElementById('blockEditor');
+    editor.innerHTML = '<p style="color: #94a3b8; text-align: center; padding: 20px;">Click a block to edit it</p>';
+}
+
+function blocksToHtml() {
+    return blocks.map(block => {
+        switch(block.type) {
+            case 'heading':
+                return `<${block.level} style="margin: 24px 0 16px; color: #0f172a; font-weight: 600;">${escapeHtml(block.text)}</${block.level}>`;
+            case 'paragraph':
+                return `<p style="margin: 16px 0; color: #1e293b; line-height: 1.6;">${escapeHtml(block.text)}</p>`;
+            case 'image':
+                return `<div style="margin: 24px 0;"><img src="${block.src}" alt="${escapeHtml(block.alt)}" style="max-width: 100%; border-radius: 8px;"><${block.caption ? 'p' : 'div'} style="margin-top: 8px; color: #64748b; font-size: 0.9rem;">${escapeHtml(block.caption)}</${block.caption ? 'p' : 'div'}></div>`;
+            case 'button':
+                return `<div style="margin: 20px 0;"><a href="${block.url}" class="btn btn-${block.style}" style="display: inline-block; padding: 10px 20px; background: ${block.style === 'primary' ? '#2563eb' : '#cbd5e1'}; color: ${block.style === 'primary' ? '#fff' : '#1e293b'}; border-radius: 6px; text-decoration: none;">${escapeHtml(block.text)}</a></div>`;
+            case 'features':
+                return `<div style="margin: 24px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">${block.items.map(item => `
+                    <div style="padding: 16px; background: #f1f5f9; border-radius: 8px;">
+                        <h3 style="margin: 0 0 8px; color: #0f172a;">${escapeHtml(item.title)}</h3>
+                        <p style="margin: 0; color: #64748b; font-size: 0.95rem;">${escapeHtml(item.description)}</p>
+                    </div>
+                `).join('')}</div>`;
+            case 'cta':
+                return `<div style="margin: 24px 0; padding: 32px; background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); border-radius: 12px; text-align: center; color: white;">
+                    <h2 style="margin: 0 0 16px; color: white;">${escapeHtml(block.heading)}</h2>
+                    <p style="margin: 0 0 20px; color: rgba(255,255,255,0.9); font-size: 1.1rem;">${escapeHtml(block.description)}</p>
+                    <a href="${block.buttonUrl}" style="display: inline-block; padding: 12px 28px; background: white; color: #2563eb; border-radius: 6px; text-decoration: none; font-weight: 600;">${escapeHtml(block.buttonText)}</a>
+                </div>`;
+            case 'divider':
+                return `<hr style="margin: 32px 0; border: none; border-top: 1px solid #e2e8f0;">`;
+            case 'raw_html':
+                return block.html || '';
+            default:
+                return '';
+        }
+    }).join('');
+}
+
+function escapeHtml(text) {
+    if (text === null || text === undefined) {
+        return '';
+    }
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+function importHtmlToBlocks(html) {
+    const imported = [];
+    if (!html || !html.trim()) {
+        return imported;
+    }
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div id="importRoot">${html}</div>`, 'text/html');
+    const root = doc.getElementById('importRoot');
+    if (!root) {
+        return imported;
+    }
+
+    function pushRaw(fragmentHtml) {
+        imported.push({
+            id: nextBlockId++,
+            type: 'raw_html',
+            html: fragmentHtml
+        });
+    }
+
+    const nodes = Array.from(root.childNodes || []);
+    nodes.forEach((node) => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = (node.textContent || '').trim();
+            if (text) {
+                imported.push({
+                    id: nextBlockId++,
+                    type: 'paragraph',
+                    text,
+                });
+            }
+            return;
+        }
+
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+            return;
+        }
+
+        const tag = node.tagName.toLowerCase();
+        if (tag === 'h1' || tag === 'h2' || tag === 'h3') {
+            imported.push({
+                id: nextBlockId++,
+                type: 'heading',
+                level: tag,
+                text: (node.textContent || '').trim() || 'Heading',
+            });
+            return;
+        }
+
+        if (tag === 'p') {
+            imported.push({
+                id: nextBlockId++,
+                type: 'paragraph',
+                text: (node.textContent || '').trim(),
+            });
+            return;
+        }
+
+        if (tag === 'img') {
+            imported.push({
+                id: nextBlockId++,
+                type: 'image',
+                src: node.getAttribute('src') || '',
+                alt: node.getAttribute('alt') || 'Image',
+                caption: '',
+            });
+            return;
+        }
+
+        if (tag === 'hr') {
+            imported.push({
+                id: nextBlockId++,
+                type: 'divider',
+            });
+            return;
+        }
+
+        if (tag === 'a') {
+            imported.push({
+                id: nextBlockId++,
+                type: 'button',
+                text: (node.textContent || '').trim() || 'Learn More',
+                url: node.getAttribute('href') || '#',
+                style: 'primary',
+            });
+            return;
+        }
+
+        pushRaw(node.outerHTML || '');
+    });
+
+    return imported;
+}
+
+function savePage() {
+    const title = document.getElementById('pageTitle').value.trim();
+    const slug = document.getElementById('pageSlug')?.value.trim() || '';
+
+    if (!title) {
+        alert('Please enter a page title');
+        return;
+    }
+
+    {% if not page %}
+        if (!slug || !/^[a-z0-9-]+$/.test(slug)) {
+            alert('Slug must contain only lowercase letters, numbers, and hyphens.');
+            return;
+        }
+    {% endif %}
+
+    const html = blocksToHtml() || '<p>Empty page</p>';
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("admin_page_new") if not page else url_for("admin_page_edit", slug=page.slug) }}';
+    form.style.display = 'none';
+    form.innerHTML = `
+        <input type="hidden" name="title" value="${escapeHtml(title)}">
+        {% if not page %}
+            <input type="hidden" name="slug" value="${escapeHtml(slug)}">
+        {% endif %}
+        <input type="hidden" name="body_html" value="${escapeHtml(html)}">
+    `;
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function deletePage() {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("admin_page_delete", slug=page.slug) if page else "#" }}';
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Load existing content if editing
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup toolbar buttons
+    const saveBtn = document.getElementById('savePage');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', savePage);
+    }
+    
+    const deleteBtn = document.getElementById('deletePage');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function() {
+            if (confirm('Delete this page?')) {
+                deletePage();
+            }
+        });
+    }
+
+    // Setup block library buttons
+    const blocksLibrary = document.getElementById('blocksLibrary');
+    if (blocksLibrary) {
+        blocksLibrary.addEventListener('click', function(e) {
+            const btn = e.target.closest('[data-block-type]');
+            if (btn) {
+                const blockType = btn.getAttribute('data-block-type');
+                addBlock(blockType);
+            }
+        });
+    }
+
+    // Setup container for edit/delete buttons (delegated)
+    const container = document.getElementById('blocksContainer');
+    if (container) {
+        container.addEventListener('click', function(e) {
+            // Edit button
+            if (e.target.closest('.icon-btn:not(.delete)')) {
+                const blockItem = e.target.closest('.block-item');
+                if (blockItem) {
+                    const blockId = parseInt(blockItem.dataset.id);
+                    editBlock(blockId);
+                }
+            }
+            // Delete button
+            if (e.target.closest('.icon-btn.delete')) {
+                const blockItem = e.target.closest('.block-item');
+                if (blockItem) {
+                    const blockId = parseInt(blockItem.dataset.id);
+                    deleteBlock(blockId);
+                }
+            }
+        });
+    }
+
+    // Setup editor form for property changes
+    const blockEditor = document.getElementById('blockEditor');
+    if (blockEditor) {
+        blockEditor.addEventListener('change', function(e) {
+            const field = e.target.closest('[data-prop]');
+            const form = e.target.closest('[data-block-id]');
+            if (field && form) {
+                const blockId = parseInt(form.getAttribute('data-block-id'));
+                const prop = field.getAttribute('data-prop');
+                const value = field.value;
+                updateBlockProperty(blockId, prop, value);
+            }
+        });
+    }
+
+    const existingBodyHtml = {{ (page.body_html if page else '') | tojson }};
+    // Import existing legacy page HTML into builder blocks where possible.
+    if (existingBodyHtml.trim()) {
+        const importedBlocks = importHtmlToBlocks(existingBodyHtml);
+        if (importedBlocks.length > 0) {
+            blocks.push(...importedBlocks);
+        } else {
+            blocks.push({
+                id: nextBlockId++,
+                type: 'raw_html',
+                html: existingBodyHtml
+            });
+        }
+        renderBlocks();
+        if (blocks[0]) {
+            editBlock(blocks[0].id);
+        }
+    }
+});
+</script>
+
+<style>
+.page-builder {
+    padding: 0 !important;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.page-builder > h1 {
+    padding: 20px 20px 0;
+}
+
+.page-builder > .subtitle {
+    padding: 0 20px 20px;
+    margin: 0;
+    color: #64748b;
+}
+
+.page-builder > .toolbar {
+    padding: 12px 20px;
+    gap: 12px;
+}
+
+.builder-container {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    gap: 1px;
+    flex: 1;
+    overflow: hidden;
+    background: #e2e8f0;
+}
+
+.builder-sidebar {
+    background: #f8fafc;
+    border-right: 1px solid #e2e8f0;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.builder-editor {
+    border-left: 1px solid #e2e8f0;
+}
+
+.sidebar-section {
+    margin-bottom: 24px;
+}
+
+.sidebar-section h3 {
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    color: #0f172a;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.sidebar-section input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.blocks-library {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.block-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #0f172a;
+    transition: all 0.2s;
+}
+
+.block-btn:hover {
+    background: #e0e7ff;
+    border-color: #2563eb;
+    color: #2563eb;
+}
+
+.builder-canvas {
+    background: #fff;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.canvas-content {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.blocks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+    text-align: center;
+}
+
+.empty-state svg {
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.block-item {
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: grab;
+    transition: all 0.2s;
+}
+
+.block-item:hover {
+    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+}
+
+.block-item.sortable-ghost {
+    opacity: 0.5;
+    background: #e0e7ff;
+    border-color: #2563eb;
+}
+
+.block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.block-type {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: #e0e7ff;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.block-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    padding: 4px 6px;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.icon-btn:hover {
+    color: #2563eb;
+}
+
+.icon-btn.delete:hover {
+    color: #dc2626;
+}
+
+.block-preview {
+    font-size: 0.95rem;
+    color: #475569;
+    line-height: 1.5;
+}
+
+.block-editor {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.block-editor-form {
+    background: #f8fafc;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+.block-editor-form h4 {
+    margin: 0 0 16px;
+    color: #0f172a;
+    font-size: 0.95rem;
+}
+
+.editor-field {
+    margin-bottom: 12px;
+}
+
+.editor-field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+    color: #475569;
+    font-weight: 500;
+}
+
+.editor-field input,
+.editor-field select,
+.editor-field textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-family: inherit;
+}
+
+.editor-field textarea {
+    resize: vertical;
+}
+
+.preview-btn {
+    padding: 8px 16px;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+@media (max-width: 1400px) {
+    .builder-container {
+        grid-template-columns: 1fr;
+    }
+    .builder-sidebar { display: none; }
+    .builder-editor { display: none; }
+}
+
+@media (max-width: 900px) {
+    .builder-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 280px;
+        height: 100vh;
+        z-index: 100;
+    }
+}
+</style>
+{% endblock %}

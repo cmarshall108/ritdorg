@@ -1,0 +1,63 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Pages — Admin · RITDorg{% endblock %}
+
+{% block content %}
+<div class="admin-main">
+    <h1>Editable Pages</h1>
+
+    <div class="card">
+        <p>Manage the HTML content of each page on your site. These pages are displayed to all visitors except the home Bible reader.</p>
+    </div>
+
+    <div class="toolbar">
+        <a href="{{ url_for('admin_page_new') }}" class="btn btn-primary">+ New Page</a>
+    </div>
+
+    {% if pages %}
+    <table>
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Slug</th>
+                <th>Last Updated</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for page in pages %}
+            <tr>
+                <td><strong>{{ page.title }}</strong></td>
+                <td><code>{{ page.slug }}</code></td>
+                <td>
+                    {% if page.updated_at %}
+                        {{ page.updated_at[:10] }}
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('admin_page_edit', slug=page.slug) }}" class="btn btn-secondary">Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="card">
+        <p><em>No pages found.</em></p>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.toolbar {
+    display: flex;
+    gap: 12px;
+    margin: 20px 0;
+    align-items: center;
+}
+
+.toolbar .spacer {
+    flex: 1;
+}
+</style>
+{% endblock %}

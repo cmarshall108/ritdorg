@@ -139,6 +139,9 @@ class BibleReader {
                 this.userData.loadBookmarks().then(() => this._renderBookmarksList());
             }
         });
+        
+        // Load verse of the day
+        this.loadVerseOfTheDay();
     }
     
     bindEvents() {
@@ -4359,6 +4362,49 @@ class BibleReader {
                 if (e.target === overlay) cancel();
             });
         }
+    }
+
+    async loadVerseOfTheDay() {
+        try {
+            const response = await fetch('/api/verse-of-the-day?include_text=true');
+            if (!response.ok) {
+                console.warn('Failed to fetch verse of the day:', response.status);
+                return;
+            }
+            const votd = await response.json();
+            this.displayVerseOfTheDay(votd);
+        } catch (error) {
+            console.error('Error loading verse of the day:', error);
+        }
+    }
+
+    displayVerseOfTheDay(votd) {
+        const container = document.getElementById('verseOfTheDay');
+        if (!container) return;
+
+        const textEl = document.getElementById('votdText');
+        const refEl = document.getElementById('votdRef');
+
+        if (textEl && votd.text) {
+            textEl.textContent = `"${votd.text}"`;
+        }
+
+        if (refEl) {
+            const ref = `${votd.book} ${votd.chapter}:${votd.verse}`;
+            refEl.textContent = `— ${ref}`;
+            // Make it clickable to navigate to the verse
+            refEl.style.cursor = 'pointer';
+            refEl.onclick = () => {
+                document.getElementById('bookSelect').value = votd.book;
+                this.currentBook = votd.book;
+                this.currentChapter = votd.chapter;
+                this.pendingHighlightVerse = votd.verse;
+                this.loadChapters(votd.book, votd.chapter);
+            };
+        }
+
+        // Show the container
+        container.style.display = 'block';
     }
 
     _openVerseMenu(verseEl, x, y) {

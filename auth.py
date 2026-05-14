@@ -222,6 +222,33 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS activity_events_path_idx    ON activity_events(path);
             CREATE INDEX IF NOT EXISTS activity_events_session_idx ON activity_events(session_id);
             CREATE INDEX IF NOT EXISTS activity_events_event_idx   ON activity_events(event_name);
+
+            -- Verse of the day: stores the daily verse for all users.
+            -- computed_date is the UTC date (YYYY-MM-DD) the verse was computed for.
+            CREATE TABLE IF NOT EXISTS verse_of_the_day (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                computed_date TEXT UNIQUE NOT NULL,
+                book          TEXT NOT NULL,
+                chapter       INTEGER NOT NULL,
+                verse         INTEGER NOT NULL,
+                translation   TEXT NOT NULL DEFAULT 'NIV',
+                created_at    TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS verse_of_the_day_date_idx
+                ON verse_of_the_day(computed_date);
+
+            -- Editable page content for admin panel
+            -- Stores HTML content for various site pages
+            CREATE TABLE IF NOT EXISTS page_content (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug          TEXT UNIQUE NOT NULL,
+                title         TEXT NOT NULL,
+                body_html     TEXT NOT NULL DEFAULT '',
+                updated_at    TEXT NOT NULL,
+                updated_by    INTEGER REFERENCES users(id) ON DELETE SET NULL
+            );
+            CREATE INDEX IF NOT EXISTS page_content_slug_idx
+                ON page_content(slug);
             """
         )
 
@@ -809,6 +836,253 @@ def delete_newsletter(newsletter_id: int) -> bool:
         )
         return cur.rowcount > 0
 
+
+# ---------------------------------------------------------------------------
+# Verse of the Day
+# ---------------------------------------------------------------------------
+
+def get_verse_of_the_day(date_str: Optional[str] = None) -> Optional[dict]:
+    """Get the verse of the day for a given date (or today if None).
+    
+    Args:
+        date_str: ISO date string (YYYY-MM-DD), or None for today UTC.
+    
+    Returns:
+        Dict with keys: book, chapter, verse, translation, computed_date
+        or None if not found.
+    """
+    if date_str is None:
+        date_str = _utcnow().strftime("%Y-%m-%d")
+    
+    with _connect() as c:
+        row = c.execute(
+            "SELECT book, chapter, verse, translation, computed_date "
+            "FROM verse_of_the_day WHERE computed_date = ?",
+            (date_str,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def set_verse_of_the_day(
+    date_str: str, book: str, chapter: int, verse: int,
+    translation: str = "NIV",
+) -> bool:
+    """Set the verse of the day for a specific date.
+    
+    Returns True if successful, False otherwise.
+    """
+    now = _now_iso()
+    with _connect() as c:
+        try:
+            c.execute(
+                "INSERT OR REPLACE INTO verse_of_the_day "
+                "(computed_date, book, chapter, verse, translation, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (date_str, book, int(chapter), int(verse), translation, now),
+            )
+            return True
+        except Exception:
+            return False
+
+
+def generate_verse_of_the_day(date_str: Optional[str] = None) -> Optional[dict]:
+    """Generate and store a pseudo-random verse for the day based on date seed.
+    
+    Uses a deterministic algorithm so the same date always produces the
+    same verse. The algorithm selects a verse based on the day number
+    within the year.
+    
+    Args:
+        date_str: ISO date string (YYYY-MM-DD), or None for today UTC.
+    
+    Returns:
+        Dict with book, chapter, verse, translation, computed_date
+    """
+    from bible_data import ALL_BOOKS
+    
+    if date_str is None:
+        date_str = _utcnow().strftime("%Y-%m-%d")
+    
+    # Check if already computed
+    existing = get_verse_of_the_day(date_str)
+    if existing:
+        return existing
+    
+    # Parse date to get day of year
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        day_of_year = dt.timetuple().tm_yday  # 1-366
+    except (ValueError, AttributeError):
+        return None
+    
+    # Convert to a pseudo-random index based on day of year
+    # Total chapters in Bible: ~1189
+    books_list = list(ALL_BOOKS.items())
+    total_chapters = sum(b["chapters"] for _, b in books_list)
+    
+    # Use day number as seed for deterministic selection
+    verse_index = (day_of_year * 1009) % total_chapters  # prime multiplier
+    
+    # Find the book and chapter that corresponds to this index
+    current = 0
+    selected_book = None
+    selected_chapter = None
+    for book_name, info in books_list:
+        if current + info["chapters"] > verse_index:
+            selected_book = book_name
+            selected_chapter = (verse_index - current) + 1
+            break
+        current += info["chapters"]
+    
+    if not selected_book or not selected_chapter:
+        # Fallback to first book
+        selected_book = "Matthew"
+        selected_chapter = 1
+    
+    # For verse, use a simple random selection within the chapter
+    # We'll just pick a verse based on the hour (for some variation)
+    hour = dt.hour
+    # Assume most chapters have 20-100 verses; use modulo with a prime
+    selected_verse = ((hour * 1009) % 50) + 1
+    
+    # Store it
+    success = set_verse_of_the_day(
+        date_str, selected_book, selected_chapter, selected_verse, "NIV"
+    )
+    
+    if success:
+        return {
+            "book": selected_book,
+            "chapter": selected_chapter,
+            "verse": selected_verse,
+            "translation": "NIV",
+            "computed_date": date_str,
+        }
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Editable Page Content
+# ---------------------------------------------------------------------------
+
+def list_pages() -> list[dict]:
+    """Return all editable pages with their metadata."""
+    with _connect() as c:
+        rows = c.execute(
+            "SELECT id, slug, title, updated_at FROM page_content "
+            "ORDER BY slug",
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_page_content(slug: str) -> Optional[dict]:
+    """Get the content of a page by slug."""
+    with _connect() as c:
+        row = c.execute(
+            "SELECT id, slug, title, body_html, updated_at FROM page_content "
+            "WHERE slug = ?",
+            (slug,),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def set_page_content(slug: str, title: str, body_html: str, user_id: Optional[int] = None) -> bool:
+    """Create or update page content.
+    
+    Args:
+        slug: URL-friendly page slug (e.g., 'services', 'contact')
+        title: Human-readable page title
+        body_html: Full HTML content
+        user_id: ID of user making the edit (for audit trail)
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    now = _now_iso()
+    with _connect() as c:
+        try:
+            existing = c.execute(
+                "SELECT id FROM page_content WHERE slug = ?", (slug,)
+            ).fetchone()
+            if existing:
+                c.execute(
+                    "UPDATE page_content SET title=?, body_html=?, updated_at=?, updated_by=? "
+                    "WHERE slug=?",
+                    (title, body_html, now, user_id, slug),
+                )
+            else:
+                c.execute(
+                    "INSERT INTO page_content(slug, title, body_html, updated_at, updated_by) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (slug, title, body_html, now, user_id),
+                )
+            return True
+        except Exception:
+            return False
+
+
+def init_default_pages() -> None:
+    """Initialize default page content if pages don't exist."""
+    default_pages = {
+        "services": {
+            "title": "Services",
+            "body_html": "<h1>Services</h1><p>Our services content goes here.</p>"
+        },
+        "qa": {
+            "title": "Questions & Answers",
+            "body_html": "<h1>Questions & Answers</h1><p>Frequently asked questions will appear here.</p>"
+        },
+        "contact": {
+            "title": "Contact Us",
+            "body_html": "<h1>Contact Us</h1><p>Contact information goes here.</p>"
+        },
+        "videos": {
+            "title": "Videos",
+            "body_html": "<h1>Videos</h1><p>Our video content library.</p>"
+        },
+        "founders": {
+            "title": "Founders",
+            "body_html": "<h1>Founders</h1><p>Information about our founders.</p>"
+        },
+        "hebrew-lessons": {
+            "title": "Hebrew Lessons",
+            "body_html": "<h1>Hebrew Lessons</h1><p>Learn Hebrew with us.</p>"
+        },
+        "downloads": {
+            "title": "Free Downloads",
+            "body_html": "<h1>Free Downloads</h1><p>Download our free resources.</p>"
+        },
+        "vision": {
+            "title": "Vision",
+            "body_html": "<h1>Vision</h1><p>Our vision statement goes here.</p>"
+        },
+    }
+    
+    with _connect() as c:
+        for slug, data in default_pages.items():
+            existing = c.execute(
+                "SELECT id FROM page_content WHERE slug = ?", (slug,)
+            ).fetchone()
+            if not existing:
+                c.execute(
+                    "INSERT INTO page_content(slug, title, body_html, updated_at) "
+                    "VALUES (?, ?, ?, ?)",
+                    (slug, data["title"], data["body_html"], _now_iso()),
+                )
+
+
+def delete_page(slug: str) -> bool:
+    """Delete a page. Prevents deletion of reserved page slugs."""
+    reserved = {'index'}  # Don't allow deleting the home page
+    if slug in reserved:
+        return False
+    
+    with _connect() as c:
+        try:
+            c.execute("DELETE FROM page_content WHERE slug = ?", (slug,))
+            return True
+        except Exception:
+            return False
 
 
 # ---------------------------------------------------------------------------

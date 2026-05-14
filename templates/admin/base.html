@@ -88,6 +88,7 @@
             <a href="{{ url_for('admin_dashboard') }}" class="{% if request.endpoint == 'admin_dashboard' %}active{% endif %}">Dashboard</a>
             <a href="{{ url_for('admin_analytics') }}" class="{% if request.endpoint == 'admin_analytics' %}active{% endif %}">Analytics</a>
             <a href="{{ url_for('admin_users') }}" class="{% if request.endpoint in ['admin_users', 'admin_delete_user'] %}active{% endif %}">Users</a>
+            <a href="{{ url_for('admin_pages') }}" class="{% if request.endpoint in ['admin_pages', 'admin_page_edit'] %}active{% endif %}">Pages</a>
             <a href="{{ url_for('admin_newsletters') }}" class="{% if request.endpoint in ['admin_newsletters', 'admin_newsletter_new', 'admin_newsletter_edit'] %}active{% endif %}">Newsletters</a>
             <a href="{{ url_for('admin_videos') }}" class="{% if request.endpoint in ['admin_videos', 'admin_video_upload', 'admin_video_delete', 'admin_video_rename'] %}active{% endif %}">Videos</a>
             <a href="{{ url_for('index') }}">&larr; Back to site</a>

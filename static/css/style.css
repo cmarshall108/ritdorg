@@ -266,6 +266,10 @@ body {
     gap: 12px;
 }
 
+.donate-link {
+    display: none;
+}
+
 .theme-toggle {
     width: 44px;
     height: 44px;
@@ -867,6 +871,7 @@ mark.search-term {
 }
 
 .quick-nav h3,
+.verse-of-the-day h3,
 .reading-settings h3 {
     font-size: 0.8rem;
     font-weight: 500;
@@ -899,6 +904,46 @@ mark.search-term {
     background: var(--accent-light);
     border-color: var(--accent-primary);
     color: var(--accent-primary);
+}
+
+/* Verse of the Day Styles */
+.verse-of-the-day {
+    padding: 16px;
+    background: var(--accent-light);
+    border: 1px solid rgba(201, 169, 98, 0.3);
+    border-radius: 8px;
+    margin: 16px 0;
+}
+
+.verse-of-the-day h3 {
+    margin-bottom: 12px;
+}
+
+.votd-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.votd-text {
+    font-family: var(--font-serif);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-primary);
+    font-style: italic;
+}
+
+.votd-ref {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--accent-secondary);
+    font-weight: 500;
+    margin: 0;
+}
+
+.votd-ref:hover {
+    cursor: pointer;
+    text-decoration: underline;
 }
 
 .font-size-control label {
@@ -2675,6 +2720,10 @@ body.focus-reading-mode .audio-controls-bar {
         display: none;
     }
 
+    .header-actions .donate-link {
+        display: inline-block;
+    }
+
     .main-content {
         padding-top: 124px;
     }
@@ -3634,6 +3683,19 @@ body.tutorial-open { overflow: hidden; }
     .help-btn { width: 36px; height: 36px; }
     .theme-toggle { width: 36px; height: 36px; }
     .youtube-link { display: none; }
+    .donate-link {
+        padding: 8px 12px;
+        background: var(--accent-primary);
+        color: #fff;
+        border-radius: 6px;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: background var(--transition-fast);
+    }
+    .donate-link:hover {
+        background: var(--accent-secondary);
+    }
 }
 
 /* ===== Reader typography refinements ===== */
