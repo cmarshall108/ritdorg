@@ -304,7 +304,7 @@
             </label>
             <label>Translations
               <select id="cc-tr" multiple size="6">
-                ${['NIV','NKJV','KJV','ESV','NASB1995','Hungarian','Hungarian-Revised','Hebrew']
+                ${['NIV','NKJV','KJV','ESV','NASB1995','Hungarian','Hungarian-Revised','Hebrew','Kenyah']
                   .map(t => `<option value="${t}" ${t==='NIV'||t==='KJV'?'selected':''}>${t}</option>`).join('')}
               </select>
             </label>
@@ -354,7 +354,7 @@
             </label>
             <label>Translation
               <select id="sr-tr">
-                ${['NIV','NKJV','KJV','ESV','NASB1995','Hungarian','Hungarian-Revised','Hebrew']
+                ${['NIV','NKJV','KJV','ESV','NASB1995','Hungarian','Hungarian-Revised','Hebrew','Kenyah']
                   .map(t => `<option ${t==='NIV'?'selected':''}>${t}</option>`).join('')}
               </select>
             </label>

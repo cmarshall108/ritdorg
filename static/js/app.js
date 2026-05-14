@@ -2088,6 +2088,7 @@ class BibleReader {
         if (en.includes(translation)) return 'en';
         if (translation === 'Hungarian' || translation === 'Hungarian-Revised') return 'hu';
         if (translation === 'Hebrew') return 'he';
+        if (translation === 'Kenyah') return 'id';
         return 'en';
     }
 

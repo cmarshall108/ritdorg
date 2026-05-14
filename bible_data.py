@@ -78,7 +78,7 @@ NT_BOOKS = {
 }
 
 # Available translations (English + Hebrew)
-NT_TRANSLATIONS = ["NIV", "NKJV", "KJV", "ESV", "NASB1995", "Hungarian", "Hungarian-Revised", "Hebrew"]
+NT_TRANSLATIONS = ["NIV", "NKJV", "KJV", "ESV", "NASB1995", "Hungarian", "Hungarian-Revised", "Hebrew", "Kenyah"]
 
 # Combined map of every Bible book (OT first, then NT) used by the
 # fetcher / app / prefetch routines.

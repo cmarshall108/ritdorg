@@ -693,6 +693,7 @@ TRANSLATION_DIR_SLUGS = {
     'Hungarian': 'hungarian',
     'Hungarian-Revised': 'hungarian-revised',
     'Hebrew': 'hebrew',
+    'Kenyah': 'kenyah',
 }
 
 # BCP-47-ish language code per translation (used to pick a TTS voice).
@@ -700,6 +701,7 @@ TRANSLATION_LANG = {
     'NIV': 'en', 'NKJV': 'en', 'KJV': 'en', 'ESV': 'en', 'NASB1995': 'en',
     'Hungarian': 'hu', 'Hungarian-Revised': 'hu',
     'Hebrew': 'he',
+    'Kenyah': 'id',
 }
 
 

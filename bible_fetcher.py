@@ -39,6 +39,7 @@ TRANSLATION_SOURCES = {
     "Hungarian": "biblegateway",
     "Hungarian-Revised": "local",
     "Hebrew":   "biblehub-hebrew",
+    "Kenyah":   "local",
 }
 
 # BibleHub URL translation codes
