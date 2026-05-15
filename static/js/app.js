@@ -1932,16 +1932,13 @@ class BibleReader {
                     ref.addEventListener('click', () => {
                         const book = ref.dataset.book;
                         const chapter = parseInt(ref.dataset.chapter, 10);
-                        // Jump to the verse in the current view if the
-                        // reader supports it; otherwise just navigate.
-                        if (typeof this.navigateToReference === 'function') {
-                            this.navigateToReference(book, chapter);
-                        } else {
-                            this.currentBook = book;
-                            this.currentChapter = chapter;
-                            this.loadVerses?.();
-                        }
+                        const verse = parseInt(ref.dataset.verse, 10);
+                        // Reuse the search-result navigator so the verse
+                        // is scrolled into view and the tapped word is
+                        // highlighted via the existing search-highlight
+                        // styling.
                         this.closeHebrewPopover();
+                        this.navigateToVerse(book, chapter, verse, word);
                     });
                 });
             }
@@ -2260,14 +2257,12 @@ class BibleReader {
                     ref.addEventListener('click', () => {
                         const book = ref.dataset.book;
                         const chapter = parseInt(ref.dataset.chapter, 10);
-                        if (typeof this.navigateToReference === 'function') {
-                            this.navigateToReference(book, chapter);
-                        } else {
-                            this.currentBook = book;
-                            this.currentChapter = chapter;
-                            this.loadVerses?.();
-                        }
+                        const verse = parseInt(ref.dataset.verse, 10);
+                        // Reuse the search-result navigator so the verse
+                        // is scrolled into view and the tapped word is
+                        // highlighted within it.
                         this.closeWordPopover();
+                        this.navigateToVerse(book, chapter, verse, word);
                     });
                 });
             }
