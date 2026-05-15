@@ -138,6 +138,7 @@
                 ${tabBtn('concordance', 'Compare words')}
                 ${tabBtn('xrefs', 'Related verses')}
                 ${tabBtn('lemma', 'Hebrew helper')}
+                ${tabBtn('lexicon', 'Lexicon')}
                 ${tabBtn('tags', 'My tags')}
                 ${tabBtn('outlines', 'Sermons')}
                 ${tabBtn('playlists', 'Verse lists')}
@@ -502,6 +503,93 @@
                 </li>`).join('')}</ul>`;
             wireJumps(out);
         } catch (e) { out.innerHTML = `<p class="study-error">${esc(e.message)}</p>`; }
+    }
+
+    // ---- TAB: Lexicon (Strong's Hebrew & Greek) ------------------------
+    TABS.lexicon = async function (root) {
+        const sel = currentSelectionWord();
+        // Heuristic default: Greek if the page is in NT, otherwise Hebrew.
+        const reader = currentReader();
+        const ntBooks = new Set([
+            'Matthew','Mark','Luke','John','Acts','Romans','1 Corinthians','2 Corinthians',
+            'Galatians','Ephesians','Philippians','Colossians','1 Thessalonians','2 Thessalonians',
+            '1 Timothy','2 Timothy','Titus','Philemon','Hebrews','James','1 Peter','2 Peter',
+            '1 John','2 John','3 John','Jude','Revelation'
+        ]);
+        const defaultLang = (reader && ntBooks.has(reader.currentBook)) ? 'greek' : 'hebrew';
+        root.innerHTML = html`
+          <h3>Strong's Lexicon</h3>
+          <p class="study-hint">Look up Hebrew (H#) or Greek (G#) words by Strong's number, lemma (e.g. <span dir="rtl">בְּרֵאשִׁית</span>, λόγος), transliteration (logos, beresith), or English gloss.</p>
+          <div class="study-form lex-form">
+            <label>Language
+              <select id="lex-lang">
+                <option value="hebrew" ${defaultLang==='hebrew'?'selected':''}>Hebrew (Strong's H)</option>
+                <option value="greek"  ${defaultLang==='greek' ?'selected':''}>Greek (Strong's G)</option>
+              </select>
+            </label>
+            <label>Query
+              <input type="text" id="lex-q" placeholder="H7225 · בְּרֵאשִׁית · logos · love" value="${esc(sel||'')}" />
+            </label>
+            <button class="study-btn primary" id="lex-go">Search</button>
+          </div>
+          <div id="lex-out" class="study-out"></div>`;
+        const go = () => runLexicon();
+        $('#lex-go').addEventListener('click', go);
+        $('#lex-q').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+        // Re-run when the user switches language so results stay relevant.
+        $('#lex-lang').addEventListener('change', () => { if ($('#lex-q').value.trim()) go(); });
+        if (sel) go();
+    };
+
+    function _renderLexEntry(e) {
+        const dir = (e.id || '').startsWith('H') ? 'rtl' : 'ltr';
+        const lemma = e.lemma ? `<span class="lex-lemma" dir="${dir}">${esc(e.lemma)}</span>` : '';
+        const translit = e.translit ? `<span class="lex-translit"><em>${esc(e.translit)}</em></span>` : '';
+        const pron = e.pron ? `<span class="lex-pron">/${esc(e.pron)}/</span>` : '';
+        const deriv = e.derivation ? `<p class="lex-deriv"><strong>Derivation:</strong> ${esc(e.derivation)}</p>` : '';
+        const sdef  = e.strongs_def ? `<p class="lex-def"><strong>Definition:</strong> ${esc(e.strongs_def)}</p>` : '';
+        const kjv   = e.kjv_def ? `<p class="lex-kjv"><strong>KJV usage:</strong> ${esc(e.kjv_def)}</p>` : '';
+        return html`
+          <article class="lex-entry">
+            <header class="lex-head">
+              <span class="lex-id">${esc(e.id)}</span>
+              ${lemma} ${translit} ${pron}
+            </header>
+            ${deriv}${sdef}${kjv}
+          </article>`;
+    }
+
+    async function runLexicon() {
+        const lang = $('#lex-lang').value;
+        const q = $('#lex-q').value.trim();
+        const out = $('#lex-out');
+        if (!q) { out.innerHTML = ''; return; }
+        out.innerHTML = '<p class="study-loading">Looking up…</p>';
+        try {
+            // Direct id lookup if it looks like one ("H7225", "G2316", "7225").
+            const idRe = /^[HG]?\d+$/i;
+            if (idRe.test(q)) {
+                const sid = q.toUpperCase();
+                const r = await fetch(`/api/lexicon/${encodeURIComponent(lang)}/${encodeURIComponent(sid)}`,
+                                      { credentials: 'same-origin' });
+                if (r.ok) {
+                    const data = await r.json();
+                    out.innerHTML = _renderLexEntry(data.entry);
+                    return;
+                }
+                // Fall through to search if 404.
+            }
+            const r = await api(`/api/lexicon/search?lang=${encodeURIComponent(lang)}&q=${encodeURIComponent(q)}&limit=40`);
+            if (!r.results || r.results.length === 0) {
+                out.innerHTML = '<p class="study-meta">No matches. Try a Strong\u2019s number (H7225 / G2316) or part of the gloss.</p>';
+                return;
+            }
+            out.innerHTML = html`
+              <p class="study-meta">${r.count} match${r.count === 1 ? '' : 'es'}${r.count >= 40 ? ' (showing first 40)' : ''}</p>
+              <div class="lex-results">${r.results.map(_renderLexEntry).join('')}</div>`;
+        } catch (e) {
+            out.innerHTML = `<p class="study-error">${esc(e.message || e)}</p>`;
+        }
     }
 
     // ---- TAB: Tags ------------------------------------------------------

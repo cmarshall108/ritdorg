@@ -1342,3 +1342,41 @@ body.deck-open { overflow: hidden; }
     .deck-handout .ph blockquote { font-size: 14pt; line-height: 1.5; margin: 6pt 0 0; padding-left: 12pt; border-left: 3px solid #c9a962; }
     .deck-handout .ph p { font-size: 12pt; line-height: 1.5; margin: 0; }
 }
+
+/* ===== Lexicon tab (Strong's Hebrew & Greek) ===== */
+.lex-form { align-items: end; }
+.lex-results {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-top: 10px;
+}
+.lex-entry {
+    border: 1px solid var(--border-color, #d6d3d1);
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: var(--bg-secondary, #fafaf9);
+}
+.lex-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color, #e7e5e4);
+    padding-bottom: 6px;
+}
+.lex-id {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-weight: 700;
+    color: var(--accent-primary, #8b6914);
+    background: rgba(139, 105, 20, 0.08);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+.lex-lemma { font-size: 1.4rem; font-weight: 600; }
+.lex-translit { color: var(--text-muted, #57534e); }
+.lex-pron { color: var(--text-muted, #57534e); font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.9rem; }
+.lex-entry p { margin: 6px 0; line-height: 1.5; }
+.lex-entry p strong { color: var(--text-primary, #1c1917); }

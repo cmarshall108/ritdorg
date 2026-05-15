@@ -12,6 +12,7 @@ from translations import *
 from bible_data import NT_BOOKS, ALL_BOOKS, NT_TRANSLATIONS
 import bible_fetcher
 import bible_xml
+import lexicon
 import auth
 import video_transcode
 import study
@@ -407,6 +408,51 @@ def get_sync_data(book, chapter):
 def get_playlists():
     """Get all RITDorg playlists"""
     return jsonify(RITDORG_PLAYLISTS)
+
+
+# ---------------------------------------------------------------------------
+# Strong's Hebrew & Greek lexicon
+# ---------------------------------------------------------------------------
+
+@app.route('/api/lexicon/<lang>/<strongs_id>')
+def lexicon_entry(lang, strongs_id):
+    """Return one Strong's entry by id (e.g. /api/lexicon/hebrew/H7225)."""
+    lang = (lang or '').lower()
+    if lang not in ('hebrew', 'greek'):
+        return jsonify({"error": "lang must be 'hebrew' or 'greek'"}), 400
+    entry = lexicon.get_entry(lang, strongs_id)
+    if not entry:
+        return jsonify({"error": "not found", "id": strongs_id, "lang": lang}), 404
+    return jsonify({"lang": lang, "entry": entry})
+
+
+@app.route('/api/lexicon/search')
+def lexicon_search():
+    """Search the Strong's lexicon by lemma, transliteration, or gloss.
+
+    Query params:
+        lang  - 'hebrew' or 'greek' (required)
+        q     - search query (required)
+        limit - max results (default 25, max 200)
+    """
+    lang = (request.args.get('lang') or '').lower()
+    q = request.args.get('q', '').strip()
+    if lang not in ('hebrew', 'greek'):
+        return jsonify({"error": "lang must be 'hebrew' or 'greek'"}), 400
+    if not q:
+        return jsonify({"lang": lang, "query": q, "count": 0, "results": []})
+    try:
+        limit = max(1, min(200, int(request.args.get('limit', '25'))))
+    except (TypeError, ValueError):
+        limit = 25
+    results = lexicon.search(lang, q, limit=limit)
+    return jsonify({
+        "lang": lang,
+        "query": q,
+        "count": len(results),
+        "results": results,
+        "loaded": lexicon.is_loaded(lang),
+    })
 
 
 @app.route('/api/analytics/activity', methods=['POST'])
