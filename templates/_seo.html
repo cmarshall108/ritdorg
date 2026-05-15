@@ -1,0 +1,51 @@
+{# ---------------------------------------------------------------
+   Shared SEO / social-share <head> partial.
+
+   Set any of the following variables before {% include '_seo.html' %}
+   to override the defaults:
+
+     seo_title        - page title (otherwise just the site name)
+     seo_description  - meta description (160 chars or so)
+     seo_keywords     - optional comma-separated keywords
+     seo_image        - absolute URL of share image
+     seo_type         - og:type, default 'website'
+     seo_no_index     - truthy => emit noindex,nofollow
+   --------------------------------------------------------------- #}
+{%- set _site_name = "RITDorg - Rivers In The Desert" -%}
+{%- set _full_title = (seo_title ~ " | RITDorg") if seo_title else _site_name -%}
+{%- set _default_desc = "Free interactive Bible reader from Rivers In The Desert (RITD): read, listen, search and study Scripture in 200+ translations with Hebrew & Greek lexicons, parallel text, verse-by-verse audio and free Hebrew lessons." -%}
+{%- set _desc = seo_description or _default_desc -%}
+{# Derive the share image from the canonical URL so the scheme/host match
+   even behind a reverse proxy (Flask's _external=True ignores X-Forwarded-*). #}
+{%- set _origin = canonical_url.split('/')[0] ~ '//' ~ canonical_url.split('/')[2] if canonical_url else '' -%}
+{%- set _img = seo_image or (_origin ~ url_for('static', filename='images/ritd-logo.png')) -%}
+{%- set _type = seo_type or 'website' -%}
+{%- set _canonical = canonical_url -%}
+<title>{{ _full_title }}</title>
+<meta name="description" content="{{ _desc }}">
+{% if seo_keywords %}<meta name="keywords" content="{{ seo_keywords }}">
+{% endif -%}
+{%- if seo_no_index %}<meta name="robots" content="noindex, nofollow">
+{%- else %}<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+{%- endif %}
+<link rel="canonical" href="{{ _canonical }}">
+<meta name="theme-color" content="#1a1a2e">
+<meta name="application-name" content="RITDorg">
+<meta name="author" content="Rivers In The Desert, Inc.">
+
+<meta property="og:site_name" content="RITDorg">
+<meta property="og:type" content="{{ _type }}">
+<meta property="og:title" content="{{ _full_title }}">
+<meta property="og:description" content="{{ _desc }}">
+<meta property="og:url" content="{{ _canonical }}">
+<meta property="og:image" content="{{ _img }}">
+<meta property="og:locale" content="en_US">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ _full_title }}">
+<meta name="twitter:description" content="{{ _desc }}">
+<meta name="twitter:image" content="{{ _img }}">
+
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/ritd-logo.png') }}">
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='images/ritd-logo.png') }}">
+<link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">

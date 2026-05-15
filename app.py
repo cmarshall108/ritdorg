@@ -157,6 +157,25 @@ def _inject_user():
     }
 
 
+@app.context_processor
+def _inject_seo():
+    """Expose a stable canonical URL (no query string) to templates.
+
+    Templates pull `canonical_url` for <link rel="canonical"> + Open Graph
+    tags via templates/_seo.html.
+    """
+    try:
+        # Honor X-Forwarded-Proto/Host so the URL is correct behind a
+        # reverse proxy (Cloudflare / nginx) rather than echoing http://.
+        scheme = request.headers.get("X-Forwarded-Proto", request.scheme or "https")
+        host = request.headers.get("X-Forwarded-Host") or request.host
+        path = request.path or "/"
+        canonical = f"{scheme}://{host}{path}"
+    except Exception:
+        canonical = "https://www.ritd.org/"
+    return {"canonical_url": canonical}
+
+
 def _available_translations():
     """All translation names: every XML file under bible_data/ plus
     legacy aliases (NIV/KJV/Hebrew/...) so existing UI/API keeps working.
@@ -184,6 +203,93 @@ def favicon():
         os.path.join(app.root_path, 'static', 'images'),
         'ritd-logo.png',
     )
+
+
+# ---------------------------------------------------------------------------
+# SEO: robots.txt + sitemap.xml so search engines (Google/Bing/DuckDuckGo)
+# can crawl and rank the public pages.
+# ---------------------------------------------------------------------------
+
+# Public, indexable URL paths. Newsletter detail pages are added dynamically.
+_PUBLIC_PAGE_PATHS = [
+    '/',
+    '/videos',
+    '/services',
+    '/qa',
+    '/newsletter',
+    '/founders',
+    '/contact',
+    '/hebrew-lessons',
+    '/downloads',
+    '/vision',
+]
+
+
+def _site_root() -> str:
+    scheme = request.headers.get("X-Forwarded-Proto", request.scheme or "https")
+    host = request.headers.get("X-Forwarded-Host") or request.host
+    return f"{scheme}://{host}"
+
+
+@app.route('/robots.txt')
+def robots_txt():
+    root = _site_root()
+    body = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /admin\n"
+        "Disallow: /admin/\n"
+        "Disallow: /api/\n"
+        "Disallow: /logout\n"
+        "Disallow: /static/videos/\n"
+        "\n"
+        f"Sitemap: {root}/sitemap.xml\n"
+    )
+    return Response(body, mimetype='text/plain')
+
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    from xml.sax.saxutils import escape as _xe
+    root = _site_root()
+    urls = []
+    for p in _PUBLIC_PAGE_PATHS:
+        urls.append({
+            'loc': f"{root}{p}",
+            'changefreq': 'weekly' if p == '/' else 'monthly',
+            'priority': '1.0' if p == '/' else '0.7',
+        })
+    # Newsletter detail pages.
+    try:
+        for n in auth.list_newsletters(status='published') or []:
+            slug = (n.get('slug') or '').strip()
+            if not slug:
+                continue
+            lastmod = n.get('published_at') or n.get('updated_at') or ''
+            entry = {
+                'loc': f"{root}/newsletter/{slug}",
+                'changefreq': 'yearly',
+                'priority': '0.6',
+            }
+            if lastmod:
+                # Strip time component if present so the date is valid W3C.
+                entry['lastmod'] = lastmod.split(' ', 1)[0].split('T', 1)[0]
+            urls.append(entry)
+    except Exception:
+        pass
+
+    parts = ['<?xml version="1.0" encoding="UTF-8"?>',
+             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for u in urls:
+        parts.append('  <url>')
+        parts.append(f"    <loc>{_xe(u['loc'])}</loc>")
+        if u.get('lastmod'):
+            parts.append(f"    <lastmod>{_xe(u['lastmod'])}</lastmod>")
+        parts.append(f"    <changefreq>{u['changefreq']}</changefreq>")
+        parts.append(f"    <priority>{u['priority']}</priority>")
+        parts.append('  </url>')
+    parts.append('</urlset>\n')
+    return Response('\n'.join(parts), mimetype='application/xml')
 
 @app.route('/api/books')
 def get_books():

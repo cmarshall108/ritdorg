@@ -3,7 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RITDorg - Interactive Bible Reader</title>
+    {% set seo_title = "Interactive Bible Reader" %}
+    {% set seo_description = "RITDorg is a free interactive Bible reader from Rivers In The Desert: read, listen, search and study Scripture in 200+ translations with Hebrew & Greek lexicons, parallel text, verse-by-verse audio and free Hebrew lessons." %}
+    {% set seo_keywords = "interactive Bible, online Bible reader, free Bible app, Hebrew Bible, Greek New Testament, parallel Bible, Strong's lexicon, Hebrew lessons, audio Bible, KJV NIV Hebrew, Rivers In The Desert, RITD, RITDorg" %}
+    {% include '_seo.html' %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://www.ritd.org/#website",
+          "url": "https://www.ritd.org/",
+          "name": "RITDorg",
+          "alternateName": ["Rivers In The Desert", "RITD"],
+          "description": "Free interactive Bible reader with 200+ translations, Hebrew & Greek lexicons, parallel text, audio Bible and free Hebrew lessons.",
+          "publisher": { "@id": "https://www.ritd.org/#org" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://www.ritd.org/api/search?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": ["Organization", "NGO"],
+          "@id": "https://www.ritd.org/#org",
+          "name": "Rivers In The Desert, Inc.",
+          "alternateName": "RITD",
+          "url": "https://www.ritd.org/",
+          "logo": "https://www.ritd.org/static/images/ritd-logo.png",
+          "email": "hebrew@ritd.org",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "1431 Hillmon Grove Rd",
+            "addressLocality": "Cameron",
+            "addressRegion": "NC",
+            "postalCode": "28326",
+            "addressCountry": "US"
+          },
+          "founder": { "@type": "Person", "name": "Joe Christian" },
+          "description": "A non-profit corporation dedicated to making the Word of God more accessible in the original Hebrew and Greek."
+        }
+      ]
+    }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
