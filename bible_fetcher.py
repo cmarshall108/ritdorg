@@ -19,6 +19,7 @@ import logging
 import requests
 
 from bible_data import ALL_BOOKS
+import bible_xml
 
 logger = logging.getLogger(__name__)
 
@@ -345,12 +346,21 @@ def get_verses(translation: str, book: str, chapter: int):
     if chapter < 1 or chapter > max_ch:
         return None
 
-    # 1. Check cache
+    # 1. Local XML data shipped under bible_data/ (preferred — no network).
+    try:
+        xml_verses = bible_xml.get_verses(translation, book, chapter)
+        if xml_verses:
+            return xml_verses
+    except Exception as exc:
+        logger.warning("bible_xml lookup failed for %s %s %d: %s",
+                       translation, book, chapter, exc)
+
+    # 2. JSON file cache (legacy — populated by older external fetches).
     cached = get_cached(translation, book, chapter)
     if cached:
         return cached
 
-    # 2. Fetch from external source
+    # 3. Fetch from external source (only when nothing local is available).
     source = TRANSLATION_SOURCES.get(translation)
     verses = None
 

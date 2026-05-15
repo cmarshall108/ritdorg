@@ -11,6 +11,7 @@ import logging
 from translations import *
 from bible_data import NT_BOOKS, ALL_BOOKS, NT_TRANSLATIONS
 import bible_fetcher
+import bible_xml
 import auth
 import video_transcode
 import study
@@ -154,10 +155,26 @@ def _inject_user():
         "show_email_prompt": show_prompt,
     }
 
+
+def _available_translations():
+    """All translation names: every XML file under bible_data/ plus
+    legacy aliases (NIV/KJV/Hebrew/...) so existing UI/API keeps working.
+    Legacy names come first, then the full XML catalogue alphabetically.
+    """
+    xml_names = bible_xml.list_translations()
+    legacy = [
+        n for n in NT_TRANSLATIONS
+        if bible_xml.resolve_translation(n) is not None
+        or n in BIBLE_TRANSLATIONS  # hard-coded fallback still serves it
+    ]
+    seen = set(legacy)
+    extras = [n for n in xml_names if n not in seen]
+    return legacy + extras
+
 @app.route('/')
 def index():
     books = list(ALL_BOOKS.keys())
-    return render_template('index.html', books=books, translations=NT_TRANSLATIONS)
+    return render_template('index.html', books=books, translations=_available_translations())
 
 
 @app.route('/favicon.ico')
@@ -173,7 +190,7 @@ def get_books():
 
 @app.route('/api/translations')
 def get_translations():
-    return jsonify(NT_TRANSLATIONS)
+    return jsonify(_available_translations())
 
 @app.route('/api/chapters/<book>')
 def get_chapters(book):
