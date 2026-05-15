@@ -369,7 +369,7 @@ class BibleReader {
         
         // Video controls
         document.getElementById('playPauseBtn').addEventListener('click', () => this.togglePlay());
-        document.querySelector('.progress-bar').addEventListener('click', (e) => this.seekVideo(e));
+        this._wireProgressBarScrub();
 
         // Playback rate slider
         const rateSlider = document.getElementById('rateSlider');
@@ -3297,6 +3297,99 @@ class BibleReader {
         const percent = (e.clientX - rect.left) / rect.width;
         const duration = this.player.getDuration();
         this.player.seekTo(percent * duration, true);
+    }
+
+    // Jump TTS playback to a specific verse index in the current queue
+    // and continue from there. Used by progress-bar scrubbing and the
+    // wheel handler so the user can move forward/backward verse-by-verse.
+    seekTTS(verseIndex) {
+        if (!this.ttsQueue || !this.ttsQueue.length) return;
+        const idx = Math.max(0, Math.min(Math.floor(verseIndex), this.ttsQueue.length - 1));
+        this.ttsIndex = idx;
+        // Invalidate any in-flight callbacks from the previous verse so
+        // they can't bump ttsIndex on top of our jump.
+        this._ttsGen = (this._ttsGen || 0) + 1;
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+        if (this.ttsAudio) {
+            try {
+                this.ttsAudio.onended = null;
+                this.ttsAudio.onerror = null;
+                this.ttsAudio.pause();
+                this.ttsAudio.src = '';
+            } catch {}
+            this.ttsAudio = null;
+        }
+        this.currentUtterance = null;
+        document.querySelectorAll('.sync-verse.active, .sync-verse.follow-active')
+            .forEach(v => v.classList.remove('active', 'follow-active'));
+        this.updateTTSProgress();
+        if (this.ttsState === 'playing') {
+            this.speakNextTTS();
+        } else {
+            // Paused / idle: scroll the picked verse into view so the
+            // user sees where playback will resume from.
+            const v = this.ttsQueue[idx] && this.ttsQueue[idx].el;
+            if (v && typeof v.scrollIntoView === 'function') {
+                try { v.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch {}
+            }
+        }
+    }
+
+    // Make the audio progress bar interactive: click, drag, and
+    // mouse-wheel scroll all jump TTS to a different verse. When
+    // YouTube is the source (no TTS queue), fall back to the existing
+    // seekVideo behavior.
+    _wireProgressBarScrub() {
+        const bar = document.querySelector('.progress-bar');
+        if (!bar || bar._scrubWired) return;
+        bar._scrubWired = true;
+        bar.style.cursor = 'pointer';
+        bar.style.touchAction = 'none';
+
+        const pctFromX = (clientX) => {
+            const rect = bar.getBoundingClientRect();
+            return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        };
+        const previewFill = (pct) => {
+            const fill = document.getElementById('progressFill');
+            if (fill) fill.style.width = `${pct * 100}%`;
+        };
+        const ttsActive = () => Array.isArray(this.ttsQueue) && this.ttsQueue.length > 0;
+
+        let dragging = false;
+        bar.addEventListener('pointerdown', (e) => {
+            if (e.button !== undefined && e.button !== 0) return;
+            dragging = true;
+            try { bar.setPointerCapture(e.pointerId); } catch {}
+            if (ttsActive()) previewFill(pctFromX(e.clientX));
+            e.preventDefault();
+        });
+        bar.addEventListener('pointermove', (e) => {
+            if (!dragging) return;
+            if (ttsActive()) previewFill(pctFromX(e.clientX));
+        });
+        const finish = (e) => {
+            if (!dragging) return;
+            dragging = false;
+            try { bar.releasePointerCapture(e.pointerId); } catch {}
+            const pct = pctFromX(e.clientX);
+            if (ttsActive()) {
+                const idx = Math.floor(pct * this.ttsQueue.length);
+                this.seekTTS(idx);
+            } else {
+                this.seekVideo({ currentTarget: bar, clientX: e.clientX });
+            }
+        };
+        bar.addEventListener('pointerup', finish);
+        bar.addEventListener('pointercancel', finish);
+
+        // Mouse wheel: nudge one verse per notch.
+        bar.addEventListener('wheel', (e) => {
+            if (!ttsActive()) return;
+            e.preventDefault();
+            const dir = e.deltaY > 0 ? 1 : -1;
+            this.seekTTS(this.ttsIndex + dir);
+        }, { passive: false });
     }
     
     startSyncInterval() {
