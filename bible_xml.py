@@ -8,8 +8,17 @@ from the directory; nothing has to be hard-coded.
 Caching strategy
 ----------------
 * Each translation file is parsed lazily on first access.
-* Parsed translations are kept in an in-process LRU cache so subsequent
-  lookups are constant-time dict access.
+* Parsed translations are persisted to a pickle file under
+  ``data/bible-cache/`` so subsequent process starts skip the (slow)
+  XML reparse — the pickle round-trip is ~10x faster than ET.parse.
+* Hot translations are also kept in an in-process dict so repeated
+  lookups within a single process are constant-time.
+* A small thread pool pre-warms the most common English + Hebrew
+  translations on import so the first request doesn't pay the parse
+  cost on the request thread.
+* Concurrent calls for the same uncached translation are deduped via a
+  per-translation lock (single-flight); multiple distinct translations
+  load in parallel.
 * The XML format is::
 
       <bible translation="...">
@@ -28,7 +37,11 @@ from __future__ import annotations
 
 import logging
 import os
+import pickle
 import re
+import threading
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from xml.etree import ElementTree as ET
 
@@ -38,6 +51,19 @@ logger = logging.getLogger(__name__)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 XML_DIR = os.path.join(BASE_DIR, "bible_data")
+CACHE_DIR = os.path.join(BASE_DIR, "data", "bible-cache")
+# Bump if the parsed-data shape changes so old pickles are ignored.
+CACHE_VERSION = 1
+# How many parsed translations to keep resident in memory at once.
+# Each is a few MB of dicts; 64 fits comfortably and covers the most
+# common workloads (sync view = 2, parallel view = 2, search etc.).
+_MEM_CACHE_MAX = 64
+# Translations to pre-load in the background so the very first request
+# never has to wait for an XML parse / pickle read.
+_PREWARM = (
+    "EnglishNIV", "EnglishKJ", "EnglishESV", "EnglishNKJ",
+    "EnglishNASB", "EnglishNASU", "Hebrew",
+)
 
 # Canonical 1-based book number for each book name.
 BOOK_NUMBER: dict[str, int] = {
@@ -102,15 +128,51 @@ def resolve_translation(name: str | None) -> str | None:
     return None
 
 
-@lru_cache(maxsize=8)
-def _load(translation: str):
-    """Parse one translation's XML into nested dicts.
+# ---------------------------------------------------------------------------
+# Cache plumbing
+# ---------------------------------------------------------------------------
 
-    Returns ``{book_num: {chapter_num: {verse_num: text}}}`` or ``None``.
-    """
-    path = _name_to_path().get(translation)
-    if not path or not os.path.exists(path):
-        return None
+# In-memory parsed cache (LRU, thread-safe via _mem_lock).
+_mem_cache: "OrderedDict[str, dict]" = OrderedDict()
+_mem_lock = threading.Lock()
+# Per-translation single-flight locks so two threads asking for the same
+# uncached translation only do the work once.
+_load_locks: dict[str, threading.Lock] = {}
+_locks_lock = threading.Lock()
+
+
+def _get_load_lock(translation: str) -> threading.Lock:
+    with _locks_lock:
+        lk = _load_locks.get(translation)
+        if lk is None:
+            lk = threading.Lock()
+            _load_locks[translation] = lk
+        return lk
+
+
+def _store_in_mem(translation: str, parsed: dict) -> None:
+    with _mem_lock:
+        if translation in _mem_cache:
+            _mem_cache.move_to_end(translation)
+        _mem_cache[translation] = parsed
+        while len(_mem_cache) > _MEM_CACHE_MAX:
+            _mem_cache.popitem(last=False)
+
+
+def _get_from_mem(translation: str):
+    with _mem_lock:
+        parsed = _mem_cache.get(translation)
+        if parsed is not None:
+            _mem_cache.move_to_end(translation)
+        return parsed
+
+
+def _cache_path(translation: str) -> str:
+    return os.path.join(CACHE_DIR, f"{translation}.v{CACHE_VERSION}.pkl")
+
+
+def _parse_xml(path: str):
+    """Parse one Bible XML file into nested dicts. Returns ``None`` on error."""
     try:
         tree = ET.parse(path)
     except ET.ParseError as exc:
@@ -145,6 +207,57 @@ def _load(translation: str):
     return result
 
 
+def _load(translation: str):
+    """Return parsed dict for *translation* (mem → pickle → XML), or ``None``."""
+    parsed = _get_from_mem(translation)
+    if parsed is not None:
+        return parsed
+
+    # Dedupe concurrent loads of the same translation.
+    with _get_load_lock(translation):
+        parsed = _get_from_mem(translation)
+        if parsed is not None:
+            return parsed
+
+        path = _name_to_path().get(translation)
+        if not path or not os.path.exists(path):
+            return None
+
+        cache_path = _cache_path(translation)
+        # Use the pickle cache if it's at least as new as the source XML.
+        try:
+            xml_mtime = os.path.getmtime(path)
+            cache_mtime = (
+                os.path.getmtime(cache_path) if os.path.exists(cache_path) else 0.0
+            )
+            if cache_mtime >= xml_mtime:
+                with open(cache_path, "rb") as fh:
+                    parsed = pickle.load(fh)
+                _store_in_mem(translation, parsed)
+                return parsed
+        except (OSError, pickle.PickleError, EOFError, ValueError) as exc:
+            logger.warning(
+                "Bible cache read failed %s: %s; reparsing XML", cache_path, exc
+            )
+
+        parsed = _parse_xml(path)
+        if parsed is None:
+            return None
+
+        # Persist for the next process start (best-effort).
+        try:
+            os.makedirs(CACHE_DIR, exist_ok=True)
+            tmp = cache_path + ".tmp"
+            with open(tmp, "wb") as fh:
+                pickle.dump(parsed, fh, protocol=pickle.HIGHEST_PROTOCOL)
+            os.replace(tmp, cache_path)
+        except OSError as exc:
+            logger.warning("Bible cache write failed %s: %s", cache_path, exc)
+
+        _store_in_mem(translation, parsed)
+        return parsed
+
+
 def get_verses(translation: str, book: str, chapter: int) -> dict[int, str] | None:
     """Return ``{verse_num: text}`` for the requested chapter, or ``None``."""
     book_num = BOOK_NUMBER.get(book)
@@ -166,3 +279,54 @@ def get_verses(translation: str, book: str, chapter: int) -> dict[int, str] | No
 def has_translation(translation: str) -> bool:
     """Return True if the given name resolves to an XML file on disk."""
     return resolve_translation(translation) is not None
+
+
+# ---------------------------------------------------------------------------
+# Background pre-warm
+# ---------------------------------------------------------------------------
+
+_prewarm_started = False
+_prewarm_lock = threading.Lock()
+
+
+def _prewarm_worker(targets: list[str]) -> None:
+    # Use a small pool so we parallelize parsing/pickle reads across cores
+    # without thrashing disk on cold start.
+    with ThreadPoolExecutor(max_workers=4, thread_name_prefix="bible-prewarm") as ex:
+        for _ in ex.map(_load, targets):
+            pass
+
+
+def start_prewarm(extra: list[str] | None = None) -> None:
+    """Kick off a background thread that pre-loads common translations.
+
+    Safe to call more than once; only the first call schedules work.
+    """
+    global _prewarm_started
+    with _prewarm_lock:
+        if _prewarm_started:
+            return
+        _prewarm_started = True
+
+    available = _name_to_path()
+    targets = [t for t in _PREWARM if t in available]
+    if extra:
+        for t in extra:
+            r = resolve_translation(t)
+            if r and r not in targets:
+                targets.append(r)
+    if not targets:
+        return
+
+    t = threading.Thread(
+        target=_prewarm_worker,
+        args=(targets,),
+        name="bible-prewarm-launcher",
+        daemon=True,
+    )
+    t.start()
+
+
+# Auto-start pre-warm on import — cheap (returns immediately) and means
+# the first user request doesn't pay the cold parse cost.
+start_prewarm()
