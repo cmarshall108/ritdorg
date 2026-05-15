@@ -401,6 +401,11 @@ class BibleReader {
                 }
                 // Re-apply column visibility immediately
                 this.applySyncColumnVisibility(false, false);
+                // If audio is currently being read, the visible source
+                // column just changed (or just became invisible); rebuild
+                // the TTS queue so the now-visible column / language is
+                // what's spoken.
+                this.restartTTSIfPlaying();
             });
         }
 
@@ -2874,8 +2879,13 @@ class BibleReader {
     // Re-queue TTS from the current verse using whatever the visible
     // sync column now is. Called after a translation swap/change so the
     // new language is read aloud instead of finishing the old queue.
+    // Also handles the *paused* case: if we left playback paused and the
+    // user then changes translations, we still rebuild the queue so the
+    // next press of play resumes in the freshly-selected language
+    // instead of replaying the previous one.
     restartTTSIfPlaying() {
-        if (this.ttsState !== 'playing') return;
+        if (this.ttsState !== 'playing' && this.ttsState !== 'paused') return;
+        const wasPaused = (this.ttsState === 'paused');
         const currentVerse = this.ttsQueue[this.ttsIndex] && this.ttsQueue[this.ttsIndex].verse;
         // Invalidate any in-flight audio/utterance callbacks so they
         // can't bump ttsIndex on the freshly-rebuilt queue.
@@ -2903,6 +2913,13 @@ class BibleReader {
         const lang = verses[resumeIdx].lang;
         const useServer = this.ttsShouldForceServer(lang) || !window.speechSynthesis;
         this.ttsMode = useServer ? 'audio' : 'speech';
+        if (wasPaused) {
+            // Leave the queue ready but don't start speaking; the next
+            // togglePlay() will resume from this verse with the new
+            // translation. Make sure the play button reflects 'paused'.
+            this.setPlayBtnPlaying(false);
+            return;
+        }
         this.speakNextTTS();
     }
 

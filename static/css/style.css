@@ -2520,20 +2520,25 @@ body.focus-reading-mode .audio-controls-bar {
     font-size: 1.6rem;
 }
 
-/* Video view font sizes */
-.video-view.font-small .sync-verses {
+/* Video view font sizes — apply to BOTH sync columns (left + right /
+   Hebrew). Selector specificity is bumped with `.sync-text-dual` so
+   these win over the responsive clamp on `.single-column .sync-verses`
+   used when one column is hidden, otherwise the size buttons would
+   appear to "do nothing" once the right column is toggled off (or even
+   in dual view at certain viewport widths). */
+.video-view.font-small .sync-text-dual .sync-verses {
     font-size: 1.05rem;
 }
 
-.video-view.font-medium .sync-verses {
+.video-view.font-medium .sync-text-dual .sync-verses {
     font-size: 1.22rem;
 }
 
-.video-view.font-large .sync-verses {
+.video-view.font-large .sync-text-dual .sync-verses {
     font-size: 1.5rem;
 }
 
-.video-view.font-xlarge .sync-verses {
+.video-view.font-xlarge .sync-text-dual .sync-verses {
     font-size: 1.85rem;
 }
 
