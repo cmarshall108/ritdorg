@@ -598,6 +598,22 @@ class BibleReader {
             // Update video view if active
             if (document.getElementById('videoView').classList.contains('active')) {
                 await this.loadVideoSync();
+            } else {
+                // The sync columns are the source of TTS read-aloud audio.
+                // loadVideoSync() refreshes them for the video view; for
+                // every other view we must refresh them here too, otherwise
+                // a chapter change (especially via TTS auto-advance) will
+                // leave the previous chapter's verses in the sync DOM and
+                // the next startTTS() will read the old chapter while the
+                // page displays the new one. Clear first so any racing
+                // startTTS() will await renderSyncText() instead of
+                // collecting stale verses.
+                const sv1 = document.getElementById('syncVerses1');
+                const sv2 = document.getElementById('syncVerses2');
+                if (sv1) sv1.innerHTML = '';
+                if (sv2) sv2.innerHTML = '';
+                try { await this.renderSyncText(); }
+                catch (e) { console.warn('renderSyncText failed on chapter load', e); }
             }
 
             // Highlight verse from search navigation
