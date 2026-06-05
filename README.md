@@ -42,6 +42,34 @@ python app.py    # serves on http://localhost:80
 Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables before
 serving production traffic — see `set_admin_password.py`.
 
+## Keeping the server online + automatic log capture
+
+- Use `./auto_redeploy.sh` (run under `screen`, `tmux`, or `nohup … &`) for a
+  self-healing runner: it watches the git branch for updates (every 3 h by
+  default) and, more importantly, keeps a restart-forever "keeper" subshell
+  around the uvicorn process. If the web server crashes for *any* reason
+  (exception, OOM, import error, etc.) it is automatically restarted within
+  ~5 seconds.
+- **All logs are captured automatically** to `data/server.log` (rotated at
+  ~10 MiB, keeping 5 backups). This includes:
+  - uvicorn access/error logs
+  - every `logger.*`, `app.logger.*`, `print()` and traceback from the
+    application and all imported modules (`bible_fetcher`, `auth`, study
+    tools, …)
+  - start/stop banners with timestamps so you can see restart history
+- The Python side (`app.py`) also forces a `RotatingFileHandler` on the root
+  logger at import time, so even a direct `python app.py` or `python -m flask`
+  run will persist its logs.
+- `deploy.sh` also tees its output into the same log file for consistency.
+- Override `CHECK_INTERVAL_SECONDS`, `APP_PORT`, `APP_HOST` via the
+  environment if needed. On first run (or after a pull) it installs deps.
+
+Example persistent launch (as root for port 80):
+
+    sudo nohup ./auto_redeploy.sh >> data/auto_redeploy.out 2>&1 &
+
+Then `tail -f data/server.log` to watch everything the server ever emitted.
+
 ## SEO / search-engine indexing
 
 - `/sitemap.xml` is generated dynamically from the live newsletter list

@@ -7,6 +7,44 @@ import glob
 import json
 import os
 import logging
+from logging.handlers import RotatingFileHandler
+
+# ---------------------------------------------------------------------------
+# Automatic log capture to data/server.log (with rotation) so that all
+# application logs, warnings, errors and tracebacks are persisted even if
+# the process is restarted or run in the background. This also helps keep
+# the server "always on" by making diagnostics easy after a crash.
+# ---------------------------------------------------------------------------
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_PATH = os.path.join(LOG_DIR, "server.log")
+
+
+def _setup_logging():
+    """Ensure root logger always has a rotating file handler + console."""
+    root = logging.getLogger()
+    # Idempotent: don't duplicate handlers on re-import / reload.
+    if any(isinstance(h, RotatingFileHandler) for h in root.handlers):
+        root.setLevel(logging.INFO)
+        return
+    # Rotating file (10 MiB x 5)
+    fh = RotatingFileHandler(
+        LOG_PATH, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
+    )
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(
+        logging.Formatter("%(asctime)s %(levelname)s [%(name)s:%(lineno)d] %(message)s")
+    )
+    root.addHandler(fh)
+    # Console (so `journalctl`, docker logs, or foreground runs still see output)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(logging.Formatter("%(levelname)s [%(name)s] %(message)s"))
+    root.addHandler(ch)
+    root.setLevel(logging.INFO)
+
+
+_setup_logging()
 
 from translations import *
 from bible_data import NT_BOOKS, ALL_BOOKS, NT_TRANSLATIONS
@@ -17,7 +55,6 @@ import auth
 import video_transcode
 import study
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -1848,4 +1885,16 @@ app.register_blueprint(study.study_bp, url_prefix='/api')
 
 
 if __name__ == '__main__':
-    app.run(debug=False, port=80, host='0.0.0.0')
+    # Extra safety net for direct `python app.py` runs (dev or simple deploys).
+    # The production path (auto_redeploy.sh + uvicorn) has its own outer keeper
+    # that does the same thing, but this keeps a lone process alive too.
+    import time
+    while True:
+        try:
+            app.run(debug=False, port=80, host='0.0.0.0')
+        except KeyboardInterrupt:
+            logger.info("Flask server stopped by user.")
+            break
+        except Exception as exc:  # pragma: no cover
+            logger.exception("Flask dev server crashed: %s — restarting in 5 s", exc)
+            time.sleep(5)
