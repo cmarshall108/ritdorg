@@ -77,8 +77,18 @@ NT_BOOKS = {
     "Revelation":       {"chapters": 22, "slug": "revelation"},
 }
 
-# Available translations (English + Hebrew)
-NT_TRANSLATIONS = ["NIV", "NKJV", "KJV", "ESV", "NASB1995", "Hungarian", "Hungarian-Revised", "Hebrew", "Kenyah"]
+# "Core" / legacy translations that are always offered first in the UI
+# (if resolvable via XML or the old hard-coded BIBLE_TRANSLATIONS fallback).
+# Many more translations are discovered dynamically from bible_data/*.xml
+# at runtime (including all the Swahili*, Afrikaans*, Amharic* etc. files).
+# This list is also used as the default set for prefetch_bible.py when
+# no explicit list is passed on the command line.
+NT_TRANSLATIONS = [
+    "NIV", "NKJV", "KJV", "ESV", "NASB1995",
+    "Hungarian", "Hungarian-Revised",
+    "Hebrew", "Kenyah",
+    "Swahili2017",   # modern Swahili; other Swahili* variants are auto-discovered
+]
 
 # Combined map of every Bible book (OT first, then NT) used by the
 # fetcher / app / prefetch routines.

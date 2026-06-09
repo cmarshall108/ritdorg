@@ -39,6 +39,7 @@ import secrets
 import sqlite3
 import time
 import zipfile
+import logging
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Iterable, Optional
@@ -49,6 +50,8 @@ from flask import (
 
 import auth
 from bible_data import ALL_BOOKS
+
+logger = logging.getLogger(__name__)
 
 
 # --- DB plumbing -----------------------------------------------------------
@@ -282,7 +285,7 @@ def _load_cross_refs() -> dict:
                     if isinstance(v, list):
                         out[k] = v
         except Exception:
-            pass
+            pass  # optional cross-ref pack not present or unreadable; degrade gracefully
     return out
 
 
@@ -911,7 +914,7 @@ def export_outline(oid: int):
                 if txt:
                     lines += ["", f"> {txt}"]
             except Exception:
-                pass
+                pass  # verse text optional in outline export; continue
             lines.append("")
     body = "\n".join(lines) + "\n"
     safe = re.sub(r"[^a-z0-9]+", "-", row["title"].lower()).strip("-") or "outline"
@@ -1157,7 +1160,8 @@ def tts_cache_lookup(text: str, lang: str, voice: str) -> Optional[bytes]:
         try:
             with open(path, "rb") as f:
                 return f.read()
-        except Exception:
+        except Exception as exc:  # pragma: no cover
+            logger.debug("tts cache read failed for %s: %s", key, exc)
             return None
     return None
 
@@ -1170,8 +1174,8 @@ def tts_cache_store(text: str, lang: str, voice: str, mp3: bytes) -> None:
     try:
         with open(path, "wb") as f:
             f.write(mp3)
-    except Exception:
-        pass
+    except Exception as exc:  # pragma: no cover
+        logger.warning("tts cache store failed for %s: %s", key, exc)
 
 
 # --- Audio clip export (#13) ----------------------------------------------

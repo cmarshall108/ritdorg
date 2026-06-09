@@ -3,3 +3,8 @@ requests>=2.31.0
 Werkzeug>=3.0.0
 gTTS>=2.5.0
 edge-tts>=7.0.0
+# Server runner (used by deploy.sh / auto_redeploy.sh for production on port 80).
+uvicorn>=0.23.0
+asgiref>=3.7.0
+# Optional but recommended: allows .env file to populate SECRET_KEY etc automatically.
+python-dotenv>=1.0.0

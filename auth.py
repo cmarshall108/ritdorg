@@ -19,6 +19,7 @@ import secrets
 import sqlite3
 import json
 import time
+import logging
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -26,6 +27,7 @@ from typing import Optional, Any
 
 from flask import g, request, session
 
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -384,8 +386,8 @@ def _maybe_cleanup() -> None:
     if time.time() - _LAST_CLEANUP > 3600:
         try:
             cleanup_expired()
-        except Exception:
-            pass
+        except Exception as exc:  # pragma: no cover
+            logger.warning("cleanup_expired failed (best-effort): %s", exc)
         _LAST_CLEANUP = time.time()
 
 
@@ -681,7 +683,8 @@ def verify_admin(username: str, password: str) -> bool:
         return False
     try:
         return check_password_hash(ADMIN_PASS_HASH, password or "")
-    except Exception:
+    except Exception as exc:  # pragma: no cover
+        logger.debug("verify_admin hash check failed: %s", exc)
         return False
 
 
@@ -881,7 +884,8 @@ def set_verse_of_the_day(
                 (date_str, book, int(chapter), int(verse), translation, now),
             )
             return True
-        except Exception:
+        except Exception as exc:  # pragma: no cover
+            logger.warning("set_verse_of_the_day failed: %s", exc)
             return False
 
 
@@ -1017,7 +1021,8 @@ def set_page_content(slug: str, title: str, body_html: str, user_id: Optional[in
                     (slug, title, body_html, now, user_id),
                 )
             return True
-        except Exception:
+        except Exception as exc:  # pragma: no cover
+            logger.warning("set_page_content failed for %s: %s", slug, exc)
             return False
 
 
@@ -1081,7 +1086,8 @@ def delete_page(slug: str) -> bool:
         try:
             c.execute("DELETE FROM page_content WHERE slug = ?", (slug,))
             return True
-        except Exception:
+        except Exception as exc:  # pragma: no cover
+            logger.warning("delete_page failed for %s: %s", slug, exc)
             return False
 
 
@@ -1174,8 +1180,7 @@ def log_pageview(
             )
     except Exception:
         # Never let analytics break a real request.
-        import logging as _l
-        _l.getLogger(__name__).exception("pageview log failed")
+        logger.exception("pageview log failed")
 
 
 _LAST_ANALYTICS_PRUNE = 0.0
@@ -1191,8 +1196,8 @@ def _maybe_prune_pageviews() -> None:
         with _connect() as c:
             c.execute("DELETE FROM pageviews WHERE ts < ?", (cutoff,))
             c.execute("DELETE FROM activity_events WHERE ts < ?", (cutoff,))
-    except Exception:
-        pass
+    except Exception as exc:  # pragma: no cover
+        logger.debug("pageview prune failed (best-effort): %s", exc)
 
 
 def log_activity_event(
@@ -1215,7 +1220,7 @@ def log_activity_event(
     try:
         active_seconds = int(active_seconds or 0)
     except Exception:
-        active_seconds = 0
+        active_seconds = 0  # non-fatal input sanitiser
     if active_seconds < 0:
         active_seconds = 0
     if active_seconds > 12 * 3600:
@@ -1226,14 +1231,14 @@ def log_activity_event(
         try:
             sd = max(0, min(100, int(scroll_depth)))
         except Exception:
-            sd = None
+            sd = None  # non-fatal input sanitiser
 
     details_json = ""
     if isinstance(details, dict) and details:
         try:
             details_json = json.dumps(details, ensure_ascii=True)[:2000]
         except Exception:
-            details_json = ""
+            details_json = ""  # non-fatal
 
     try:
         with _connect() as c:
@@ -1259,8 +1264,8 @@ def log_activity_event(
                 ),
             )
     except Exception:
-        import logging as _l
-        _l.getLogger(__name__).exception("activity event log failed")
+        # Never let analytics break a real request.
+        logger.exception("activity event log failed")
 
 
 def analytics_summary(days: int = 30) -> dict:
@@ -1457,7 +1462,7 @@ def analytics_summary(days: int = 30) -> dict:
                             if label:
                                 detail_text = str(label)[:80]
                     except Exception:
-                        detail_text = ""
+                        detail_text = ""  # tolerate corrupt detail blobs from old rows
                 recent_actions.append({
                     "ts": ts,
                     "path": d.get("path") or "",
@@ -1473,7 +1478,7 @@ def analytics_summary(days: int = 30) -> dict:
             try:
                 wall_seconds = int((_parse(s["last_event_at"]) - _parse(s["started_at"])).total_seconds())
             except Exception:
-                wall_seconds = 0
+                wall_seconds = 0  # tolerate bad timestamps in legacy rows
             action_items = sorted(s["actions"].items(), key=lambda x: x[1], reverse=True)[:3]
             session_rows.append({
                 "session_id": s["session_id"],
@@ -1567,7 +1572,7 @@ def analytics_session_detail(session_id: str) -> Optional[dict]:
                         parts.append(f"depth={parsed['depth']}%")
                     detail_text = " | ".join(parts)[:220]
             except Exception:
-                detail_text = ""
+                detail_text = ""  # tolerate bad JSON in this row
 
         timeline.append({
             "ts": r.get("ts") or "",
@@ -1583,7 +1588,7 @@ def analytics_session_detail(session_id: str) -> Optional[dict]:
     try:
         wall_seconds = int((_parse(last_event_at) - _parse(started_at)).total_seconds())
     except Exception:
-        wall_seconds = 0
+        wall_seconds = 0  # tolerate bad timestamps for this session row
 
     top_actions = [
         {"name": k, "n": v}

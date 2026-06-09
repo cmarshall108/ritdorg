@@ -36,11 +36,16 @@ making the Word of God more accessible in the original Hebrew and Greek.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python app.py    # serves on http://localhost:80
+python app.py    # serves on http://localhost:8080 (non-root port)
+# or: flask --app app run --port 8080 --debug
 ```
 
-Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables before
-serving production traffic — see `set_admin_password.py`.
+A `.env` file (see `.env.example`) is now loaded automatically via
+`python-dotenv` if present; this is the easiest way to provide
+`SECRET_KEY` / `ADMIN_PASS_HASH` for both dev and the production paths.
+
+Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
+`.env`) before serving production traffic — see `set_admin_password.py`.
 
 ## Keeping the server online + automatic log capture
 
@@ -63,6 +68,9 @@ serving production traffic — see `set_admin_password.py`.
 - `deploy.sh` also tees its output into the same log file for consistency.
 - Override `CHECK_INTERVAL_SECONDS`, `APP_PORT`, `APP_HOST` via the
   environment if needed. On first run (or after a pull) it installs deps.
+- A `.env` file is loaded automatically (python-dotenv). The deploy
+  scripts set `RITD_NO_CONSOLE_LOG=1` internally to avoid duplicate log
+  lines in `data/server.log` (RotatingFileHandler is authoritative).
 
 Example persistent launch (as root for port 80):
 

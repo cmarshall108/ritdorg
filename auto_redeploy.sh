@@ -50,11 +50,10 @@ install_dependencies() {
   echo "Installing/updating dependencies..."
   if "$PYTHON_BIN" -m pip help install | grep -q -- "--break-system-packages"; then
     "$PYTHON_BIN" -m pip install -r requirements.txt --break-system-packages
-    "$PYTHON_BIN" -m pip install uvicorn asgiref --break-system-packages
   else
     "$PYTHON_BIN" -m pip install -r requirements.txt
-    "$PYTHON_BIN" -m pip install uvicorn asgiref
   fi
+  # (uvicorn + asgiref + python-dotenv are declared in requirements.txt)
 }
 
 check_port_available() {
@@ -113,7 +112,9 @@ start_keeper() {
     while true; do
       echo "=== $(date '+%Y-%m-%d %H:%M:%S') Starting RITDorg (auto-restart keeper) ===" >> "$LOG_FILE"
       # The python -c is the real server; it blocks until it dies.
-      "$PYTHON_BIN" -c "$SERVER_CMD" >> "$LOG_FILE" 2>&1
+      # RITD_NO_CONSOLE_LOG suppresses the StreamHandler so RotatingFileHandler
+      # lines are not duplicated by the outer tee/redirect into server.log.
+      RITD_NO_CONSOLE_LOG=1 "$PYTHON_BIN" -c "$SERVER_CMD" >> "$LOG_FILE" 2>&1
       code=$?
       echo "=== $(date '+%Y-%m-%d %H:%M:%S') Server process exited (code=$code). Restarting in 5s... ===" >> "$LOG_FILE"
       sleep 5

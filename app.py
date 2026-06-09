@@ -9,6 +9,15 @@ import os
 import logging
 from logging.handlers import RotatingFileHandler
 
+# Load .env early so SECRET_KEY, ADMIN_PASS_HASH etc. are available for
+# module-level code (auth defaults, logging, etc.). Safe if python-dotenv
+# not installed or no .env present.
+try:
+    from dotenv import load_dotenv  # type: ignore
+    load_dotenv()
+except Exception:
+    pass  # optional; .env just won't be loaded if package missing or no file
+
 # ---------------------------------------------------------------------------
 # Automatic log capture to data/server.log (with rotation) so that all
 # application logs, warnings, errors and tracebacks are persisted even if
@@ -21,7 +30,7 @@ LOG_PATH = os.path.join(LOG_DIR, "server.log")
 
 
 def _setup_logging():
-    """Ensure root logger always has a rotating file handler + console."""
+    """Ensure root logger always has a rotating file handler (+ optional console)."""
     root = logging.getLogger()
     # Idempotent: don't duplicate handlers on re-import / reload.
     if any(isinstance(h, RotatingFileHandler) for h in root.handlers):
@@ -36,11 +45,15 @@ def _setup_logging():
         logging.Formatter("%(asctime)s %(levelname)s [%(name)s:%(lineno)d] %(message)s")
     )
     root.addHandler(fh)
-    # Console (so `journalctl`, docker logs, or foreground runs still see output)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(logging.Formatter("%(levelname)s [%(name)s] %(message)s"))
-    root.addHandler(ch)
+    # Console only for foreground / journalctl / docker runs.
+    # The deploy/auto_redeploy.sh set RITD_NO_CONSOLE_LOG=1 so that the
+    # tee'd stdout does not duplicate the RotatingFileHandler lines in
+    # data/server.log (which would otherwise appear twice).
+    if not os.environ.get("RITD_NO_CONSOLE_LOG"):
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        ch.setFormatter(logging.Formatter("%(levelname)s [%(name)s] %(message)s"))
+        root.addHandler(ch)
     root.setLevel(logging.INFO)
 
 
@@ -116,8 +129,9 @@ def _log_pageview():
             user_id=user.get("id"),
             country=request.headers.get("CF-IPCountry"),
         )
-    except Exception:
-        pass
+    except Exception as exc:  # pragma: no cover
+        # Best-effort analytics; never affect the real response.
+        logger.debug("pageview hook failed (best-effort): %s", exc)
 
 
 @app.after_request
@@ -313,7 +327,7 @@ def sitemap_xml():
                 entry['lastmod'] = lastmod.split(' ', 1)[0].split('T', 1)[0]
             urls.append(entry)
     except Exception:
-        pass
+        pass  # best-effort; sitemap still works for books + static pages
 
     parts = ['<?xml version="1.0" encoding="UTF-8"?>',
              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
@@ -1890,13 +1904,16 @@ app.register_blueprint(study.study_bp, url_prefix='/api')
 
 
 if __name__ == '__main__':
-    # Extra safety net for direct `python app.py` runs (dev or simple deploys).
-    # The production path (auto_redeploy.sh + uvicorn) has its own outer keeper
-    # that does the same thing, but this keeps a lone process alive too.
+    # Direct `python app.py` entry for local development or simple deploys.
+    # Binds 8080 so it works without root/sudo (port 80 requires privileges).
+    # Production deploys should use the uvicorn + auto_redeploy.sh path.
+    # The restart loop provides a minimal safety net for lone processes.
     import time
+    DEV_PORT = int(os.environ.get("APP_PORT", "8080"))
+    DEV_HOST = os.environ.get("APP_HOST", "127.0.0.1")
     while True:
         try:
-            app.run(debug=False, port=80, host='0.0.0.0')
+            app.run(debug=True, port=DEV_PORT, host=DEV_HOST)
         except KeyboardInterrupt:
             logger.info("Flask server stopped by user.")
             break
