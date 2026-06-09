@@ -45,7 +45,7 @@
         },
         {
             title: 'Pick a voice',
-            body:  'Tap the microphone to open Voice settings. Choose from natural-sounding neural voices in English (US, UK, Australian and more), Hungarian, and Hebrew. Online voices are on by default for the best quality; switch to your device’s built-in voices if you’re offline.',
+            body:  'Tap the microphone to open Voice settings. Choose from natural-sounding neural voices in English (US, UK, Australian and more), Hungarian, Hebrew, and Swahili. Online voices are on by default for the best quality; switch to your device’s built-in voices if you’re offline.',
             target: '#ttsSettingsBtn',
         },
         {

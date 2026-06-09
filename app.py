@@ -768,12 +768,17 @@ EDGE_VOICES = {
         ('he-IL-HilaNeural',     'Hila — female'),
         ('he-IL-AvriNeural',     'Avri — male'),
     ],
+    'sw': [
+        ('sw-KE-ZuriNeural',     'Zuri — female (Kenya)'),
+        ('sw-KE-RafikiNeural',   'Rafiki — male (Kenya)'),
+    ],
 }
 EDGE_VOICE_NAMES = {v[0] for vs in EDGE_VOICES.values() for v in vs}
 DEFAULT_EDGE_VOICE = {
     'en': 'en-US-AriaNeural',
     'hu': 'hu-HU-NoemiNeural',
     'he': 'he-IL-HilaNeural',
+    'sw': 'sw-KE-ZuriNeural',
 }
 
 

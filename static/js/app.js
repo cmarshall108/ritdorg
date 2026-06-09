@@ -29,6 +29,12 @@ class BibleReader {
         this.syncData = null;
         this.syncInterval = null;
         this.playbackRate = 1; // default playback rate
+
+        // Playlist tracking so we only re-cue when the book/playlist actually changes.
+        // Within a book we use lightweight playVideoAt() for chapter changes (incl. auto-advance)
+        // to avoid disrupting YouTube's internal playlist continuation state.
+        this.currentPlaylistId = null;
+        this._maxChapter = 0;
         
         // Browser TTS fallback (used when no video for a chapter)
         this.ttsState = 'idle'; // 'idle' | 'playing' | 'paused'
@@ -46,8 +52,8 @@ class BibleReader {
         //                 reaches gTTS)
         this.ttsSettings = (() => {
             const def = {
-                voice:       { en: '', hu: '', he: '' },
-                onlineVoice: { en: '', hu: '', he: '' },
+                voice:       { en: '', hu: '', he: '', sw: '' },
+                onlineVoice: { en: '', hu: '', he: '', sw: '' },
                 preferServer: true,
                 tld: 'com',
             };
@@ -478,17 +484,22 @@ class BibleReader {
     prevChapter() {
         if (this.currentChapter > 1) {
             this.currentChapter--;
-            document.getElementById('chapterSelect').value = this.currentChapter;
+            const ds = document.getElementById('chapterSelect');
+            if (ds) ds.value = this.currentChapter;
+            const ms = document.getElementById('mobileChapterSelect');
+            if (ms) ms.value = String(this.currentChapter);
             this.loadChapter(this.currentBook, this.currentChapter);
         }
     }
     
     nextChapter() {
-        const chapterSelect = document.getElementById('chapterSelect');
-        const maxChapter = chapterSelect.options.length;
+        const maxChapter = this._maxChapter || (document.getElementById('chapterSelect')?.options.length || 0);
         if (this.currentChapter < maxChapter) {
             this.currentChapter++;
-            chapterSelect.value = this.currentChapter;
+            const ds = document.getElementById('chapterSelect');
+            if (ds) ds.value = this.currentChapter;
+            const ms = document.getElementById('mobileChapterSelect');
+            if (ms) ms.value = String(this.currentChapter);
             this.loadChapter(this.currentBook, this.currentChapter);
         }
     }
@@ -550,6 +561,7 @@ class BibleReader {
             const mobileBook = document.getElementById('mobileBookSelect');
             if (mobileBook && mobileBook.value !== book) mobileBook.value = book;
             
+            this._maxChapter = chapters.length ? chapters[chapters.length - 1] : 0;
             this.currentChapter = selectChapter;
             this.loadChapter(book, selectChapter);
         } catch (error) {
@@ -566,7 +578,12 @@ class BibleReader {
             const response = await fetch(`/api/verses/${book}/${chapter}?translation=${this.currentTranslation}`);
             const data = await response.json();
             // Bail if a newer chapter request was issued while this one was in flight.
-            if (reqId !== this._chapterReqId) return;
+            if (reqId !== this._chapterReqId) {
+                // Drop any pending auto-advance intent from a superseded load so it
+                // doesn't trigger on a subsequent successful chapter load.
+                this._autoplayAfterLoad = false;
+                return;
+            }
             // Handle new response format with fallback info
             this.verses = data.verses || data;
             
@@ -578,6 +595,16 @@ class BibleReader {
             this.currentBook = book;
             this.currentChapter = chapter;
             this.currentPage = 0;
+
+            // Ensure we have a reliable max chapter (used by auto-advance end handlers)
+            // even for direct loadChapter calls that bypass loadChapters().
+            if (!this._maxChapter) {
+                const sel = document.getElementById('chapterSelect');
+                if (sel && sel.options && sel.options.length > 0) {
+                    const lastOpt = sel.options[sel.options.length - 1];
+                    this._maxChapter = parseInt(lastOpt.value, 10) || sel.options.length;
+                }
+            }
             
             this.paginateVerses();
             this.renderCurrentPages();
@@ -635,14 +662,27 @@ class BibleReader {
                 this._autoplayAfterLoad = false;
                 setTimeout(() => {
                     try {
-                        // Prefer the same play path the user normally uses
-                        // (video if available, otherwise TTS).
-                        this.togglePlay();
+                        // For video/playlist chapters the loadVideoSync + initYouTubePlayer
+                        // above already scheduled a targeted playVideoAt / load. Using togglePlay
+                        // here can race and pause a just-started video. Instead, ensure it is
+                        // playing without toggling. For pure TTS we still go through togglePlay.
+                        if (this.player && this.isPlayerReady) {
+                            try {
+                                const st = this.player.getPlayerState();
+                                if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING) {
+                                    this.player.playVideo();
+                                }
+                            } catch {}
+                        } else {
+                            // Prefer the same play path the user normally uses
+                            // (video if available, otherwise TTS).
+                            this.togglePlay();
+                        }
                     } catch (e) {
-                        console.warn('auto-advance togglePlay failed', e);
+                        console.warn('auto-advance start failed', e);
                         try { this.startTTS(); } catch {}
                     }
-                }, 250);
+                }, 300);
             }
 
         } catch (error) {
@@ -1361,21 +1401,33 @@ class BibleReader {
     }
     
     initYouTubePlayer(videoId, playlistId = null, playlistIndex = 0) {
+        // If switching to a non-playlist chapter, clear playlist tracking so a
+        // later playlist book will force a fresh cue.
+        if (!playlistId) {
+            this.currentPlaylistId = null;
+        }
+
         // If player exists, load new video or playlist
         if (this.player && this.isPlayerReady) {
             if (playlistId) {
-                this.player.cuePlaylist({
-                    list: playlistId,
-                    listType: 'playlist',
-                    index: playlistIndex
-                });
-                // Only auto-play if not navigating from search
+                const needsCue = !this.currentPlaylistId || this.currentPlaylistId !== playlistId;
+                if (needsCue) {
+                    this.player.cuePlaylist({
+                        list: playlistId,
+                        listType: 'playlist',
+                        index: playlistIndex
+                    });
+                    this.currentPlaylistId = playlistId;
+                }
+                // Only auto-play / jump if not navigating from search.
+                // Use a short delay for in-playlist chapter switches (no re-cue) so we
+                // don't fight YouTube's own end-of-item continuation.
                 if (!this.suppressAutoPlay) {
                     setTimeout(() => {
                         if (this.player) {
                             this.player.playVideoAt(playlistIndex);
                         }
-                    }, 500);
+                    }, needsCue ? 500 : 80);
                 }
             } else if (videoId) {
                 if (this.suppressAutoPlay) {
@@ -1410,6 +1462,7 @@ class BibleReader {
             playerVars.list = playlistId;
             playerVars.listType = 'playlist';
             playerVars.index = playlistIndex;
+            this.currentPlaylistId = playlistId;
         }
         
         // Build player options
@@ -1468,8 +1521,7 @@ class BibleReader {
 
             // Auto-continue to the next chapter when the video ends.
             if (event.data === YT.PlayerState.ENDED && this.autoAdvanceChapter) {
-                const sel = document.getElementById('chapterSelect');
-                const maxChapter = sel ? sel.options.length : 0;
+                const maxChapter = this._maxChapter || (document.getElementById('chapterSelect')?.options.length || 0);
                 if (this.currentChapter < maxChapter) {
                     this._autoplayAfterLoad = true;
                     this.nextChapter();
@@ -1509,6 +1561,7 @@ class BibleReader {
         const t = (translationName || '').toLowerCase();
         if (t.includes('hungarian')) return 'hu-HU';
         if (t.includes('hebrew'))    return 'he-IL';
+        if (t.includes('swahili'))   return 'sw-KE';
         return 'en-US';
     }
 
@@ -1521,7 +1574,7 @@ class BibleReader {
         // User override: always use the online voice.
         if (this.ttsSettings && this.ttsSettings.preferServer) return true;
         const base = (lang || '').toLowerCase().split('-')[0];
-        return base === 'he' || base === 'ar' || base === 'yi';
+        return base === 'he' || base === 'ar' || base === 'yi' || base === 'sw';
     }
 
     pickTTSVoice(lang) {
@@ -1601,7 +1654,7 @@ class BibleReader {
         });
 
         // Browser (offline) voice selectors.
-        ['ttsVoiceEn', 'ttsVoiceHu', 'ttsVoiceHe'].forEach(id => {
+        ['ttsVoiceEn', 'ttsVoiceHu', 'ttsVoiceHe', 'ttsVoiceSw'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             el.addEventListener('change', () => {
@@ -1611,7 +1664,7 @@ class BibleReader {
             });
         });
         // Online (neural) voice selectors.
-        ['ttsOnlineVoiceEn', 'ttsOnlineVoiceHu', 'ttsOnlineVoiceHe'].forEach(id => {
+        ['ttsOnlineVoiceEn', 'ttsOnlineVoiceHu', 'ttsOnlineVoiceHe', 'ttsOnlineVoiceSw'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             el.addEventListener('change', () => {
@@ -1629,8 +1682,8 @@ class BibleReader {
 
         resetBtn?.addEventListener('click', () => {
             this.ttsSettings = {
-                voice:       { en: '', hu: '', he: '' },
-                onlineVoice: { en: '', hu: '', he: '' },
+                voice:       { en: '', hu: '', he: '', sw: '' },
+                onlineVoice: { en: '', hu: '', he: '', sw: '' },
                 preferServer: true,
                 tld: 'com',
             };
@@ -2769,9 +2822,11 @@ class BibleReader {
         fillBrowser('ttsVoiceEn', 'en');
         fillBrowser('ttsVoiceHu', 'hu');
         fillBrowser('ttsVoiceHe', 'he');
+        fillBrowser('ttsVoiceSw', 'sw');
         fillOnline('ttsOnlineVoiceEn', 'en');
         fillOnline('ttsOnlineVoiceHu', 'hu');
         fillOnline('ttsOnlineVoiceHe', 'he');
+        fillOnline('ttsOnlineVoiceSw', 'sw');
 
         const preferEl = document.getElementById('ttsPreferServer');
         if (preferEl) preferEl.checked = !!this.ttsSettings.preferServer;
@@ -2785,6 +2840,7 @@ class BibleReader {
             'en-US': 'For God so loved the world that he gave his one and only Son.',
             'hu-HU': 'Mert úgy szerette Isten a világot, hogy egyszülött Fiát adta.',
             'he-IL': 'כִּי כָּכָה אָהַב הָאֱלֹהִים אֶת־הָעוֹלָם.',
+            'sw-KE': 'Kwa maana Mungu aliupenda ulimwengu hivi, hata akamtoa Mwanawe wa pekee, ili kila mtu amwaminiye asipotee, bali awe na uzima wa milele.',
         };
         const text = samples[lang] || samples['en-US'];
         try { window.speechSynthesis.cancel(); } catch {}
@@ -3073,8 +3129,7 @@ class BibleReader {
         if (this.ttsIndex >= this.ttsQueue.length) {
             // End of chapter — auto-advance if enabled and a next chapter exists.
             if (this.autoAdvanceChapter) {
-                const sel = document.getElementById('chapterSelect');
-                const maxChapter = sel ? sel.options.length : 0;
+                const maxChapter = this._maxChapter || (document.getElementById('chapterSelect')?.options.length || 0);
                 if (this.currentChapter < maxChapter) {
                     this._autoplayAfterLoad = true;
                     this.nextChapter();
