@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 CHECK_INTERVAL_SECONDS="${CHECK_INTERVAL_SECONDS:-10800}" # 3 hours
 APP_PORT="${APP_PORT:-80}"
@@ -82,7 +82,7 @@ check_port_available() {
 }
 
 # Build the exact one-liner we exec so we can reliably pkill / pgrep it.
-SERVER_CMD="from asgiref.wsgi import WsgiToAsgi; from app import app; import uvicorn; uvicorn.run(WsgiToAsgi(app), host='$APP_HOST', port=$APP_PORT)"
+SERVER_CMD="from asgiref.wsgi import WsgiToAsgi; from ritdorg.app import app; import uvicorn; uvicorn.run(WsgiToAsgi(app), host='$APP_HOST', port=$APP_PORT)"
 
 start_keeper() {
   # Ensure log directory exists (data/ is already used for DB + caches).
@@ -142,7 +142,7 @@ stop_keeper() {
 
   # Belt-and-suspenders: kill any stray server processes that match our
   # distinctive python -c invocation (in case of manual starts, old keepers, etc).
-  pkill -f "from asgiref.wsgi import WsgiToAsgi; from app import app" 2>/dev/null || true
+  pkill -f "from asgiref.wsgi import WsgiToAsgi; from ritdorg.app import app" 2>/dev/null || true
 }
 
 cleanup() {

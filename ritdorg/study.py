@@ -48,8 +48,8 @@ from flask import (
     Blueprint, Response, abort, current_app, jsonify, request, send_file, url_for,
 )
 
-import auth
-from bible_data import ALL_BOOKS
+from . import auth
+from .bible_data import ALL_BOOKS
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +272,7 @@ _TSK_SEED = {
 def _load_cross_refs() -> dict:
     """Merge the seed with a bundled JSON file (if present)."""
     path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "data", "cross_references.json",
     )
     out = dict(_TSK_SEED)
@@ -370,7 +370,7 @@ def _build_plan_days(slug: str) -> list[list[str]]:
 
 
 def _ot_books() -> set[str]:
-    from bible_data import OT_BOOKS
+    from .bible_data import OT_BOOKS
     return set(OT_BOOKS.keys())
 
 
@@ -407,7 +407,7 @@ def words_concordance():
     Returns:
       { word, breakdown: { TRANSLATION: { count, verses } } }
     """
-    from app import (
+    from .app import (
         TRANSLATION_DIR_SLUGS, TRANSLATION_LANG,
         _normalize_word_for_lang, _load_translation_corpus,
     )
@@ -453,7 +453,7 @@ def hebrew_lemma_bridge():
     gloss and surface every meaningful word as a candidate. The client
     can then call /api/words/concordance for any chosen word.
     """
-    from app import _load_hebrew_dict, _strip_hebrew_marks
+    from .app import _load_hebrew_dict, _strip_hebrew_marks
     word = (request.args.get("word") or "").strip()
     if not word:
         return jsonify({"error": "word required"}), 400
@@ -496,7 +496,7 @@ def words_search():
     Returns:
         { count, truncated, results: [{book, chapter, verse, text, snippet}] }
     """
-    from app import (
+    from .app import (
         _load_translation_corpus, _tokenize_for_lang, TRANSLATION_DIR_SLUGS,
         TRANSLATION_LANG,
     )
@@ -610,7 +610,7 @@ def hebrew_lemma_search():
     word appears. Computes plausible roots by trimming common prefixes and
     suffixes and matches token-by-token in the cached Hebrew corpus.
     """
-    from app import _strip_hebrew_marks, _load_hebrew_corpus
+    from .app import _strip_hebrew_marks, _load_hebrew_corpus
     raw = (request.args.get("word") or "").strip()
     if not raw:
         return jsonify({"error": "word required"}), 400
@@ -1096,7 +1096,7 @@ def mark_day(slug: str):
 def interlinear(book: str, chapter: int):
     """Return per-token Hebrew→gloss data for the chapter, when available."""
     import bible_fetcher
-    from app import _load_hebrew_dict, _strip_hebrew_marks
+    from .app import _load_hebrew_dict, _strip_hebrew_marks
     if book not in ALL_BOOKS:
         return jsonify({"error": "unknown book"}), 404
     verses = bible_fetcher.get_verses("Hebrew", book, chapter) or {}
@@ -1122,7 +1122,7 @@ def footnotes(book: str, chapter: int):
     if book not in ALL_BOOKS:
         return jsonify({"error": "unknown book"}), 404
     base = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "data", "footnotes",
         ALL_BOOKS[book]["slug"],
     )
@@ -1145,7 +1145,7 @@ def _tts_cache_dir() -> str:
     global _TTS_CACHE_DIR
     if _TTS_CACHE_DIR is None:
         d = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "data", "tts-cache",
         )
         os.makedirs(d, exist_ok=True)
@@ -1183,7 +1183,7 @@ def tts_cache_store(text: str, lang: str, voice: str, mp3: bytes) -> None:
 @study_bp.route("/clip")
 def audio_clip():
     """Return a single MP3 covering a verse range (concatenated TTS)."""
-    from app import _synthesize_edge, DEFAULT_EDGE_VOICE, EDGE_VOICE_NAMES
+    from .app import _synthesize_edge, DEFAULT_EDGE_VOICE, EDGE_VOICE_NAMES
     import bible_fetcher
 
     book = (request.args.get("book") or "").strip()
@@ -1561,7 +1561,7 @@ def upsert_settings():
 @study_bp.route("/corpus/availability")
 def corpus_availability():
     base = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
         "static", "data", "bible",
     )
     out = {}

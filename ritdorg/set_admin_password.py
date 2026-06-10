@@ -2,8 +2,9 @@
 """Generate an ADMIN_PASS_HASH for the admin panel.
 
 Usage:
-    python set_admin_password.py
-    python set_admin_password.py 'my new password'
+    python ritdorg/set_admin_password.py
+    python -m ritdorg.set_admin_password
+    python ritdorg/set_admin_password.py 'my new password'
 
 Copy the printed hash into your environment as ADMIN_PASS_HASH.
 """

@@ -3,22 +3,32 @@
 Pre-fetch all New Testament Bible data and cache it as JSON files.
 
 Usage:
-    python prefetch_bible.py                  # Fetch everything
-    python prefetch_bible.py NIV              # Fetch only NIV
-    python prefetch_bible.py KJV ESV          # Fetch KJV and ESV
-    python prefetch_bible.py --hebrew-only    # Fetch only Hebrew
-    python prefetch_bible.py --migrate        # Export hardcoded data to cache
+    python -m ritdorg.prefetch_bible            # Fetch everything
+    python ritdorg/prefetch_bible.py NIV        # Fetch only NIV
+    python ritdorg/prefetch_bible.py KJV ESV    # Fetch KJV and ESV
+    python ritdorg/prefetch_bible.py --hebrew-only
+    python ritdorg/prefetch_bible.py --migrate  # Export hardcoded data to cache
 
 This populates  static/data/bible/{translation}/{book}/{chapter}.json
 so that the web app can serve verses instantly without live fetching.
 """
 
+# Allow direct execution (python ritdorg/prefetch_bible.py) to behave like
+# `python -m ritdorg.prefetch_bible` by forcing package context.
+import os
 import sys
+if __package__ is None or __package__ == "":
+    _pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _pkg_root not in sys.path:
+        sys.path.insert(0, _pkg_root)
+    __package__ = "ritdorg"
+
+
 import time
 import logging
 
-from bible_data import ALL_BOOKS, NT_TRANSLATIONS
-import bible_fetcher
+from .bible_data import ALL_BOOKS, NT_TRANSLATIONS
+from . import bible_fetcher
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 

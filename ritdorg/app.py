@@ -1,3 +1,14 @@
+# Allow direct execution (python ritdorg/app.py) to behave like
+# `python -m ritdorg.app` by forcing package context for relative imports.
+import os
+import sys
+if __package__ is None or __package__ == "":
+    _pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if _pkg_root not in sys.path:
+        sys.path.insert(0, _pkg_root)
+    __package__ = "ritdorg"
+
+
 from flask import (
     Flask, render_template, jsonify, request, Response,
     redirect, url_for, session, flash, g, make_response, abort,
@@ -5,7 +16,6 @@ from flask import (
 )
 import glob
 import json
-import os
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -24,7 +34,7 @@ except Exception:
 # the process is restarted or run in the background. This also helps keep
 # the server "always on" by making diagnostics easy after a crash.
 # ---------------------------------------------------------------------------
-LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data")
 os.makedirs(LOG_DIR, exist_ok=True)
 LOG_PATH = os.path.join(LOG_DIR, "server.log")
 
@@ -46,8 +56,8 @@ def _setup_logging():
     )
     root.addHandler(fh)
     # Console only for foreground / journalctl / docker runs.
-    # The deploy/auto_redeploy.sh set RITD_NO_CONSOLE_LOG=1 so that the
-    # tee'd stdout does not duplicate the RotatingFileHandler lines in
+    # The scripts/deploy.sh and scripts/auto_redeploy.sh set RITD_NO_CONSOLE_LOG=1
+    # so that the tee'd stdout does not duplicate the RotatingFileHandler lines in
     # data/server.log (which would otherwise appear twice).
     if not os.environ.get("RITD_NO_CONSOLE_LOG"):
         ch = logging.StreamHandler()
@@ -59,14 +69,14 @@ def _setup_logging():
 
 _setup_logging()
 
-from translations import *
-from bible_data import NT_BOOKS, ALL_BOOKS, NT_TRANSLATIONS
-import bible_fetcher
-import bible_xml
-import lexicon
-import auth
-import video_transcode
-import study
+from .translations import *
+from .bible_data import NT_BOOKS, ALL_BOOKS, NT_TRANSLATIONS
+from . import bible_fetcher
+from . import bible_xml
+from . import lexicon
+from . import auth
+from . import video_transcode
+from . import study
 
 logger = logging.getLogger(__name__)
 
@@ -1904,10 +1914,11 @@ app.register_blueprint(study.study_bp, url_prefix='/api')
 
 
 if __name__ == '__main__':
-    # Direct `python app.py` entry for local development or simple deploys.
-    # Binds 8080 so it works without root/sudo (port 80 requires privileges).
-    # Production deploys should use the uvicorn + auto_redeploy.sh path.
-    # The restart loop provides a minimal safety net for lone processes.
+    # Direct `python ritdorg/app.py` (or `python -m ritdorg.app`) entry for local
+    # development or simple deploys. Binds 8080 so it works without root/sudo
+    # (port 80 requires privileges). Production deploys should use the uvicorn +
+    # scripts/auto_redeploy.sh path. The restart loop provides a minimal safety
+    # net for lone processes.
     import time
     DEV_PORT = int(os.environ.get("APP_PORT", "8080"))
     DEV_HOST = os.environ.get("APP_HOST", "127.0.0.1")

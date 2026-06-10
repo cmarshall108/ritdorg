@@ -18,8 +18,8 @@ import time
 import logging
 import requests
 
-from bible_data import ALL_BOOKS
-import bible_xml
+from .bible_data import ALL_BOOKS
+from . import bible_xml
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE_DIR = os.path.join(BASE_DIR, "static", "data", "bible")
 
 # How each translation is fetched
@@ -395,7 +395,7 @@ def export_hardcoded_to_cache():
     the dynamic system can serve them instantly without re-fetching.
     """
     try:
-        from translations import BIBLE_NIV, BIBLE_HEBREW
+        from .translations import BIBLE_NIV, BIBLE_HEBREW
     except ImportError:
         logger.info("No hardcoded translations to export.")
         return

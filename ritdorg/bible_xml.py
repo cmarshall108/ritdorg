@@ -45,11 +45,11 @@ from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from xml.etree import ElementTree as ET
 
-from bible_data import ALL_BOOKS
+from .bible_data import ALL_BOOKS
 
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 XML_DIR = os.path.join(BASE_DIR, "bible_data")
 CACHE_DIR = os.path.join(BASE_DIR, "data", "bible-cache")
 # Bump if the parsed-data shape changes so old pickles are ignored.

@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 AUTH_DB_PATH = os.environ.get(
     "AUTH_DB_PATH",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "auth.db"),
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "auth.db"),
 )
 
 SESSION_COOKIE_NAME = "ritd_session"

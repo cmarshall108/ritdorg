@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 """One-shot: fetch Hungarian Karoli OT chapters into the JSON cache."""
-import sys, time, logging
-from bible_data import OT_BOOKS
-import bible_fetcher
+import os, sys, time, logging
+
+# Make ritdorg package importable when running this tool from repo root.
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+from ritdorg.bible_data import OT_BOOKS
+import ritdorg.bible_fetcher as bible_fetcher
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s: %(message)s")
 

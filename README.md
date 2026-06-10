@@ -36,8 +36,9 @@ making the Word of God more accessible in the original Hebrew and Greek.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python app.py    # serves on http://localhost:8080 (non-root port)
-# or: flask --app app run --port 8080 --debug
+python -m ritdorg.app    # serves on http://localhost:8080 (non-root port)
+# or: python ritdorg/app.py
+# or: flask --app ritdorg.app run --port 8080 --debug
 ```
 
 A `.env` file (see `.env.example`) is now loaded automatically via
@@ -45,11 +46,11 @@ A `.env` file (see `.env.example`) is now loaded automatically via
 `SECRET_KEY` / `ADMIN_PASS_HASH` for both dev and the production paths.
 
 Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
-`.env`) before serving production traffic — see `set_admin_password.py`.
+`.env`) before serving production traffic — see `ritdorg/set_admin_password.py`.
 
 ## Keeping the server online + automatic log capture
 
-- Use `./auto_redeploy.sh` (run under `screen`, `tmux`, or `nohup … &`) for a
+- Use `./scripts/auto_redeploy.sh` (run under `screen`, `tmux`, or `nohup … &`) for a
   self-healing runner: it watches the git branch for updates (every 3 h by
   default) and, more importantly, keeps a restart-forever "keeper" subshell
   around the uvicorn process. If the web server crashes for *any* reason
@@ -62,10 +63,10 @@ Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
     application and all imported modules (`bible_fetcher`, `auth`, study
     tools, …)
   - start/stop banners with timestamps so you can see restart history
-- The Python side (`app.py`) also forces a `RotatingFileHandler` on the root
-  logger at import time, so even a direct `python app.py` or `python -m flask`
+- The Python side (`ritdorg/app.py`) also forces a `RotatingFileHandler` on the root
+  logger at import time, so even a direct `python ritdorg/app.py` or `python -m ritdorg.app`
   run will persist its logs.
-- `deploy.sh` also tees its output into the same log file for consistency.
+- `./scripts/deploy.sh` also tees its output into the same log file for consistency.
 - Override `CHECK_INTERVAL_SECONDS`, `APP_PORT`, `APP_HOST` via the
   environment if needed. On first run (or after a pull) it installs deps.
 - A `.env` file is loaded automatically (python-dotenv). The deploy
@@ -74,7 +75,7 @@ Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
 
 Example persistent launch (as root for port 80):
 
-    sudo nohup ./auto_redeploy.sh >> data/auto_redeploy.out 2>&1 &
+    sudo nohup ./scripts/auto_redeploy.sh >> data/auto_redeploy.out 2>&1 &
 
 Then `tail -f data/server.log` to watch everything the server ever emitted.
 

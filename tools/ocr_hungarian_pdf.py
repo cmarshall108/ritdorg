@@ -298,7 +298,7 @@ HEADER_KEYS = sorted(BOOK_HEADER_MAP.keys(), key=len, reverse=True)
 # Lazy import (so script is usable even without bible_data)
 def _book_slug(book: str) -> str:
     sys.path.insert(0, ROOT)
-    from bible_data import ALL_BOOKS
+    from ritdorg.ritdorg.bible_data import ALL_BOOKS
     info = ALL_BOOKS.get(book)
     return info["slug"] if info else book.lower().replace(" ", "_")
 
