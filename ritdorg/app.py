@@ -80,7 +80,17 @@ from . import study
 
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
+# Compute project root (two levels up from ritdorg/app.py) so that static/
+# (js, data, videos, hebrew_dictionary.json, ...) and templates/ are found
+# correctly even when the app package lives under ritdorg/. Without this,
+# Flask's default would look inside ritdorg/static/ and ritdorg/templates/.
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+app = Flask(
+    __name__,
+    static_folder=os.path.join(_PROJECT_ROOT, "static"),
+    static_url_path="/static",
+    template_folder=os.path.join(_PROJECT_ROOT, "templates"),
+)
 _DEFAULT_SECRET = "dev-secret-change-me"
 app.secret_key = os.environ.get("SECRET_KEY", _DEFAULT_SECRET)
 if app.secret_key == _DEFAULT_SECRET:
@@ -547,6 +557,18 @@ def get_verse_of_the_day():
                 votd['text'] = text
     
     return jsonify(votd)
+
+
+# ---------------------------------------------------------------------------
+# Video sync / playlist data (for /api/sync and video chapter playlists).
+# These were referenced but not defined; provide safe empty defaults so the
+# endpoints function (return graceful fallbacks) instead of raising NameError.
+# In a future data-populating step these can be filled with real YouTube IDs
+# and per-verse timestamps for the auto-advance + video features.
+# ---------------------------------------------------------------------------
+RITDORG_PLAYLISTS: dict[str, str] = {}
+VIDEO_SYNC_DATA: dict[str, dict] = {}
+
 
 @app.route('/api/sync/<book>/<int:chapter>')
 def get_sync_data(book, chapter):

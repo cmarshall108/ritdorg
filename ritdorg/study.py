@@ -885,7 +885,7 @@ def delete_outline(oid: int):
 @study_bp.route("/me/outlines/<int:oid>/export")
 def export_outline(oid: int):
     """Markdown export of an outline with verse text inlined."""
-    import bible_fetcher
+    from . import bible_fetcher
     where, params = _owner_clause()
     translation = (request.args.get("translation") or "NIV").strip()
     with _db() as c:
@@ -1095,7 +1095,7 @@ def mark_day(slug: str):
 @study_bp.route("/interlinear/<book>/<int:chapter>")
 def interlinear(book: str, chapter: int):
     """Return per-token Hebrew→gloss data for the chapter, when available."""
-    import bible_fetcher
+    from . import bible_fetcher
     from .app import _load_hebrew_dict, _strip_hebrew_marks
     if book not in ALL_BOOKS:
         return jsonify({"error": "unknown book"}), 404
@@ -1184,7 +1184,7 @@ def tts_cache_store(text: str, lang: str, voice: str, mp3: bytes) -> None:
 def audio_clip():
     """Return a single MP3 covering a verse range (concatenated TTS)."""
     from .app import _synthesize_edge, DEFAULT_EDGE_VOICE, EDGE_VOICE_NAMES
-    import bible_fetcher
+    from . import bible_fetcher
 
     book = (request.args.get("book") or "").strip()
     if book not in ALL_BOOKS:

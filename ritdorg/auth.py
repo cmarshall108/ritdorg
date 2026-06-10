@@ -902,8 +902,8 @@ def generate_verse_of_the_day(date_str: Optional[str] = None) -> Optional[dict]:
     Returns:
         Dict with book, chapter, verse, translation, computed_date
     """
-    from bible_data import ALL_BOOKS
-    
+    from .bible_data import ALL_BOOKS
+
     if date_str is None:
         date_str = _utcnow().strftime("%Y-%m-%d")
     
