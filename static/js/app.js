@@ -18,6 +18,7 @@ class BibleReader {
         this.parallelVerses1 = {};
         this.parallelVerses2 = {};
         this.allTranslations = []; // Will be populated from the dropdown options
+        this._sessionSaveTimer = null;
         
         // Video sync translations (Hebrew audio, show NIV + Hebrew text)
         this.syncTrans1 = 'NIV';
@@ -168,6 +169,7 @@ class BibleReader {
                 sidebar.classList.toggle('open');
                 this._syncSidebarBackdrop();
                 localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+                this._scheduleSessionStateSave();
             });
         }
 
@@ -273,19 +275,7 @@ class BibleReader {
         // View toggle
         document.querySelectorAll('.nav-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const view = btn.dataset.view;
-                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                document.getElementById('readerView').classList.toggle('active', view === 'reader');
-                document.getElementById('parallelView').classList.toggle('active', view === 'parallel');
-                document.getElementById('videoView').classList.toggle('active', view === 'video');
-                
-                if (view === 'parallel') {
-                    this.loadParallelVerses();
-                } else if (view === 'video') {
-                    this.loadVideoSync();
-                }
+                this._setView(btn.dataset.view);
             });
         });
         
@@ -294,12 +284,14 @@ class BibleReader {
             this.parallelTrans1 = e.target.value;
             this.updateTranslationOptions();
             this.loadParallelVerses();
+            this._scheduleSessionStateSave();
         });
         
         document.getElementById('parallelTrans2').addEventListener('change', (e) => {
             this.parallelTrans2 = e.target.value;
             this.updateTranslationOptions();
             this.loadParallelVerses();
+            this._scheduleSessionStateSave();
         });
         
         // Swap translations button (parallel view)
@@ -320,6 +312,7 @@ class BibleReader {
                 swapBtn.classList.add('swap-anim');
                 this.updateTranslationOptions();
                 this.loadParallelVerses();
+                this._scheduleSessionStateSave();
             });
         }
 
@@ -328,6 +321,7 @@ class BibleReader {
             this.syncTrans1 = e.target.value;
             document.getElementById('syncColName1').textContent = this.syncTrans1;
             this.renderSyncText();
+            this._scheduleSessionStateSave();
         });
 
         const syncTrans2Select = document.getElementById('syncTrans2');
@@ -337,6 +331,7 @@ class BibleReader {
                 this.syncTrans2 = e.target.value;
                 document.getElementById('syncColName2').textContent = this.syncTrans2;
                 this.renderSyncText();
+                this._scheduleSessionStateSave();
             });
         }
 
@@ -358,6 +353,7 @@ class BibleReader {
                 void swapSyncBtn.offsetWidth;
                 swapSyncBtn.classList.add('swap-anim');
                 this.renderSyncText();
+                this._scheduleSessionStateSave();
             });
         }
 
@@ -412,6 +408,7 @@ class BibleReader {
                 // the TTS queue so the now-visible column / language is
                 // what's spoken.
                 this.restartTTSIfPlaying();
+                this._scheduleSessionStateSave();
             });
         }
 
@@ -449,6 +446,7 @@ class BibleReader {
                     this.autoAdvanceChapter ? 'Auto-continue: ON' : 'Auto-continue: OFF',
                     'info'
                 );
+                this._scheduleSessionStateSave();
             });
         }
 
@@ -540,6 +538,125 @@ class BibleReader {
         }
 
         localStorage.setItem('focusReadingMode', enabled ? 'true' : 'false');
+        this._scheduleSessionStateSave();
+    }
+
+    _setView(view, persist = true) {
+        const activeView = view || 'reader';
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === activeView));
+        document.getElementById('readerView')?.classList.toggle('active', activeView === 'reader');
+        document.getElementById('parallelView')?.classList.toggle('active', activeView === 'parallel');
+        document.getElementById('videoView')?.classList.toggle('active', activeView === 'video');
+
+        if (activeView === 'parallel') {
+            this.loadParallelVerses();
+        } else if (activeView === 'video') {
+            this.loadVideoSync();
+        }
+
+        if (persist) this._scheduleSessionStateSave();
+    }
+
+    _collectSessionPrefs() {
+        const sidebar = document.getElementById('sidebar');
+        const fontSize = this.fontSize || 'medium';
+        return {
+            fontSize,
+            parallelTrans1: this.parallelTrans1,
+            parallelTrans2: this.parallelTrans2,
+            syncTrans1: this.syncTrans1,
+            syncTrans2: this.syncTrans2,
+            focusModeEnabled: !!this.focusModeEnabled,
+            hebrewDisabled: !!this.hebrewDisabled,
+            autoAdvanceChapter: !!this.autoAdvanceChapter,
+            sidebarCollapsed: !!(sidebar && sidebar.classList.contains('collapsed')),
+            playbackRate: this.playbackRate,
+        };
+    }
+
+    _applySidebarCollapsed(collapsed) {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        sidebar.classList.toggle('collapsed', !!collapsed);
+        try { localStorage.setItem('sidebarCollapsed', collapsed ? 'true' : 'false'); } catch {}
+    }
+
+    _applyFontSize(size) {
+        const nextSize = ['small', 'medium', 'large', 'xlarge'].includes(size) ? size : 'medium';
+        this.fontSize = nextSize;
+        const classes = ['font-small', 'font-medium', 'font-large', 'font-xlarge'];
+        document.getElementById('readerView')?.classList.remove(...classes);
+        document.getElementById('videoView')?.classList.remove(...classes);
+        document.getElementById('parallelView')?.classList.remove(...classes);
+        document.getElementById('readerView')?.classList.add(`font-${nextSize}`);
+        document.getElementById('videoView')?.classList.add(`font-${nextSize}`);
+        document.getElementById('parallelView')?.classList.add(`font-${nextSize}`);
+    }
+
+    _applySessionPrefs(prefs) {
+        if (!prefs || typeof prefs !== 'object') return;
+        if (prefs.fontSize) this._applyFontSize(prefs.fontSize);
+        if (prefs.parallelTrans1) this.parallelTrans1 = prefs.parallelTrans1;
+        if (prefs.parallelTrans2) this.parallelTrans2 = prefs.parallelTrans2;
+        if (prefs.syncTrans1) this.syncTrans1 = prefs.syncTrans1;
+        if (prefs.syncTrans2) this.syncTrans2 = prefs.syncTrans2;
+        if (prefs.focusModeEnabled !== undefined) {
+            this.focusModeEnabled = !!prefs.focusModeEnabled;
+            document.body.classList.toggle('focus-reading-mode', this.focusModeEnabled);
+            const focusBtn = document.getElementById('focusModeBtn');
+            if (focusBtn) {
+                focusBtn.classList.toggle('active', this.focusModeEnabled);
+                focusBtn.setAttribute('aria-pressed', this.focusModeEnabled ? 'true' : 'false');
+                focusBtn.title = this.focusModeEnabled ? 'Exit focus mode' : 'Focus mode: hide top bars';
+            }
+            try { localStorage.setItem('focusReadingMode', this.focusModeEnabled ? 'true' : 'false'); } catch {}
+        }
+        if (prefs.hebrewDisabled !== undefined) {
+            this.hebrewDisabled = !!prefs.hebrewDisabled;
+            try { localStorage.setItem('hebrewDisabled', this.hebrewDisabled ? '1' : '0'); } catch {}
+            const hebrewToggleBtn = document.getElementById('hebrewToggleBtn');
+            if (hebrewToggleBtn) {
+                hebrewToggleBtn.classList.toggle('active', !this.hebrewDisabled);
+                hebrewToggleBtn.setAttribute('aria-pressed', String(!this.hebrewDisabled));
+            }
+            this.applySyncColumnVisibility();
+        }
+        if (prefs.autoAdvanceChapter !== undefined) {
+            this.autoAdvanceChapter = !!prefs.autoAdvanceChapter;
+            const autoBtn = document.getElementById('autoAdvanceBtn');
+            if (autoBtn) {
+                autoBtn.classList.toggle('active', this.autoAdvanceChapter);
+                autoBtn.setAttribute('aria-pressed', this.autoAdvanceChapter ? 'true' : 'false');
+            }
+            try { localStorage.setItem('autoAdvanceChapter', this.autoAdvanceChapter ? '1' : '0'); } catch {}
+        }
+        if (prefs.sidebarCollapsed !== undefined) {
+            this._applySidebarCollapsed(!!prefs.sidebarCollapsed);
+        }
+        if (prefs.playbackRate !== undefined) {
+            const rate = parseFloat(prefs.playbackRate);
+            if (!Number.isNaN(rate) && rate > 0) {
+                this.playbackRate = rate;
+                const rateSlider = document.getElementById('rateSlider');
+                if (rateSlider) rateSlider.value = String(rate);
+                const rateLabel = document.getElementById('rateLabel');
+                if (rateLabel) rateLabel.textContent = `${rate}×`;
+            }
+        }
+    }
+
+    _scheduleSessionStateSave() {
+        if (!this.userData || !this.currentBook || !this.currentChapter) return;
+        clearTimeout(this._sessionSaveTimer);
+        this._sessionSaveTimer = setTimeout(() => {
+            this.userData.saveReadingState(
+                this.currentBook,
+                this.currentChapter,
+                null,
+                this._currentViewName(),
+                this._collectSessionPrefs(),
+            );
+        }, 300);
     }
     
     async loadChapters(book, selectChapter = 1) {
@@ -649,7 +766,7 @@ class BibleReader {
             // Persist last-read position and load per-chapter annotations
             // (highlights, notes). Bookmarks are global so we don't refetch.
             if (this.userData) {
-                this.userData.saveReadingState(book, chapter, null, this._currentViewName());
+                this.userData.saveReadingState(book, chapter, null, this._currentViewName(), this._collectSessionPrefs());
                 this.userData.loadForChapter(book, chapter).then(() => {
                     this._applyVerseAnnotations();
                 });
@@ -827,21 +944,8 @@ class BibleReader {
     }
     
     setFontSize(size) {
-        this.fontSize = size;
-        // Apply to reader view
-        const readerView = document.getElementById('readerView');
-        readerView.classList.remove('font-small', 'font-medium', 'font-large', 'font-xlarge');
-        readerView.classList.add(`font-${size}`);
-        
-        // Apply to video view (Watch & Listen)
-        const videoView = document.getElementById('videoView');
-        videoView.classList.remove('font-small', 'font-medium', 'font-large', 'font-xlarge');
-        videoView.classList.add(`font-${size}`);
-        
-        // Apply to parallel view
-        const parallelView = document.getElementById('parallelView');
-        parallelView.classList.remove('font-small', 'font-medium', 'font-large', 'font-xlarge');
-        parallelView.classList.add(`font-${size}`);
+        this._applyFontSize(size);
+        this._scheduleSessionStateSave();
     }
     
     // ===== Parallel Translation View =====
@@ -4401,6 +4505,8 @@ class BibleReader {
             this.currentBook = state.book;
             this.currentChapter = Math.max(1, parseInt(state.chapter, 10) || 1);
             if (state.verse) this.pendingHighlightVerse = state.verse;
+            this._applySessionPrefs(state.prefs || {});
+            if (state.view) this._setView(state.view, false);
         } catch (e) {
             console.warn('restoreReadingState failed', e);
         }

@@ -110,6 +110,7 @@ def init_db() -> None:
                 chapter     INTEGER,
                 verse       INTEGER,
                 view        TEXT,
+                prefs       TEXT,
                 updated_at  TEXT NOT NULL,
                 UNIQUE(user_id),
                 UNIQUE(device_key)
@@ -253,6 +254,9 @@ def init_db() -> None:
                 ON page_content(slug);
             """
         )
+        cols = {r[1] for r in c.execute("PRAGMA table_info(reading_state)").fetchall()}
+        if "prefs" not in cols:
+            c.execute("ALTER TABLE reading_state ADD COLUMN prefs TEXT")
 
 
 # ---------------------------------------------------------------------------
@@ -462,19 +466,36 @@ def get_reading_state() -> Optional[dict]:
     where, params = _owner_filter()
     with _connect() as c:
         row = c.execute(
-            f"SELECT book, chapter, verse, view, updated_at "
+            f"SELECT book, chapter, verse, view, prefs, updated_at "
             f"FROM reading_state WHERE {where}", params,
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+        data = dict(row)
+        raw_prefs = data.get("prefs")
+        if raw_prefs:
+            try:
+                data["prefs"] = json.loads(raw_prefs)
+            except Exception:
+                data["prefs"] = {}
+        else:
+            data["prefs"] = {}
+        return data
 
 
-def save_reading_state(book: str, chapter: int, verse: Optional[int], view: Optional[str]) -> None:
+def save_reading_state(book: str, chapter: int, verse: Optional[int], view: Optional[str], prefs: Optional[dict] = None) -> None:
     if not has_owner():
         return
     user = g.get("current_user") or {}
     uid = user.get("id")
     key = None if uid else g.get("device_key")
     now = _now_iso()
+    prefs_json = None
+    if prefs is not None:
+        try:
+            prefs_json = json.dumps(prefs, separators=(",", ":"), sort_keys=True)
+        except Exception:
+            prefs_json = None
     with _connect() as c:
         if uid:
             existing = c.execute("SELECT id FROM reading_state WHERE user_id = ?", (uid,)).fetchone()
@@ -482,14 +503,14 @@ def save_reading_state(book: str, chapter: int, verse: Optional[int], view: Opti
             existing = c.execute("SELECT id FROM reading_state WHERE device_key = ?", (key,)).fetchone()
         if existing:
             c.execute(
-                "UPDATE reading_state SET book=?, chapter=?, verse=?, view=?, updated_at=? WHERE id=?",
-                (book, chapter, verse, view, now, existing["id"]),
+                "UPDATE reading_state SET book=?, chapter=?, verse=?, view=?, prefs=?, updated_at=? WHERE id=?",
+                (book, chapter, verse, view, prefs_json, now, existing["id"]),
             )
         else:
             c.execute(
-                "INSERT INTO reading_state(user_id, device_key, book, chapter, verse, view, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (uid, key, book, chapter, verse, view, now),
+                "INSERT INTO reading_state(user_id, device_key, book, chapter, verse, view, prefs, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (uid, key, book, chapter, verse, view, prefs_json, now),
             )
 
 

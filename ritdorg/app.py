@@ -1300,7 +1300,10 @@ def api_save_state():
     view = data.get('view')
     if view not in (None, 'reader', 'parallel', 'video'):
         view = None
-    auth.save_reading_state(book, chapter, verse, view)
+    prefs = data.get('prefs')
+    if prefs is not None and not isinstance(prefs, dict):
+        prefs = None
+    auth.save_reading_state(book, chapter, verse, view, prefs)
     return jsonify({'ok': True})
 
 

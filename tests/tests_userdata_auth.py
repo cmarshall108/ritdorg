@@ -51,7 +51,18 @@ class UserDataAuthTestCase(unittest.TestCase):
     def test_state_roundtrip(self):
         c = self._with_device()
         # save
-        r = c.put("/api/me/state", json={"book": "Genesis", "chapter": 3, "verse": 5, "view": "reader"})
+        r = c.put("/api/me/state", json={
+            "book": "Genesis",
+            "chapter": 3,
+            "verse": 5,
+            "view": "parallel",
+            "prefs": {
+                "parallelTrans1": "NIV",
+                "parallelTrans2": "KJV",
+                "fontSize": "large",
+                "focusModeEnabled": True,
+            },
+        })
         self.assertEqual(r.status_code, 200)
         self.assertTrue(r.get_json().get("ok"))
 
@@ -61,6 +72,8 @@ class UserDataAuthTestCase(unittest.TestCase):
         st = r.get_json()
         self.assertEqual(st.get("book"), "Genesis")
         self.assertEqual(st.get("chapter"), 3)
+        self.assertEqual(st.get("view"), "parallel")
+        self.assertEqual(st.get("prefs", {}).get("parallelTrans2"), "KJV")
 
     def test_bookmarks_crud(self):
         c = self._with_device()
