@@ -46,11 +46,11 @@ class UserData {
         return (d && d.book) ? d : null;
     }
 
-    /** Save the current position (debounced — caller may invoke freely). */
-    saveReadingState(book, chapter, verse, view) {
+    /** Save the current position + optional reader prefs (debounced). */
+    saveReadingState(book, chapter, verse, view, prefs) {
         clearTimeout(this._saveTimer);
         this._saveTimer = setTimeout(() => {
-            this._json('PUT', '/api/me/state', { book, chapter, verse, view });
+            this._json('PUT', '/api/me/state', { book, chapter, verse, view, prefs });
         }, 600);
     }
 

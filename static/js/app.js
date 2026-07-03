@@ -19,6 +19,7 @@ class BibleReader {
         this.parallelVerses2 = {};
         this.allTranslations = []; // Will be populated from the dropdown options
         this._sessionSaveTimer = null;
+        this._pendingScrollPositions = null;
         
         // Video sync translations (Hebrew audio, show NIV + Hebrew text)
         this.syncTrans1 = 'NIV';
@@ -477,6 +478,8 @@ class BibleReader {
                 this.performSearch();
             }
         });
+
+        this._bindScrollStateTracking();
     }
     
     prevChapter() {
@@ -541,16 +544,16 @@ class BibleReader {
         this._scheduleSessionStateSave();
     }
 
-    _setView(view, persist = true) {
+    _setView(view, persist = true, loadContent = true) {
         const activeView = view || 'reader';
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === activeView));
         document.getElementById('readerView')?.classList.toggle('active', activeView === 'reader');
         document.getElementById('parallelView')?.classList.toggle('active', activeView === 'parallel');
         document.getElementById('videoView')?.classList.toggle('active', activeView === 'video');
 
-        if (activeView === 'parallel') {
+        if (loadContent && activeView === 'parallel') {
             this.loadParallelVerses();
-        } else if (activeView === 'video') {
+        } else if (loadContent && activeView === 'video') {
             this.loadVideoSync();
         }
 
@@ -571,7 +574,64 @@ class BibleReader {
             autoAdvanceChapter: !!this.autoAdvanceChapter,
             sidebarCollapsed: !!(sidebar && sidebar.classList.contains('collapsed')),
             playbackRate: this.playbackRate,
+            scrollPositions: this._captureScrollPositions(),
         };
+    }
+
+    _bindScrollStateTracking() {
+        if (this._scrollStateTrackingWired) return;
+        this._scrollStateTrackingWired = true;
+        const ids = ['leftVerses', 'rightVerses', 'col1Verses', 'col2Verses', 'syncVerses1', 'syncVerses2'];
+        ids.forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.addEventListener('scroll', () => this._scheduleSessionStateSave(), { passive: true });
+        });
+        window.addEventListener('scroll', () => this._scheduleSessionStateSave(), { passive: true });
+    }
+
+    _captureScrollPositions() {
+        const out = { windowY: Math.max(0, window.scrollY || 0) };
+        const ids = ['leftVerses', 'rightVerses', 'col1Verses', 'col2Verses', 'syncVerses1', 'syncVerses2'];
+        ids.forEach((id) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            out[id] = Math.max(0, el.scrollTop || 0);
+        });
+        return out;
+    }
+
+    _restoreSavedScrollPositions(ids) {
+        if (!this._pendingScrollPositions || typeof this._pendingScrollPositions !== 'object') return;
+        const saved = this._pendingScrollPositions;
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                ids.forEach((id) => {
+                    if (id === 'windowY') {
+                        const top = Number(saved.windowY);
+                        if (Number.isFinite(top) && top >= 0) {
+                            window.scrollTo(0, top);
+                        }
+                        return;
+                    }
+                    const top = Number(saved[id]);
+                    if (!Number.isFinite(top) || top < 0) return;
+                    const el = document.getElementById(id);
+                    if (el) el.scrollTop = top;
+                });
+            });
+        });
+
+        ids.forEach((id) => {
+            if (id === 'windowY') {
+                delete this._pendingScrollPositions.windowY;
+            } else {
+                delete this._pendingScrollPositions[id];
+            }
+        });
+        if (!Object.keys(this._pendingScrollPositions).length) {
+            this._pendingScrollPositions = null;
+        }
     }
 
     _applySidebarCollapsed(collapsed) {
@@ -600,6 +660,9 @@ class BibleReader {
         if (prefs.parallelTrans2) this.parallelTrans2 = prefs.parallelTrans2;
         if (prefs.syncTrans1) this.syncTrans1 = prefs.syncTrans1;
         if (prefs.syncTrans2) this.syncTrans2 = prefs.syncTrans2;
+        if (prefs.scrollPositions && typeof prefs.scrollPositions === 'object') {
+            this._pendingScrollPositions = { ...prefs.scrollPositions };
+        }
         if (prefs.focusModeEnabled !== undefined) {
             this.focusModeEnabled = !!prefs.focusModeEnabled;
             document.body.classList.toggle('focus-reading-mode', this.focusModeEnabled);
@@ -835,6 +898,7 @@ class BibleReader {
         
         document.getElementById('leftPageNum').textContent = this.currentPage + 1;
         document.getElementById('rightPageNum').textContent = this.currentPage + 2;
+        this._restoreSavedScrollPositions(['leftVerses', 'rightVerses', 'windowY']);
     }
     
     renderVerses(verseNums) {
@@ -1057,6 +1121,7 @@ class BibleReader {
             
             // Add synchronized scrolling
             this.setupSyncScroll();
+            this._restoreSavedScrollPositions(['col1Verses', 'col2Verses']);
             
         } catch (error) {
             console.error('Failed to load parallel verses:', error);
@@ -1257,6 +1322,7 @@ class BibleReader {
 
         // Setup synchronized scrolling between sync columns
         this.setupSyncColumnScroll();
+        this._restoreSavedScrollPositions(['syncVerses1', 'syncVerses2']);
 
         // Apply per-verse highlights/notes/bookmarks to the freshly
         // rendered DOM so they're visible immediately on every render.
@@ -1328,6 +1394,7 @@ class BibleReader {
         syncVerses2.innerHTML = this.renderSimpleVerses(verses2);
         
         this.setupSyncColumnScroll();
+        this._restoreSavedScrollPositions(['syncVerses1', 'syncVerses2']);
     }
     
     renderSimpleVerses(verses) {
@@ -4506,7 +4573,7 @@ class BibleReader {
             this.currentChapter = Math.max(1, parseInt(state.chapter, 10) || 1);
             if (state.verse) this.pendingHighlightVerse = state.verse;
             this._applySessionPrefs(state.prefs || {});
-            if (state.view) this._setView(state.view, false);
+            if (state.view) this._setView(state.view, false, false);
         } catch (e) {
             console.warn('restoreReadingState failed', e);
         }
