@@ -101,17 +101,81 @@ if app.secret_key == _DEFAULT_SECRET:
 
 # On first startup, export hardcoded data from translations.py into JSON cache
 # so the dynamic fetcher can serve Matthew/Mark instantly.
-bible_fetcher.export_hardcoded_to_cache()
+try:
+    bible_fetcher.export_hardcoded_to_cache()
+except Exception as exc:  # pragma: no cover
+    logger.exception("export_hardcoded_to_cache failed during startup: %s", exc)
 
 # Initialize the auth database (users, sessions, newsletters).
-auth.init_db()
-# Add the study-tools tables (tags, outlines, playlists, etc.).
-study.init_study_db()
-# Initialize editable pages with defaults
-auth.init_default_pages()
-# If no ADMIN_PASS_HASH is provided in the environment, fall back to the
-# documented default account so the panel is reachable on a fresh install.
-auth.ensure_default_admin()
+# Guard each bootstrap step so a single optional subsystem failure cannot
+# take down the whole process on import (which would loop-crash the keeper).
+try:
+    auth.init_db()
+except Exception as exc:  # pragma: no cover
+    logger.exception("auth.init_db failed during startup: %s", exc)
+try:
+    study.init_study_db()
+except Exception as exc:  # pragma: no cover
+    logger.exception("study.init_study_db failed during startup: %s", exc)
+try:
+    auth.init_default_pages()
+except Exception as exc:  # pragma: no cover
+    logger.exception("auth.init_default_pages failed during startup: %s", exc)
+try:
+    # If no ADMIN_PASS_HASH is provided in the environment, fall back to the
+    # documented default account so the panel is reachable on a fresh install.
+    auth.ensure_default_admin()
+except Exception as exc:  # pragma: no cover
+    logger.exception("auth.ensure_default_admin failed during startup: %s", exc)
+
+
+# ---------------------------------------------------------------------------
+# Global error handlers — never leak stack traces to clients; always log.
+# Uncaught exceptions used to surface as bare 500s and, in some edge cases
+# with the ASGI bridge, contributed to process instability under load.
+# ---------------------------------------------------------------------------
+
+@app.errorhandler(400)
+@app.errorhandler(404)
+@app.errorhandler(405)
+@app.errorhandler(413)
+@app.errorhandler(429)
+def _http_error(err):
+    code = getattr(err, "code", 400) or 400
+    description = getattr(err, "description", None) or str(err) or "Request error"
+    if request.path.startswith("/api/") or request.accept_mimetypes.best == "application/json":
+        return jsonify({"ok": False, "error": description, "status": code}), code
+    # Prefer a simple JSON-ish body for non-template paths; fall back to text.
+    try:
+        return render_template("error.html", code=code, message=description), code
+    except Exception:
+        return Response(f"{code} {description}\n", status=code, mimetype="text/plain")
+
+
+@app.errorhandler(500)
+@app.errorhandler(Exception)
+def _unhandled_error(err):
+    """Catch-all: log full traceback, return a safe 500 response."""
+    # Let intentional HTTPExceptions keep their status (Flask re-raises some).
+    from werkzeug.exceptions import HTTPException
+    if isinstance(err, HTTPException):
+        return _http_error(err)
+    logger.exception("Unhandled exception on %s %s: %s",
+                      request.method, request.path, err)
+    if request.path.startswith("/api/") or (
+        request.accept_mimetypes.best == "application/json"
+    ):
+        return jsonify({
+            "ok": False,
+            "error": "Internal server error",
+            "status": 500,
+        }), 500
+    try:
+        return render_template(
+            "error.html", code=500, message="Something went wrong. Please try again."
+        ), 500
+    except Exception:
+        return Response("500 Internal Server Error\n", status=500, mimetype="text/plain")
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +184,12 @@ auth.ensure_default_admin()
 
 @app.before_request
 def _load_user():
-    auth.load_current_user()
+    try:
+        auth.load_current_user()
+    except Exception as exc:  # pragma: no cover
+        # Never let a flaky session/DB lookup 500 the whole request.
+        logger.warning("load_current_user failed (continuing anonymous): %s", exc)
+        g.current_user = None
 
 
 @app.before_request
@@ -362,6 +431,26 @@ def sitemap_xml():
     parts.append('</urlset>\n')
     return Response('\n'.join(parts), mimetype='application/xml')
 
+@app.route('/healthz')
+@app.route('/api/health')
+def healthz():
+    """Liveness/readiness probe used by auto_redeploy and external monitors.
+
+    Cheap and side-effect free: confirms the process is serving and that
+    the auth DB is reachable. Never raises.
+    """
+    status = {"ok": True, "status": "up"}
+    try:
+        with auth._connect() as c:
+            c.execute("SELECT 1").fetchone()
+        status["db"] = "ok"
+    except Exception as exc:  # pragma: no cover
+        status["ok"] = False
+        status["db"] = f"error: {exc}"
+        return jsonify(status), 503
+    return jsonify(status), 200
+
+
 @app.route('/api/books')
 def get_books():
     return jsonify(list(ALL_BOOKS.keys()))
@@ -376,26 +465,43 @@ def get_chapters(book):
         return jsonify(list(range(1, ALL_BOOKS[book]['chapters'] + 1)))
     return jsonify([])
 
+def _safe_get_verses(translation, book, chapter):
+    """bible_fetcher.get_verses with hard exception isolation."""
+    try:
+        return bible_fetcher.get_verses(translation, book, chapter)
+    except Exception as exc:
+        logger.warning(
+            "get_verses failed for %s %s %s: %s", translation, book, chapter, exc
+        )
+        return None
+
+
 @app.route('/api/verses/<book>/<int:chapter>')
 def get_verses(book, chapter):
     translation = request.args.get('translation', 'NIV')
 
     # 1. Try dynamic fetcher (checks cache, then fetches externally)
-    verses = bible_fetcher.get_verses(translation, book, chapter)
+    verses = _safe_get_verses(translation, book, chapter)
     if verses:
         return jsonify({"verses": verses, "translation": translation, "fallback": False})
 
     # 2. Fall back to hardcoded data in translations.py
-    bible = BIBLE_TRANSLATIONS.get(translation)
-    if bible and book in bible and chapter in bible[book]:
-        return jsonify({"verses": bible[book][chapter], "translation": translation, "fallback": False})
+    try:
+        bible = BIBLE_TRANSLATIONS.get(translation)
+        if bible and book in bible and chapter in bible[book]:
+            return jsonify({"verses": bible[book][chapter], "translation": translation, "fallback": False})
+    except Exception as exc:
+        logger.warning("hardcoded verse lookup failed: %s", exc)
 
     # 3. Fall back to NIV (dynamic then hardcoded)
-    niv = bible_fetcher.get_verses('NIV', book, chapter)
+    niv = _safe_get_verses('NIV', book, chapter)
     if niv:
         return jsonify({"verses": niv, "translation": "NIV", "fallback": True})
-    if book in BIBLE_NIV and chapter in BIBLE_NIV[book]:
-        return jsonify({"verses": BIBLE_NIV[book][chapter], "translation": "NIV", "fallback": True})
+    try:
+        if book in BIBLE_NIV and chapter in BIBLE_NIV[book]:
+            return jsonify({"verses": BIBLE_NIV[book][chapter], "translation": "NIV", "fallback": True})
+    except Exception as exc:
+        logger.warning("NIV hardcoded fallback failed: %s", exc)
 
     return jsonify({"verses": {}, "translation": translation, "fallback": False})
 
@@ -407,18 +513,24 @@ def get_parallel_verses(book, chapter):
 
     def _resolve(translation):
         """Try dynamic fetch → hardcoded → NIV fallback."""
-        verses = bible_fetcher.get_verses(translation, book, chapter)
+        verses = _safe_get_verses(translation, book, chapter)
         if verses:
             return verses, translation, False
-        bible = BIBLE_TRANSLATIONS.get(translation, {})
-        if book in bible and chapter in bible[book]:
-            return bible[book][chapter], translation, False
+        try:
+            bible = BIBLE_TRANSLATIONS.get(translation, {})
+            if book in bible and chapter in bible[book]:
+                return bible[book][chapter], translation, False
+        except Exception:
+            pass
         # Fallback to NIV
-        niv = bible_fetcher.get_verses('NIV', book, chapter)
+        niv = _safe_get_verses('NIV', book, chapter)
         if niv:
             return niv, 'NIV', True
-        if book in BIBLE_NIV and chapter in BIBLE_NIV[book]:
-            return BIBLE_NIV[book][chapter], 'NIV', True
+        try:
+            if book in BIBLE_NIV and chapter in BIBLE_NIV[book]:
+                return BIBLE_NIV[book][chapter], 'NIV', True
+        except Exception:
+            pass
         return {}, translation, False
 
     verses1, actual1, fallback1 = _resolve(trans1)
@@ -832,7 +944,8 @@ def _synthesize_edge(text: str, voice: str) -> bytes:
     """Synthesize ``text`` with edge-tts, returning MP3 bytes.
 
     edge-tts is async; we run it on a fresh event loop per request so it
-    plays nicely with Flask's threaded WSGI server.
+    plays nicely with Flask's threaded WSGI server. Hard-capped so a hung
+    network call cannot pin a worker forever.
     """
     import asyncio
     import edge_tts
@@ -845,11 +958,16 @@ def _synthesize_edge(text: str, voice: str) -> bytes:
                 chunks.extend(chunk['data'])
         return bytes(chunks)
 
-    loop = asyncio.new_event_loop()
     try:
-        return loop.run_until_complete(_run())
-    finally:
-        loop.close()
+        # Prefer asyncio.run (3.7+) which always creates/closes a fresh loop.
+        return asyncio.run(asyncio.wait_for(_run(), timeout=45.0))
+    except AttributeError:
+        # Extremely old Python fallback.
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(asyncio.wait_for(_run(), timeout=45.0))
+        finally:
+            loop.close()
 
 
 @app.route('/api/tts/voices')
@@ -936,8 +1054,15 @@ def hebrew_dictionary():
 # cached in process memory.
 # ---------------------------------------------------------------------------
 
-_TRANSLATION_CORPUS = {}    # translation_display -> list[(book, ch, v, raw_text, norm_text)]
+# Bounded LRU of full-translation corpora. Unbounded growth here was a
+# real OOM risk (each corpus can be tens of MB once tokenized).
+from collections import OrderedDict as _OrderedDict
+_TRANSLATION_CORPUS = _OrderedDict()  # translation_display -> list[(book, ch, v, raw_text, norm_text)]
 _TRANSLATION_CORPUS_LOCK = None
+try:
+    _TRANSLATION_CORPUS_MAX = max(1, int(os.environ.get("RITD_CORPUS_CACHE_MAX", "4")))
+except (TypeError, ValueError):
+    _TRANSLATION_CORPUS_MAX = 4
 
 # Filesystem-slug per translation. Mirrors the on-disk layout under
 # static/data/bible/<slug>/<book_slug>/<chapter>.json.
@@ -990,22 +1115,27 @@ def _load_translation_corpus(translation):
     """Scan static/data/bible/<slug>/**/*.json once and return a flat list
     of (book_display, chapter, verse, raw_text, normalized_text) tuples.
     Skips entries whose value isn't a real verse (e.g. section headers,
-    or non-Hebrew strings inside the Hebrew folder)."""
+    or non-Hebrew strings inside the Hebrew folder).
+
+    Results are cached in a small process-local LRU so repeated word-study
+    lookups are fast without unbounded memory growth.
+    """
     global _TRANSLATION_CORPUS_LOCK
-    cached = _TRANSLATION_CORPUS.get(translation)
-    if cached is not None:
-        return cached
     if _TRANSLATION_CORPUS_LOCK is None:
         import threading
         _TRANSLATION_CORPUS_LOCK = threading.Lock()
     with _TRANSLATION_CORPUS_LOCK:
         cached = _TRANSLATION_CORPUS.get(translation)
         if cached is not None:
+            _TRANSLATION_CORPUS.move_to_end(translation)
             return cached
         slug = TRANSLATION_DIR_SLUGS.get(translation)
         if not slug:
-            _TRANSLATION_CORPUS[translation] = []
-            return []
+            corpus = []
+            _TRANSLATION_CORPUS[translation] = corpus
+            while len(_TRANSLATION_CORPUS) > _TRANSLATION_CORPUS_MAX:
+                _TRANSLATION_CORPUS.popitem(last=False)
+            return corpus
         lang = TRANSLATION_LANG.get(translation, 'en')
         import re
         heb_re = re.compile(r'[\u0590-\u05FF]')
@@ -1013,12 +1143,21 @@ def _load_translation_corpus(translation):
         root = os.path.join(app.static_folder, 'data', 'bible', slug)
         corpus = []
         if os.path.isdir(root):
-            for book_slug in os.listdir(root):
+            try:
+                book_slugs = os.listdir(root)
+            except OSError as exc:
+                logger.warning("corpus list failed for %s: %s", root, exc)
+                book_slugs = []
+            for book_slug in book_slugs:
                 book_dir = os.path.join(root, book_slug)
                 if not os.path.isdir(book_dir):
                     continue
                 display = slug_to_display.get(book_slug, book_slug.replace('_', ' ').title())
-                for fname in os.listdir(book_dir):
+                try:
+                    fnames = os.listdir(book_dir)
+                except OSError:
+                    continue
+                for fname in fnames:
                     if not fname.endswith('.json'):
                         continue
                     try:
@@ -1049,6 +1188,8 @@ def _load_translation_corpus(translation):
                             norm = ' '.join(_tokenize_for_lang(vt, lang))
                         corpus.append((display, chapter, vnum, vt, norm))
         _TRANSLATION_CORPUS[translation] = corpus
+        while len(_TRANSLATION_CORPUS) > _TRANSLATION_CORPUS_MAX:
+            _TRANSLATION_CORPUS.popitem(last=False)
         return corpus
 
 
@@ -1521,12 +1662,19 @@ def save_email():
         flash("Please enter a valid email.", "error")
         return redirect(request.referrer or url_for("index"))
 
-    user_id = auth.get_or_create_user(email)
-    session_token, expires = auth.create_session(
-        user_id,
-        ip=request.headers.get("X-Forwarded-For", request.remote_addr or ""),
-        user_agent=(request.headers.get("User-Agent") or "")[:255],
-    )
+    try:
+        user_id = auth.get_or_create_user(email)
+        session_token, expires = auth.create_session(
+            user_id,
+            ip=request.headers.get("X-Forwarded-For", request.remote_addr or ""),
+            user_agent=(request.headers.get("User-Agent") or "")[:255],
+        )
+    except Exception as exc:
+        logger.exception("save_email failed for %s: %s", email, exc)
+        if wants_json:
+            return jsonify({"ok": False, "error": "Could not save email right now."}), 503
+        flash("Could not save email right now. Please try again.", "error")
+        return redirect(request.referrer or url_for("index"))
 
     if wants_json:
         resp = make_response(jsonify({"ok": True, "email": email}))

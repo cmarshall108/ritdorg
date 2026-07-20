@@ -55,14 +55,18 @@ CACHE_DIR = os.path.join(BASE_DIR, "data", "bible-cache")
 # Bump if the parsed-data shape changes so old pickles are ignored.
 CACHE_VERSION = 1
 # How many parsed translations to keep resident in memory at once.
-# Each is a few MB of dicts; 64 fits comfortably and covers the most
-# common workloads (sync view = 2, parallel view = 2, search etc.).
-_MEM_CACHE_MAX = 64
+# Each is a few MB of dicts. Keep this modest so long-running processes
+# don't OOM under heavy multi-translation browsing (a common crash cause).
+# Override with RITD_BIBLE_MEM_CACHE_MAX if needed.
+try:
+    _MEM_CACHE_MAX = max(4, int(os.environ.get("RITD_BIBLE_MEM_CACHE_MAX", "24")))
+except (TypeError, ValueError):
+    _MEM_CACHE_MAX = 24
 # Translations to pre-load in the background so the very first request
-# never has to wait for an XML parse / pickle read.
+# never has to wait for an XML parse / pickle read. Keep the set small —
+# cold pickle loads are fast enough for the rest.
 _PREWARM = (
-    "EnglishNIV", "EnglishKJ", "EnglishESV", "EnglishNKJ",
-    "EnglishNASB", "EnglishNASU", "Hebrew",
+    "EnglishNIV", "EnglishKJ", "EnglishESV", "Hebrew",
 )
 
 # Canonical 1-based book number for each book name.

@@ -79,6 +79,15 @@ class CoreAPITestCase(unittest.TestCase):
         except Exception:
             pass
 
+    def test_healthz_endpoint(self):
+        r = self.client.get("/healthz")
+        self.assertEqual(r.status_code, 200)
+        data = r.get_json()
+        self.assertTrue(data.get("ok"))
+        self.assertEqual(data.get("db"), "ok")
+        r2 = self.client.get("/api/health")
+        self.assertEqual(r2.status_code, 200)
+
     def test_books_endpoint(self):
         r = self.client.get("/api/books")
         self.assertEqual(r.status_code, 200)

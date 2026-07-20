@@ -51,11 +51,13 @@ Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
 ## Keeping the server online + automatic log capture
 
 - Use `./scripts/auto_redeploy.sh` (run under `screen`, `tmux`, or `nohup … &`) for a
-  self-healing runner: it watches the git branch for updates (every 3 h by
-  default) and, more importantly, keeps a restart-forever "keeper" subshell
-  around the uvicorn process. If the web server crashes for *any* reason
-  (exception, OOM, import error, etc.) it is automatically restarted within
-  ~5 seconds.
+  self-healing runner. It:
+  - **Redeploys on every new GitHub commit** (polls every 60s by default)
+  - **Restarts the web server after any crash/exit** via a forever-loop keeper
+    (exception, OOM, import error, etc. — relaunch within a few seconds, with
+    backoff if the process is boot-looping)
+  - **Health-checks** `GET /healthz` each cycle and force-restarts a wedged
+    process after a few consecutive failures
 - **All logs are captured automatically** to `data/server.log` (rotated at
   ~10 MiB, keeping 5 backups). This includes:
   - uvicorn access/error logs
@@ -67,17 +69,24 @@ Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
   logger at import time, so even a direct `python ritdorg/app.py` or `python -m ritdorg.app`
   run will persist its logs.
 - `./scripts/deploy.sh` also tees its output into the same log file for consistency.
-- Override `CHECK_INTERVAL_SECONDS`, `APP_PORT`, `APP_HOST` via the
-  environment if needed. On first run (or after a pull) it installs deps.
-- A `.env` file is loaded automatically (python-dotenv). The deploy
-  scripts set `RITD_NO_CONSOLE_LOG=1` internally to avoid duplicate log
-  lines in `data/server.log` (RotatingFileHandler is authoritative).
+- Useful environment overrides:
+  - `CHECK_INTERVAL_SECONDS` (default `60`) — git + health poll interval
+  - `RESTART_DELAY_SECONDS` (default `3`) — crash restart backoff base
+  - `HEALTH_FAIL_THRESHOLD` (default `3`) — failed probes before force restart
+  - `APP_PORT` / `APP_HOST` / `FORCE_KILL_PORT_PROCESS=1` / `HEALTH_URL`
+- On first run (or after a pull) it installs deps. A `.env` file is loaded
+  automatically (python-dotenv). The deploy scripts set `RITD_NO_CONSOLE_LOG=1`
+  internally to avoid duplicate log lines in `data/server.log`.
 
 Example persistent launch (as root for port 80):
 
     sudo nohup ./scripts/auto_redeploy.sh >> data/auto_redeploy.out 2>&1 &
 
 Then `tail -f data/server.log` to watch everything the server ever emitted.
+
+Quick health check:
+
+    curl -sS http://127.0.0.1/healthz
 
 ## SEO / search-engine indexing
 

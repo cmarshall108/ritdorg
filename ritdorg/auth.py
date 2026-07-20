@@ -66,13 +66,32 @@ def _parse(iso_str: str) -> datetime:
 
 @contextmanager
 def _connect():
+    """Open a short-lived SQLite connection with concurrency-friendly PRAGMAs.
+
+    WAL + busy_timeout dramatically reduce ``database is locked`` failures
+    under concurrent Flask/uvicorn request threads. check_same_thread=False
+    is safe because each call opens/closes its own connection.
+    """
     os.makedirs(os.path.dirname(AUTH_DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(AUTH_DB_PATH)
+    conn = sqlite3.connect(AUTH_DB_PATH, timeout=30.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
     try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA busy_timeout = 30000")
+        # WAL is best-effort: some read-only / network FS mounts reject it.
+        try:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+        except sqlite3.Error:
+            pass
         yield conn
         conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise
     finally:
         conn.close()
 
@@ -1126,6 +1145,7 @@ ANALYTICS_RETENTION_DAYS = int(os.environ.get("ANALYTICS_RETENTION_DAYS", "365")
 # so the table stays focused on real reader page views.
 _ANALYTICS_IGNORE_PREFIXES = (
     "/static/", "/api/", "/admin", "/auth/", "/logout", "/favicon",
+    "/healthz",
 )
 
 

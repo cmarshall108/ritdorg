@@ -58,13 +58,32 @@ logger = logging.getLogger(__name__)
 
 @contextmanager
 def _db():
+    """Open a short-lived SQLite connection (same file as auth.db).
+
+    Mirrors auth._connect concurrency settings so study routes don't
+    trip ``database is locked`` under parallel request load.
+    """
     os.makedirs(os.path.dirname(auth.AUTH_DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(auth.AUTH_DB_PATH)
+    conn = sqlite3.connect(
+        auth.AUTH_DB_PATH, timeout=30.0, check_same_thread=False
+    )
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
     try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA busy_timeout = 30000")
+        try:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+        except sqlite3.Error:
+            pass
         yield conn
         conn.commit()
+    except Exception:
+        try:
+            conn.rollback()
+        except sqlite3.Error:
+            pass
+        raise
     finally:
         conn.close()
 
