@@ -20,6 +20,7 @@ import sqlite3
 import json
 import time
 import logging
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -726,6 +727,60 @@ def verify_admin(username: str, password: str) -> bool:
     except Exception as exc:  # pragma: no cover
         logger.debug("verify_admin hash check failed: %s", exc)
         return False
+
+
+# ---------------------------------------------------------------------------
+# Admin login rate limiting (in-memory; single-process deployment).
+#
+# A simple sliding-window + lockout limiter to slow down online brute-force
+# attempts against /admin/login. Not distributed/persisted across restarts
+# or multiple worker processes by design -- this deployment runs a single
+# uvicorn process (see scripts/auto_redeploy.sh).
+# ---------------------------------------------------------------------------
+
+_ADMIN_LOGIN_MAX_ATTEMPTS = 8
+_ADMIN_LOGIN_WINDOW = timedelta(minutes=15)
+_ADMIN_LOGIN_LOCKOUT = timedelta(minutes=15)
+
+_admin_login_lock = threading.Lock()
+_admin_login_failures: dict[str, list[float]] = {}
+_admin_login_locked_until: dict[str, float] = {}
+
+
+def admin_login_rate_limited(key: str) -> Optional[int]:
+    """Return seconds remaining if `key` (e.g. client IP) is currently locked
+    out of /admin/login, or None if the attempt is allowed to proceed.
+    """
+    now = time.time()
+    with _admin_login_lock:
+        locked_until = _admin_login_locked_until.get(key)
+        if locked_until and locked_until > now:
+            return int(locked_until - now) + 1
+        if locked_until and locked_until <= now:
+            _admin_login_locked_until.pop(key, None)
+            _admin_login_failures.pop(key, None)
+        return None
+
+
+def record_admin_login_failure(key: str) -> None:
+    """Track a failed admin login attempt and lock out `key` after too many
+    failures within the sliding window.
+    """
+    now = time.time()
+    window_start = now - _ADMIN_LOGIN_WINDOW.total_seconds()
+    with _admin_login_lock:
+        attempts = [t for t in _admin_login_failures.get(key, []) if t > window_start]
+        attempts.append(now)
+        _admin_login_failures[key] = attempts
+        if len(attempts) >= _ADMIN_LOGIN_MAX_ATTEMPTS:
+            _admin_login_locked_until[key] = now + _ADMIN_LOGIN_LOCKOUT.total_seconds()
+
+
+def record_admin_login_success(key: str) -> None:
+    """Clear any failure history for `key` after a successful login."""
+    with _admin_login_lock:
+        _admin_login_failures.pop(key, None)
+        _admin_login_locked_until.pop(key, None)
 
 
 def admin_required(view):

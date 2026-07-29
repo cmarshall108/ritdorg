@@ -275,6 +275,19 @@ def _add_cors_headers(response):
     return response
 
 
+@app.after_request
+def _add_security_headers(response):
+    """Baseline defense-in-depth headers, safe to apply unconditionally
+    (no CSP here since templates rely on inline scripts/styles)."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault(
+        "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+    )
+    return response
+
+
 @app.before_request
 def _handle_cors_preflight():
     if request.method == "OPTIONS" and request.headers.get(
@@ -596,13 +609,24 @@ def search_bible():
                 except Exception:
                     continue
 
+                # A malformed cache file may not be a {verse: text} dict.
+                if not isinstance(verses, dict):
+                    continue
+
                 for verse_num, verse_text in verses.items():
+                    # Skip non-string values (nested objects, numbers, null).
+                    if not isinstance(verse_text, str):
+                        continue
                     if is_hebrew_query:
                         match = query in verse_text
                     else:
                         match = query_lower in verse_text.lower()
 
                     if match:
+                        try:
+                            verse_no = int(verse_num)
+                        except (TypeError, ValueError):
+                            continue
                         # Build a snippet with context around the match
                         if is_hebrew_query:
                             idx = verse_text.find(query)
@@ -616,7 +640,7 @@ def search_bible():
                             "translation": translation,
                             "book": book_name,
                             "chapter": ch,
-                            "verse": int(verse_num),
+                            "verse": verse_no,
                             "text": verse_text,
                             "snippet": snippet,
                         })
@@ -1726,13 +1750,22 @@ def admin_login():
     error = None
     next_url = request.args.get("next") or request.form.get("next") or url_for("admin_dashboard")
     if request.method == "POST":
+        ip = request.headers.get("X-Forwarded-For", request.remote_addr or "")
+        if "," in ip:
+            ip = ip.split(",", 1)[0].strip()
+        retry_after = auth.admin_login_rate_limited(ip)
+        if retry_after:
+            error = f"Too many failed attempts. Try again in {retry_after} seconds."
+            return render_template("admin/login.html", error=error, next_url=next_url), 429
         username = request.form.get("username", "")
         password = request.form.get("password", "")
         if auth.verify_admin(username, password):
+            auth.record_admin_login_success(ip)
             session[auth.ADMIN_SESSION_KEY] = True
             session.permanent = False
             target = next_url if next_url.startswith("/") and not next_url.startswith("//") else url_for("admin_dashboard")
             return redirect(target)
+        auth.record_admin_login_failure(ip)
         error = "Invalid username or password."
     return render_template("admin/login.html", error=error, next_url=next_url)
 
@@ -1952,7 +1985,11 @@ def admin_video_upload():
         while os.path.exists(os.path.join(_video_dir(), f"{stem}_{i}{ext}")):
             i += 1
         target = os.path.join(_video_dir(), f"{stem}_{i}{ext}")
-    f.save(target)
+    try:
+        f.save(target)
+    except OSError as e:
+        flash(f"Upload failed: {e}", "error")
+        return redirect(url_for("admin_videos"))
     # Auto-convert HEVC / .mov / .m4v / .webm uploads to a browser-friendly
     # H.264 MP4 in the background. The original file stays in place until
     # the transcode finishes, then gets archived under static/videos/originals/.
@@ -1996,7 +2033,11 @@ def admin_video_rename(name: str):
     if os.path.exists(dst) and os.path.abspath(src) != os.path.abspath(dst):
         flash("A file with that name already exists.", "error")
         return redirect(url_for("admin_videos"))
-    os.rename(src, dst)
+    try:
+        os.rename(src, dst)
+    except OSError as e:
+        flash(f"Rename failed: {e}", "error")
+        return redirect(url_for("admin_videos"))
     flash(f"Renamed to {new_safe}.", "info")
     return redirect(url_for("admin_videos"))
 
