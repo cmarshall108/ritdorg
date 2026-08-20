@@ -165,9 +165,16 @@ class BibleReader {
             }
             
             sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('collapsed');
-                // On mobile the sidebar uses .open instead of .collapsed; toggle both for safety.
-                sidebar.classList.toggle('open');
+                const isMobile = window.matchMedia('(max-width: 900px)').matches;
+                if (isMobile) {
+                    const nextOpen = !sidebar.classList.contains('open');
+                    sidebar.classList.toggle('open', nextOpen);
+                    sidebar.classList.remove('collapsed');
+                } else {
+                    const nextCollapsed = !sidebar.classList.contains('collapsed');
+                    sidebar.classList.toggle('collapsed', nextCollapsed);
+                    sidebar.classList.remove('open');
+                }
                 this._syncSidebarBackdrop();
                 localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
                 this._scheduleSessionStateSave();

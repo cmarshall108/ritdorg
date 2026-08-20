@@ -584,9 +584,10 @@ body {
 
 .sidebar-toggle {
     position: absolute;
-    right: -14px;
+    left: 100%;
     top: 50%;
-    transform: translateY(-50%);
+    right: auto;
+    transform: translate(-50%, -50%);
     width: 28px;
     height: 28px;
     background: var(--bg-secondary);
