@@ -193,6 +193,14 @@ class CoreAPITestCase(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.get_json().get("ok"), True)
 
+    def test_tts_generation_guard_prevents_stale_callbacks(self):
+        js_path = Path(appmod.app.static_folder) / "js" / "app.js"
+        self.assertTrue(js_path.exists(), msg=f"Missing JS app: {js_path}")
+        js_text = js_path.read_text(encoding="utf-8")
+        self.assertIn("this._ttsGen = (this._ttsGen || 0) + 1;", js_text)
+        self.assertIn("this.speakViaServer(item, myGen);", js_text)
+        self.assertIn("if (myGen !== this._ttsGen) return;", js_text)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -3333,28 +3333,33 @@ class BibleReader {
         }
         this.updateTTSProgress();
 
+        // Each verse gets a unique generation. Stale utterance/audio callbacks
+        // from a previous queue or a failed fallback can otherwise keep firing
+        // after the user has already moved on, which creates the page-stall effect
+        // where playback becomes progressively slower and then stops.
+        this._ttsGen = (this._ttsGen || 0) + 1;
+        const myGen = this._ttsGen;
         if (this.ttsMode === 'audio') {
-            this.speakViaServer(item);
+            this.speakViaServer(item, myGen);
         } else {
-            this.speakViaSynthesis(item);
+            this.speakViaSynthesis(item, myGen);
         }
     }
 
-    speakViaSynthesis(item) {
+    speakViaSynthesis(item, myGen = this._ttsGen) {
         const chunks = this.chunkTextForTTS(item.text);
         if (!chunks.length) {
             this.ttsIndex += 1;
             this.speakNextTTS();
             return;
         }
-        const myGen = (this._ttsGen = this._ttsGen || 0);
         const voice = this.pickTTSVoice(item.lang);
         let i = 0;
         const failVerseToServer = () => {
             if (myGen !== this._ttsGen) return;
             try { window.speechSynthesis.cancel(); } catch {}
             this.ttsMode = 'audio';
-            this.speakViaServer(item);
+            this.speakViaServer(item, this._ttsGen);
         };
         const speakChunk = () => {
             if (this.ttsState !== 'playing') return;
@@ -3372,6 +3377,7 @@ class BibleReader {
             const minMs = Math.max(120, chunks[i].length * 18);
             u.onend = () => {
                 if (myGen !== this._ttsGen) return;
+                if (this.currentUtterance === u) this.currentUtterance = null;
                 const elapsed = performance.now() - startedAt;
                 if (elapsed < Math.min(minMs, 400)) {
                     console.warn('TTS finished suspiciously fast', { elapsed, chunk: chunks[i] });
@@ -3383,6 +3389,7 @@ class BibleReader {
             };
             u.onerror = (e) => {
                 if (myGen !== this._ttsGen) return;
+                if (this.currentUtterance === u) this.currentUtterance = null;
                 console.warn('SpeechSynthesis error', e);
                 failVerseToServer();
             };
@@ -3393,7 +3400,7 @@ class BibleReader {
         speakChunk();
     }
 
-    speakViaServer(item) {
+    speakViaServer(item, myGen = this._ttsGen) {
         try {
             if (this.ttsAudio) {
                 try {
@@ -3402,7 +3409,6 @@ class BibleReader {
                     this.ttsAudio.pause();
                 } catch {}
             }
-            const myGen = (this._ttsGen = this._ttsGen || 0);
             const lang = (item.lang || 'en').split('-')[0];
             const tld = (this.ttsSettings && this.ttsSettings.tld) || 'com';
             // User-chosen Microsoft Edge neural voice for this language,
@@ -3418,18 +3424,20 @@ class BibleReader {
             audio.preload = 'auto';
             audio.onended = () => {
                 if (myGen !== this._ttsGen) return; // stale, queue was rebuilt
+                if (this.ttsAudio === audio) this.ttsAudio = null;
                 this.ttsIndex += 1;
                 this.speakNextTTS();
             };
             audio.onerror = () => {
                 if (myGen !== this._ttsGen) return;
+                if (this.ttsAudio === audio) this.ttsAudio = null;
                 console.warn('Server TTS failed for verse', item.verse, '- falling back to browser TTS');
                 if (window.speechSynthesis && !this._serverTTSWarned) {
                     this._serverTTSWarned = true;
                     this.showToast('Online voice unavailable, using device voice', 'info');
                 }
                 if (window.speechSynthesis) {
-                    this.speakViaSynthesis(item);
+                    this.speakViaSynthesis(item, this._ttsGen);
                 } else {
                     this.ttsIndex += 1;
                     this.speakNextTTS();
@@ -3439,6 +3447,7 @@ class BibleReader {
             const p = audio.play();
             if (p && p.catch) p.catch(err => {
                 if (myGen !== this._ttsGen) return;
+                if (this.ttsAudio === audio) this.ttsAudio = null;
                 console.warn('Audio.play rejected', err);
                 this.stopTTS();
                 this.showToast('Tap play to start audio', 'info');
