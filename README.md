@@ -47,6 +47,9 @@ A `.env` file (see `.env.example`) is now loaded automatically via
 
 Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
 `.env`) before serving production traffic — see `ritdorg/set_admin_password.py`.
+Without `ADMIN_PASS_HASH`, admin login is disabled. Without a secure
+`SECRET_KEY`, the app generates an ephemeral key and sessions do not survive a
+restart; it never uses a known fallback credential.
 
 ## Keeping the server online + automatic log capture
 
@@ -78,15 +81,32 @@ Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
   automatically (python-dotenv). The deploy scripts set `RITD_NO_CONSOLE_LOG=1`
   internally to avoid duplicate log lines in `data/server.log`.
 
-Example persistent launch (as root for port 80):
+Run the application as a dedicated unprivileged account on port 8080 and put a
+patched reverse proxy in front of it for ports 80/443. The keeper refuses to run
+as root by default; `ALLOW_ROOT_RUN=1` is available only as a temporary migration
+override.
 
-    sudo nohup ./scripts/auto_redeploy.sh >> data/auto_redeploy.out 2>&1 &
+Example persistent launch:
+
+  nohup ./scripts/auto_redeploy.sh >> data/auto_redeploy.out 2>&1 &
 
 Then `tail -f data/server.log` to watch everything the server ever emitted.
 
 Quick health check:
 
-    curl -sS http://127.0.0.1/healthz
+    curl -sS http://127.0.0.1:8080/healthz
+
+  ## Security and incident response
+
+  An outbound abuse report means the host must be treated as compromised even if
+  the application contains no intentional SSH client. Preserve a provider
+  snapshot and relevant logs for investigation, then replace the VPS from a known
+  good image rather than trying to clean it in place. Rotate SSH keys, passwords,
+  API tokens, Flask secrets and admin credentials from a separate trusted device.
+  Disable SSH password authentication and root login, restrict inbound SSH to
+  trusted source addresses, and block outbound TCP/22 unless the application has a
+  documented need for it. Do not reconnect the old writable data volume until it
+  has been inspected offline.
 
 ## SEO / search-engine indexing
 

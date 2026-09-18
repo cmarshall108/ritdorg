@@ -688,29 +688,11 @@ ADMIN_SESSION_KEY = "admin_authenticated"
 
 
 def ensure_default_admin() -> None:
-    """If no ADMIN_PASS_HASH is configured via env, fall back to a default
-    administrator account so the panel is reachable on a fresh install.
-
-    Default credentials: ``admin`` / ``RhemaWeb@1234``.
-
-    These are intended only as a first-login convenience — operators should
-    change them by setting ``ADMIN_USER`` / ``ADMIN_PASS_HASH`` in the
-    environment. We log a warning whenever the defaults are in use.
-    """
-    global ADMIN_PASS_HASH, ADMIN_USER
+    """Disable admin authentication unless a password hash is configured."""
     if ADMIN_PASS_HASH:
         return
-    from werkzeug.security import generate_password_hash
-    ADMIN_USER = ADMIN_USER or "admin"
-    # Use pbkdf2 explicitly — werkzeug's default ('scrypt') depends on
-    # hashlib.scrypt which isn't available on every Python build.
-    ADMIN_PASS_HASH = generate_password_hash(
-        "RhemaWeb@1234", method="pbkdf2:sha256",
-    )
-    import logging
-    logging.getLogger(__name__).warning(
-        "Using DEFAULT admin credentials (admin / RhemaWeb@1234). "
-        "Set ADMIN_USER and ADMIN_PASS_HASH in the environment for production."
+    logger.error(
+        "Admin login is disabled because ADMIN_PASS_HASH is not configured."
     )
 
 

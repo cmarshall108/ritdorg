@@ -5,8 +5,8 @@
 # - Health-checks the live port and force-restarts wedged processes
 # - Captures all logs to data/server.log
 #
-# Usage:
-#   sudo nohup ./scripts/auto_redeploy.sh >> data/auto_redeploy.out 2>&1 &
+# Usage (as a dedicated unprivileged service account):
+#   nohup ./scripts/auto_redeploy.sh >> data/auto_redeploy.out 2>&1 &
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -17,8 +17,9 @@ cd "$(dirname "$0")/.."
 CHECK_INTERVAL_SECONDS="${CHECK_INTERVAL_SECONDS:-60}"
 RESTART_DELAY_SECONDS="${RESTART_DELAY_SECONDS:-3}"
 HEALTH_FAIL_THRESHOLD="${HEALTH_FAIL_THRESHOLD:-3}"
-APP_PORT="${APP_PORT:-80}"
+APP_PORT="${APP_PORT:-8080}"
 APP_HOST="${APP_HOST:-0.0.0.0}"
+ALLOW_ROOT_RUN="${ALLOW_ROOT_RUN:-0}"
 FORCE_KILL_PORT_PROCESS="${FORCE_KILL_PORT_PROCESS:-0}"
 HEALTH_URL="${HEALTH_URL:-}"
 LOG_FILE="${LOG_FILE:-data/server.log}"
@@ -45,8 +46,15 @@ if [ -z "$PYTHON_BIN" ]; then
   exit 1
 fi
 
+if [ "$(id -u)" -eq 0 ] && [ "$ALLOW_ROOT_RUN" != "1" ]; then
+  echo "Refusing to run the web application as root." >&2
+  echo "Run as an unprivileged service account behind a reverse proxy." >&2
+  echo "Set ALLOW_ROOT_RUN=1 only as a temporary compatibility override." >&2
+  exit 1
+fi
+
 if [ "$APP_PORT" -lt 1024 ] && [ "$(id -u)" -ne 0 ]; then
-  echo "Port $APP_PORT usually requires root. Run with sudo or set APP_PORT to a non-privileged port." >&2
+  echo "Port $APP_PORT requires elevated privileges. Use APP_PORT=8080 behind a reverse proxy." >&2
   exit 1
 fi
 

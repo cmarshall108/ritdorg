@@ -17,6 +17,7 @@ from flask import (
 import glob
 import json
 import logging
+import secrets
 from logging.handlers import RotatingFileHandler
 
 # Load .env early so SECRET_KEY, ADMIN_PASS_HASH etc. are available for
@@ -92,12 +93,20 @@ app = Flask(
     template_folder=os.path.join(_PROJECT_ROOT, "templates"),
 )
 _DEFAULT_SECRET = "dev-secret-change-me"
-app.secret_key = os.environ.get("SECRET_KEY", _DEFAULT_SECRET)
-if app.secret_key == _DEFAULT_SECRET:
+
+
+def _session_secret() -> str:
+    configured = os.environ.get("SECRET_KEY")
+    if configured and configured != _DEFAULT_SECRET:
+        return configured
     logger.warning(
-        "SECRET_KEY is using the insecure default. Set the SECRET_KEY "
-        "environment variable before serving production traffic."
+        "SECRET_KEY is not securely configured; using a random ephemeral key. "
+        "Set SECRET_KEY before serving production traffic."
     )
+    return secrets.token_hex(32)
+
+
+app.secret_key = _session_secret()
 
 # On first startup, export hardcoded data from translations.py into JSON cache
 # so the dynamic fetcher can serve Matthew/Mark instantly.
@@ -122,8 +131,7 @@ try:
 except Exception as exc:  # pragma: no cover
     logger.exception("auth.init_default_pages failed during startup: %s", exc)
 try:
-    # If no ADMIN_PASS_HASH is provided in the environment, fall back to the
-    # documented default account so the panel is reachable on a fresh install.
+    # Admin authentication remains disabled until ADMIN_PASS_HASH is provided.
     auth.ensure_default_admin()
 except Exception as exc:  # pragma: no cover
     logger.exception("auth.ensure_default_admin failed during startup: %s", exc)
