@@ -1,7 +1,6 @@
 /* ============================================================
-   Study tools UI — matches the cream/gold/serif aesthetic of
-   style.css. Uses the same CSS variables, Cormorant headings,
-   and gold accent. Honors [data-theme="dark"].
+   Study tools UI — uses the shared light/dark tokens in style.css.
+   Honors [data-theme="dark"].
    ============================================================ */
 
 /* ---------- Floating launch button -------------------------- */
@@ -9,7 +8,7 @@
 .study-fab {
     position: fixed;
     right: 20px;
-    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
     width: 52px;
     height: 52px;
     border-radius: 50%;
@@ -17,9 +16,9 @@
     background:
         radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.25), transparent 60%),
         linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-    color: #fff;
+    color: var(--on-accent, #fff);
     box-shadow:
-        0 10px 28px rgba(139, 105, 20, 0.35),
+        0 10px 28px rgba(48, 36, 22, 0.28),
         0 2px 6px rgba(0, 0, 0, 0.18),
         inset 0 1px 0 rgba(255, 255, 255, 0.4);
     cursor: pointer;
@@ -33,7 +32,7 @@
 .study-fab:hover {
     transform: translateY(-2px) scale(1.04);
     box-shadow:
-        0 14px 36px rgba(139, 105, 20, 0.45),
+        0 14px 36px rgba(48, 36, 22, 0.36),
         0 3px 8px rgba(0, 0, 0, 0.2),
         inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
@@ -50,7 +49,7 @@
     position: fixed;
     inset: 0;
     background:
-        radial-gradient(ellipse at 50% 0%, rgba(201, 169, 98, 0.18), transparent 60%),
+        radial-gradient(ellipse at 50% 0%, var(--accent-light), transparent 60%),
         rgba(15, 15, 15, 0.55);
     backdrop-filter: blur(6px) saturate(120%);
     -webkit-backdrop-filter: blur(6px) saturate(120%);
@@ -1094,8 +1093,8 @@ body.deck-open { overflow: hidden; }
     inset: 0;
     z-index: 2400;
     background:
-        radial-gradient(ellipse at top, rgba(201, 169, 98, 0.10), transparent 60%),
-        radial-gradient(ellipse at bottom right, rgba(139, 105, 20, 0.08), transparent 60%),
+        radial-gradient(ellipse at top, var(--accent-light), transparent 60%),
+        radial-gradient(ellipse at bottom right, var(--accent-light), transparent 60%),
         var(--bg-primary);
     color: var(--text-primary);
     display: flex;
@@ -1108,9 +1107,9 @@ body.deck-open { overflow: hidden; }
 
 [data-theme="dark"] .study-deck {
     background:
-        radial-gradient(ellipse at top, rgba(201, 169, 98, 0.14), transparent 60%),
-        radial-gradient(ellipse at bottom right, rgba(201, 169, 98, 0.06), transparent 60%),
-        #15110a;
+        radial-gradient(ellipse at top, var(--accent-light), transparent 60%),
+        radial-gradient(ellipse at bottom right, var(--accent-light), transparent 60%),
+        var(--bg-primary);
 }
 
 .deck-stage {
@@ -1327,7 +1326,7 @@ body.deck-open { overflow: hidden; }
         font-size: 28pt;
         text-align: center;
         margin: 0 0 24pt;
-        border-bottom: 2px solid #c9a962;
+        border-bottom: 2px solid #8d5a2b;
         padding-bottom: 12pt;
     }
     .deck-handout .ph {
@@ -1337,9 +1336,9 @@ body.deck-open { overflow: hidden; }
         border-bottom: 1px solid #ddd;
     }
     .deck-handout .ph h2 { font-size: 22pt; margin: 0 0 6pt; }
-    .deck-handout .ph h3 { font-size: 14pt; margin: 0 0 6pt; color: #8b6914; }
+    .deck-handout .ph h3 { font-size: 14pt; margin: 0 0 6pt; color: #6f4520; }
     .deck-handout .ph .phe { font-size: 10pt; color: #555; font-style: italic; margin: 0 0 6pt; }
-    .deck-handout .ph blockquote { font-size: 14pt; line-height: 1.5; margin: 6pt 0 0; padding-left: 12pt; border-left: 3px solid #c9a962; }
+    .deck-handout .ph blockquote { font-size: 14pt; line-height: 1.5; margin: 6pt 0 0; padding-left: 12pt; border-left: 3px solid #8d5a2b; }
     .deck-handout .ph p { font-size: 12pt; line-height: 1.5; margin: 0; }
 }
 
@@ -1369,8 +1368,8 @@ body.deck-open { overflow: hidden; }
 .lex-id {
     font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
     font-weight: 700;
-    color: var(--accent-primary, #8b6914);
-    background: rgba(139, 105, 20, 0.08);
+    color: var(--accent-primary, #8d5a2b);
+    background: var(--accent-light, rgba(141, 90, 43, 0.12));
     padding: 2px 8px;
     border-radius: 6px;
     font-size: 0.9rem;

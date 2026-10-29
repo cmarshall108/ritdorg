@@ -187,6 +187,8 @@ class BibleReader {
             sidebarBackdrop.addEventListener('click', () => {
                 document.getElementById('sidebar')?.classList.remove('open');
                 document.getElementById('topNav')?.classList.remove('open');
+                document.body.classList.remove('nav-menu-open');
+                document.documentElement.style.removeProperty('--open-nav-height');
                 document.getElementById('mobileMenuToggle')?.setAttribute('aria-expanded', 'false');
                 this._syncSidebarBackdrop();
             });
@@ -207,15 +209,27 @@ class BibleReader {
         const mobileMenuToggle = document.getElementById('mobileMenuToggle');
         const topNav = document.getElementById('topNav');
         if (mobileMenuToggle && topNav) {
+            const syncNavMenu = (isOpen) => {
+                document.body.classList.toggle('nav-menu-open', isOpen);
+                if (!isOpen) {
+                    document.documentElement.style.removeProperty('--open-nav-height');
+                    return;
+                }
+                requestAnimationFrame(() => {
+                    document.documentElement.style.setProperty('--open-nav-height', `${topNav.scrollHeight}px`);
+                });
+            };
             mobileMenuToggle.addEventListener('click', () => {
                 const isOpen = topNav.classList.toggle('open');
                 mobileMenuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+                syncNavMenu(isOpen);
                 this._syncSidebarBackdrop();
             });
             topNav.querySelectorAll('.nav-link').forEach(link => {
                 link.addEventListener('click', () => {
                     topNav.classList.remove('open');
                     mobileMenuToggle.setAttribute('aria-expanded', 'false');
+                    syncNavMenu(false);
                 });
             });
         }
