@@ -350,7 +350,19 @@ def _available_translations():
     ]
     seen = set(legacy)
     extras = [n for n in xml_names if n not in seen]
-    return legacy + extras
+    ordered = legacy + extras
+    # Keep the languages people actually switch between at the top of a
+    # long dropdown. Hungarian was getting buried the same way English
+    # voices were.
+    preferred = (
+        "NIV", "KJV", "ESV", "NKJV", "NASB", "NASB1995",
+        "Hungarian", "Hungarian-Revised",
+        "Hebrew",
+        "Swahili2017",
+    )
+    front = [n for n in preferred if n in ordered]
+    rest = [n for n in ordered if n not in front]
+    return front + rest
 
 @app.route('/')
 def index():
@@ -932,19 +944,21 @@ def tts_audio():
 EDGE_VOICES = {
     'en': [
         # (short-name, friendly label)
-        ('en-US-AriaNeural',     'Aria — US, female (warm)'),
-        ('en-US-JennyNeural',    'Jenny — US, female (friendly)'),
+        # Male voices first. The English picker was becoming unreachable
+        # and would not switch off the female default.
         ('en-US-GuyNeural',      'Guy — US, male'),
         ('en-US-DavisNeural',    'Davis — US, male (deep)'),
         ('en-US-AndrewNeural',   'Andrew — US, male (warm)'),
+        ('en-US-BrianNeural',    'Brian — US, male'),
+        ('en-GB-RyanNeural',     'Ryan — UK, male'),
+        ('en-AU-WilliamNeural',  'William — Australian, male'),
+        ('en-US-AriaNeural',     'Aria — US, female (warm)'),
+        ('en-US-JennyNeural',    'Jenny — US, female (friendly)'),
         ('en-US-EmmaNeural',     'Emma — US, female'),
         ('en-US-AvaNeural',      'Ava — US, female (expressive)'),
-        ('en-US-BrianNeural',    'Brian — US, male'),
         ('en-GB-LibbyNeural',    'Libby — UK, female'),
-        ('en-GB-RyanNeural',     'Ryan — UK, male'),
         ('en-GB-SoniaNeural',    'Sonia — UK, female'),
         ('en-AU-NatashaNeural',  'Natasha — Australian, female'),
-        ('en-AU-WilliamNeural',  'William — Australian, male'),
         ('en-CA-ClaraNeural',    'Clara — Canadian, female'),
         ('en-IE-EmilyNeural',    'Emily — Irish, female'),
         ('en-IN-NeerjaNeural',   'Neerja — Indian, female'),
@@ -965,7 +979,7 @@ EDGE_VOICES = {
 }
 EDGE_VOICE_NAMES = {v[0] for vs in EDGE_VOICES.values() for v in vs}
 DEFAULT_EDGE_VOICE = {
-    'en': 'en-US-AriaNeural',
+    'en': 'en-US-GuyNeural',
     'hu': 'hu-HU-NoemiNeural',
     'he': 'he-IL-HilaNeural',
     'sw': 'sw-KE-ZuriNeural',

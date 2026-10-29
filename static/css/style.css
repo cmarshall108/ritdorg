@@ -2354,7 +2354,7 @@ body.focus-reading-mode .audio-controls-bar {
     padding-left: 9px;
     transition: background 0.25s ease, border-color 0.25s ease;
 }
-#syncCol2 .sync-verse.follow-active {
+.sync-column[dir="rtl"] .sync-verse.follow-active {
     border-left: 0;
     border-right: 3px solid rgba(201, 169, 98, 0.55);
     padding-left: 0;
@@ -2616,16 +2616,35 @@ body.focus-reading-mode .audio-controls-bar {
     padding: 6px 8px;
 }
 
-/* ===== Hebrew RTL alignment ===== */
-#syncCol2 .sync-verses,
-#parallelCol2 .column-verses {
-    direction: rtl;
-    text-align: right;
+/* ===== Column direction =====
+   The right-hand column is left-to-right unless the translation is
+   Hebrew. Direction is set on the column (dir=rtl / .rtl-text) by
+   applyColumnDirection(); do not force RTL on #syncCol2 / #parallelCol2. */
+.sync-column,
+.parallel-column,
+.page-left,
+.page-right,
+.sync-verses,
+.column-verses,
+.page-content,
+.sync-verse,
+.parallel-verse,
+.verse {
+    direction: ltr;
+    text-align: start;
 }
 
-#syncCol2 .sync-verse,
-#parallelCol2 .verse-line,
-#parallelCol2 .parallel-verse {
+.sync-column[dir="rtl"] .sync-verses,
+.sync-column.rtl-text .sync-verses,
+.parallel-column[dir="rtl"] .column-verses,
+.parallel-column.rtl-text .column-verses,
+.page-left[dir="rtl"] .page-content,
+.page-right[dir="rtl"] .page-content,
+.sync-column[dir="rtl"] .sync-verse,
+.parallel-column[dir="rtl"] .parallel-verse,
+.parallel-column[dir="rtl"] .verse-line,
+.page-left[dir="rtl"] .verse,
+.page-right[dir="rtl"] .verse {
     direction: rtl;
     text-align: right;
 }
@@ -3412,7 +3431,7 @@ body.tutorial-open { overflow: hidden; }
     background: var(--accent-primary);
     clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 70%, 0 100%);
 }
-#syncCol2 .sync-verse[data-bookmarked="1"]::before {
+.sync-column[dir="rtl"] .sync-verse[data-bookmarked="1"]::before {
     left: auto;
     right: -14px;
 }
@@ -3664,7 +3683,7 @@ body.tutorial-open { overflow: hidden; }
     /* Pull the bookmark side ribbon inward so it isn't clipped on
        narrow screens where the verses live close to the edge. */
     .sync-verse[data-bookmarked="1"]::before { left: -8px; width: 6px; height: 10px; }
-    #syncCol2 .sync-verse[data-bookmarked="1"]::before { right: -8px; left: auto; }
+    .sync-column[dir="rtl"] .sync-verse[data-bookmarked="1"]::before { right: -8px; left: auto; }
 }
 
 /* Make the bookmark side ribbon visible inside the verse padding — the
@@ -3673,7 +3692,7 @@ body.tutorial-open { overflow: hidden; }
     box-shadow: inset 3px 0 0 var(--accent-primary);
 }
 .sync-verse[data-bookmarked="1"]::before { display: none; }
-#syncCol2 .sync-verse[data-bookmarked="1"] {
+.sync-column[dir="rtl"] .sync-verse[data-bookmarked="1"] {
     box-shadow: inset -3px 0 0 var(--accent-primary);
 }
 
@@ -3708,9 +3727,9 @@ body.tutorial-open { overflow: hidden; }
 
 /* Hebrew text needs a font with proper nikud + cantillation support and
    benefits from a larger size + slightly looser line-height. */
-#syncCol2 .sync-verses,
-#parallelCol2 .column-verses,
-#parallelCol2 .parallel-verse .verse-text {
+.sync-column[dir="rtl"] .sync-verses,
+.parallel-column[dir="rtl"] .column-verses,
+.parallel-column[dir="rtl"] .parallel-verse .verse-text {
     font-family: 'SBL Hebrew', 'Ezra SIL', 'Times New Roman', 'David CLM',
                  'Frank Ruehl CLM', serif;
     font-size: 1.55rem;
@@ -3750,8 +3769,8 @@ body.tutorial-open { overflow: hidden; }
     }
     .sync-verse { padding: 8px 8px; margin-bottom: 12px; }
     .parallel-verse .verse-text { font-size: 1.08rem; line-height: 1.7; }
-    #syncCol2 .sync-verses,
-    #parallelCol2 .column-verses { font-size: 1.4rem; line-height: 1.95; }
+    .sync-column[dir="rtl"] .sync-verses,
+    .parallel-column[dir="rtl"] .column-verses { font-size: 1.4rem; line-height: 1.95; }
 }
 
 /* The video card no longer embeds a real <video> preview (most uploads

@@ -509,7 +509,37 @@ class BibleReader {
             const ms = document.getElementById('mobileChapterSelect');
             if (ms) ms.value = String(this.currentChapter);
             this.loadChapter(this.currentBook, this.currentChapter);
+            return true;
         }
+        // End of this book. Keep reading into the next book (Philippians →
+        // Colossians, and so on) instead of stopping near the last verse.
+        return this.advanceToNextBook();
+    }
+
+    bookNames() {
+        const sel = document.getElementById('bookSelect');
+        if (!sel) return [];
+        return Array.from(sel.options).map(o => o.value).filter(Boolean);
+    }
+
+    advanceToNextBook() {
+        const books = this.bookNames();
+        const idx = books.indexOf(this.currentBook);
+        if (idx < 0 || idx >= books.length - 1) return false;
+        const nextBook = books[idx + 1];
+        this.currentBook = nextBook;
+        this.currentChapter = 1;
+        const bookSel = document.getElementById('bookSelect');
+        if (bookSel) bookSel.value = nextBook;
+        const mobileBook = document.getElementById('mobileBookSelect');
+        if (mobileBook) mobileBook.value = nextBook;
+        // The chapter dropdown still lists the previous book's chapters.
+        // Reset the max now so the next end-of-chapter check cannot treat
+        // chapter 1 of the new book as the last chapter, then load the
+        // real chapter list (which also loads chapter 1).
+        this._maxChapter = 0;
+        this.loadChapters(nextBook, 1);
+        return true;
     }
     
     toggleVideoVisibility() {
@@ -902,6 +932,8 @@ class BibleReader {
         
         document.getElementById('leftVerses').innerHTML = this.renderVerses(leftPage);
         document.getElementById('rightVerses').innerHTML = this.renderVerses(rightPage);
+        this.applyColumnDirection('pageLeft', this.currentTranslation, this.verses);
+        this.applyColumnDirection('pageRight', this.currentTranslation, this.verses);
         
         document.getElementById('leftPageNum').textContent = this.currentPage + 1;
         document.getElementById('rightPageNum').textContent = this.currentPage + 2;
@@ -1116,6 +1148,8 @@ class BibleReader {
             
             document.getElementById('col1TransName').textContent = trans1Label;
             document.getElementById('col2TransName').textContent = trans2Label;
+            this.applyColumnDirection('parallelCol1', data.translation1.actual || this.parallelTrans1, this.parallelVerses1);
+            this.applyColumnDirection('parallelCol2', data.translation2.actual || this.parallelTrans2, this.parallelVerses2);
             
             // Show toast only when BOTH columns fell back (nothing useful to display)
             if (fb1 && fb2) {
@@ -1317,6 +1351,8 @@ class BibleReader {
         document.getElementById('syncColName1').textContent = trans1Label;
         document.getElementById('syncColName2').textContent = trans2Label;
         this.applySyncColumnVisibility(!!data1.fallback, !!data2.fallback);
+        this.applyColumnDirection('syncCol1', data1.translation || this.syncTrans1, verses1);
+        this.applyColumnDirection('syncCol2', data2.translation || this.syncTrans2, verses2);
         
         // Render first translation with word highlighting
         syncVerses1.innerHTML = this.renderSyncVerses(verses1, true);
@@ -1393,6 +1429,8 @@ class BibleReader {
         document.getElementById('syncColName1').textContent = trans1Label;
         document.getElementById('syncColName2').textContent = trans2Label;
         this.applySyncColumnVisibility(!!data1.fallback, !!data2.fallback);
+        this.applyColumnDirection('syncCol1', data1.translation || this.syncTrans1, verses1);
+        this.applyColumnDirection('syncCol2', data2.translation || this.syncTrans2, verses2);
         
         const syncVerses1 = document.getElementById('syncVerses1');
         const syncVerses2 = document.getElementById('syncVerses2');
@@ -1424,6 +1462,29 @@ class BibleReader {
             </p>
         `;
         }).join('');
+    }
+
+    // Right-hand columns used to be forced RTL for every language. Only
+    // Hebrew (and text that is actually Hebrew script) should run
+    // right-to-left; English, Hungarian, and the rest stay left-to-right.
+    isRtlTranslation(name, verses) {
+        const n = (name || '').toLowerCase();
+        if (n === 'hebrew' || n.startsWith('hebrew') || n.includes('aramaic')) return true;
+        const sample = verses && typeof verses === 'object'
+            ? Object.values(verses).slice(0, 8).join(' ')
+            : '';
+        return /[\u0590-\u05FF\u0600-\u06FF]/.test(sample);
+    }
+
+    applyColumnDirection(columnId, translationName, verses) {
+        const col = document.getElementById(columnId);
+        if (!col) return;
+        const rtl = this.isRtlTranslation(translationName, verses);
+        col.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+        col.classList.toggle('rtl-text', rtl);
+        col.querySelectorAll('.sync-verses, .column-verses, .page-content, .sync-verse, .parallel-verse, .verse, .verse-line').forEach(el => {
+            el.setAttribute('dir', rtl ? 'rtl' : 'ltr');
+        });
     }
 
     applySyncColumnVisibility(fb1, fb2) {
@@ -1697,13 +1758,11 @@ class BibleReader {
                 this.syncWithCaptions(currentTime, duration);
             }
 
-            // Auto-continue to the next chapter when the video ends.
+            // Auto-continue when the video ends — into the next chapter, or
+            // the next book when this one is finished.
             if (event.data === YT.PlayerState.ENDED && this.autoAdvanceChapter) {
-                const maxChapter = this._maxChapter || (document.getElementById('chapterSelect')?.options.length || 0);
-                if (this.currentChapter < maxChapter) {
-                    this._autoplayAfterLoad = true;
-                    this.nextChapter();
-                }
+                this._autoplayAfterLoad = true;
+                if (!this.nextChapter()) this._autoplayAfterLoad = false;
             }
         }
     }
@@ -2943,6 +3002,16 @@ class BibleReader {
         }
     }
 
+    // Male voices first. The English picker was getting stuck on a voice
+    // that could not be changed to male; ranking male names ahead of
+    // female ones keeps that choice at the top of the list.
+    _voiceGenderRank(name) {
+        const n = (name || '').toLowerCase();
+        if (/\b(male|guy|davis|andrew|brian|ryan|william|tamas|tamás|avri|rafiki)\b/.test(n)) return 0;
+        if (/\b(female|aria|jenny|emma|ava|libby|sonia|natasha|clara|emily|neerja|leah|noémi|noemi|hila|zuri)\b/.test(n)) return 1;
+        return 2;
+    }
+
     async populateVoiceSettings() {
         // Online voices come from the server (curated list of Microsoft
         // Edge neural voices). Browser voices come from speechSynthesis.
@@ -2951,12 +3020,20 @@ class BibleReader {
             this.waitForVoices(800),
         ]);
 
+        // English is listed last on purpose. A long voice menu compresses
+        // toward the top, and starting at the bottom language and working
+        // up was the only reliable way to reach an English voice.
         const fillBrowser = (id, baseLang) => {
             const sel = document.getElementById(id);
             if (!sel) return;
             const matches = voices
                 .filter(v => (v.lang || '').toLowerCase().startsWith(baseLang))
-                .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                .sort((a, b) => {
+                    const ag = this._voiceGenderRank(a.name);
+                    const bg = this._voiceGenderRank(b.name);
+                    if (ag !== bg) return ag - bg;
+                    return (a.name || '').localeCompare(b.name || '');
+                });
             sel.innerHTML = '';
             const auto = document.createElement('option');
             auto.value = '';
@@ -2986,7 +3063,13 @@ class BibleReader {
                 ? '— Default —'
                 : '— Online voices unavailable —';
             sel.appendChild(auto);
-            list.forEach(v => {
+            const ordered = list.slice().sort((a, b) => {
+                const ag = this._voiceGenderRank(a.label || a.id);
+                const bg = this._voiceGenderRank(b.label || b.id);
+                if (ag !== bg) return ag - bg;
+                return (a.label || '').localeCompare(b.label || '');
+            });
+            ordered.forEach(v => {
                 const o = document.createElement('option');
                 o.value = v.id;
                 o.textContent = v.label;
@@ -2997,14 +3080,16 @@ class BibleReader {
             if (sel.value !== want) sel.value = '';
         };
 
-        fillBrowser('ttsVoiceEn', 'en');
-        fillBrowser('ttsVoiceHu', 'hu');
-        fillBrowser('ttsVoiceHe', 'he');
+        // Bottom language first, English last, so English stays reachable
+        // even after the dialog has been compressed by a long voice list.
         fillBrowser('ttsVoiceSw', 'sw');
-        fillOnline('ttsOnlineVoiceEn', 'en');
-        fillOnline('ttsOnlineVoiceHu', 'hu');
-        fillOnline('ttsOnlineVoiceHe', 'he');
+        fillBrowser('ttsVoiceHe', 'he');
+        fillBrowser('ttsVoiceHu', 'hu');
+        fillBrowser('ttsVoiceEn', 'en');
         fillOnline('ttsOnlineVoiceSw', 'sw');
+        fillOnline('ttsOnlineVoiceHe', 'he');
+        fillOnline('ttsOnlineVoiceHu', 'hu');
+        fillOnline('ttsOnlineVoiceEn', 'en');
 
         const preferEl = document.getElementById('ttsPreferServer');
         if (preferEl) preferEl.checked = !!this.ttsSettings.preferServer;
@@ -3305,14 +3390,12 @@ class BibleReader {
     speakNextTTS() {
         if (this.ttsState !== 'playing') return;
         if (this.ttsIndex >= this.ttsQueue.length) {
-            // End of chapter — auto-advance if enabled and a next chapter exists.
+            // End of chapter — keep reading into the next chapter, and into
+            // the next book when this one is finished, until Revelation ends.
             if (this.autoAdvanceChapter) {
-                const maxChapter = this._maxChapter || (document.getElementById('chapterSelect')?.options.length || 0);
-                if (this.currentChapter < maxChapter) {
-                    this._autoplayAfterLoad = true;
-                    this.nextChapter();
-                    return;
-                }
+                this._autoplayAfterLoad = true;
+                if (this.nextChapter()) return;
+                this._autoplayAfterLoad = false;
             }
             this.stopTTS();
             return;
