@@ -465,12 +465,12 @@ def words_concordance():
 
 @study_bp.route("/hebrew/lemma-bridge")
 def hebrew_lemma_bridge():
-    """Given a Hebrew word, return the dictionary gloss plus suggested
-    English equivalents to search for in other translations.
+    """Given a Hebrew word, return its gloss plus suggested English
+    equivalents to search for in other translations.
 
-    The curated dictionary stores short English glosses; we tokenize the
-    gloss and surface every meaningful word as a candidate. The client
-    can then call /api/words/concordance for any chosen word.
+    Prefer the curated dictionary, falling back to the Strong's lexicon.
+    Tokenize the gloss and surface meaningful words as candidates so the
+    client can call /api/words/concordance for any chosen word.
     """
     from .app import _load_hebrew_dict, _strip_hebrew_marks
     word = (request.args.get("word") or "").strip()
@@ -483,6 +483,16 @@ def hebrew_lemma_bridge():
         n = _strip_hebrew_marks(word)
         if n in norm_map:
             matched, gloss = norm_map[n]
+        else:
+            from . import lexicon
+            entry = next(
+                (item for item in lexicon.search("hebrew", word, limit=200)
+                 if _strip_hebrew_marks(item.get("lemma", "")) == n),
+                None,
+            )
+            if entry:
+                gloss = (entry.get("strongs_def") or entry.get("kjv_def") or "").strip()
+                matched = entry.get("lemma") or word
     if gloss is None:
         return jsonify({"word": word, "gloss": None, "candidates": []}), 404
     # Pull out content words (drop articles, prepositions, etc.).
@@ -1216,7 +1226,11 @@ def audio_clip():
         return jsonify({"error": "chapter/from/to required"}), 400
     if v_to < v_from:
         v_from, v_to = v_to, v_from
-    if v_to - v_from > 30:
+    if v_from < 1 or v_to < 1:
+        return jsonify({"error": "verse numbers must be positive"}), 400
+    if chapter < 1 or chapter > ALL_BOOKS[book]["chapters"]:
+        return jsonify({"error": "chapter out of range"}), 400
+    if v_to - v_from + 1 > 30:
         return jsonify({"error": "max 30 verses per clip"}), 400
     translation = (request.args.get("translation") or "NIV").strip()
     voice = (request.args.get("voice") or "").strip()
@@ -1246,7 +1260,7 @@ def audio_clip():
         tts_cache_store(txt, lang, voice, mp3)
         parts.append(mp3)
     if not parts:
-        return jsonify({"error": "no audio produced"}), 500
+        return jsonify({"error": "no audio produced"}), 503
     body = b"".join(parts)
     fn = f"{book.replace(' ', '-').lower()}-{chapter}-{v_from}-{v_to}.mp3"
     resp = Response(body, mimetype="audio/mpeg")

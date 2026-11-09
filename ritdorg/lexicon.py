@@ -50,6 +50,7 @@ SOURCES = {
 _PREFIX = {"hebrew": "H", "greek": "G"}
 
 _VAR_PREFIX_RE = re.compile(r"^\s*(?:/\*.*?\*/\s*)*var\s+\w+\s*=\s*", re.DOTALL)
+_HEBREW_MARKS_RE = re.compile(r"[\u0591-\u05C7]")
 
 _mem: dict[str, dict] = {}
 _mem_lock = threading.Lock()
@@ -142,13 +143,19 @@ def _normalize_entries(raw: dict) -> dict[str, dict]:
     return out
 
 
-def _build_index(entries: dict[str, dict]) -> dict[str, list[str]]:
+def _search_key(lang: str, value: str) -> str:
+    if lang == "hebrew":
+        value = _HEBREW_MARKS_RE.sub("", value).replace("\u05be", " ")
+    return value.strip().lower()
+
+
+def _build_index(entries: dict[str, dict], lang: str) -> dict[str, list[str]]:
     idx: dict[str, list[str]] = {}
     for sid, e in entries.items():
         for key in (e.get("lemma"), e.get("translit"), e.get("pron")):
             if not key:
                 continue
-            k = key.strip().lower()
+            k = _search_key(lang, key)
             if not k:
                 continue
             idx.setdefault(k, []).append(sid)
@@ -205,7 +212,7 @@ def _load(lang: str) -> dict[str, dict] | None:
         entries = _normalize_entries(raw)
         with _mem_lock:
             _mem[lang] = entries
-            _index[lang] = _build_index(entries)
+            _index[lang] = _build_index(entries, lang)
         return entries
 
 
@@ -264,7 +271,7 @@ def search(lang: str, query: str, *, limit: int = 50) -> list[dict]:
         return [e] if e else []
 
     idx = _index.get(lang) or {}
-    ql = q.lower()
+    ql = _search_key(lang, q)
 
     # 1) Exact key match (lemma/translit/pron).
     exact_ids = idx.get(ql, [])

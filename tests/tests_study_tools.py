@@ -10,6 +10,7 @@ import tempfile
 import shutil
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 TEST_TMP = tempfile.mkdtemp(prefix="ritdorg-test-")
 TEST_DB = os.path.join(TEST_TMP, "auth.db")
@@ -128,11 +129,9 @@ class StudyToolsTestCase(unittest.TestCase):
         oid = r.get_json().get("id")
         self.assertIsNotNone(oid)
 
-        # Note: we intentionally skip a list-GET verification here because in
-        # the current test harness the /me/outlines list occasionally 404s under
-        # the study client (while tags/playlists etc work and create succeeded).
-        # The subsequent export/update/delete still exercise the owned outline
-        # paths and the verse population inside update.
+        r = self.client.get("/api/me/outlines")
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(any(o["id"] == oid for o in r.get_json()["outlines"]))
 
         # Set verses via the supported update payload (no dedicated /verses subroute)
         r = self.client.put(f"/api/me/outlines/{oid}", json={
@@ -217,56 +216,75 @@ class StudyToolsTestCase(unittest.TestCase):
 
     # --- Audio clip (#13) ---
     def test_audio_clip(self):
-        # Range limited; may return 200 audio or json error if TTS unavailable
-        r = self.client.get("/api/clip?book=Genesis&chapter=1&from=1&to=2&translation=NIV")
-        self.assertIn(r.status_code, (200, 400, 500, 503))
-        if r.status_code == 200 and r.content_type and "audio" in (r.content_type or ""):
-            self.assertGreater(len(r.data), 200)
+        with (
+            patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.study.tts_cache_store"),
+            patch("ritdorg.app._synthesize_edge", return_value=b"test-mp3"),
+        ):
+            r = self.client.get(
+                "/api/clip?book=Genesis&chapter=1&from=1&to=2&translation=NIV"
+            )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.mimetype, "audio/mpeg")
+        self.assertGreater(len(r.data), 0)
+
+    def test_audio_clip_limits_and_unavailable_service(self):
+        r = self.client.get(
+            "/api/clip?book=Genesis&chapter=1&from=1&to=31&translation=NIV"
+        )
+        self.assertEqual(r.status_code, 400)
+        r = self.client.get(
+            "/api/clip?book=Genesis&chapter=0&from=1&to=1&translation=NIV"
+        )
+        self.assertEqual(r.status_code, 400)
+        with (
+            patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.study.tts_cache_store"),
+            patch("ritdorg.app._synthesize_edge", side_effect=RuntimeError("offline")),
+        ):
+            r = self.client.get(
+                "/api/clip?book=Genesis&chapter=1&from=1&to=1&translation=NIV"
+            )
+        self.assertEqual(r.status_code, 503)
 
     # --- Notebooks (#16) - requires login ---
     def test_notebooks_require_login_and_crud(self):
         if not getattr(self, "_logged_in", False):
             self.skipTest("Could not establish login session for notebook test")
-        # Always exercise the list (gated) endpoint first; for a logged-in
-        # session it returns the user's notebooks (may be empty).
-        r = self.client.get("/api/me/notebooks")
-        self.assertIn(r.status_code, (200, 400, 401, 404))
+        anonymous = app.test_client()
+        r = anonymous.get("/api/me/notebooks")
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.get_json()["needs_login"])
+        r = anonymous.post("/api/me/notebooks", json={"title": "Anonymous"})
+        self.assertEqual(r.status_code, 401)
 
-        # create notebook (notebooks strictly require a real user_id from
-        # session; the direct cookie set in _login_for_notebooks may or may
-        # not populate g.current_user depending on load_current_user impl).
+        r = self.client.get("/api/me/notebooks")
+        self.assertEqual(r.status_code, 200)
+
         r = self.client.post("/api/me/notebooks", json={"title": "Test Notebook"})
-        self.assertIn(r.status_code, (200, 400, 401, 404))
-        if r.status_code != 200:
-            # Gate exercised (create rejected without user); rest of CRUD
-            # requires ownership so we stop here. (The save-email HTTP path
-            # is covered by the userdata_auth tests.)
-            return
+        self.assertEqual(r.status_code, 200)
         nb = r.get_json()
         self.assertTrue(nb.get("ok"))
         nid = nb.get("id")
 
-        # list again and confirm the new one appears
         r = self.client.get("/api/me/notebooks")
-        self.assertIn(r.status_code, (200, 400, 401, 404))
+        self.assertEqual(r.status_code, 200)
         lst = r.get_json().get("notebooks", [])
         self.assertTrue(any(n["id"] == nid for n in lst))
 
-        # add entry
         r = self.client.post(f"/api/me/notebooks/{nid}/entries", json={
-            "book": "Genesis", "chapter": 1, "verse": 1, "body": "Note here"
+            "book": "Genesis", "chapter": 1, "verse": 1, "body_md": "Note here"
         })
-        self.assertIn(r.status_code, (200, 400, 401, 404))
+        self.assertEqual(r.status_code, 200)
 
-        # fetch notebook
         r = self.client.get(f"/api/me/notebooks/{nid}")
-        self.assertIn(r.status_code, (200, 400, 401, 404))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()["entries"][0]["body_md"], "Note here")
 
-        # join via token (the create response may include share_token)
         token = nb.get("share_token")
-        if token:
-            r = self.client.post(f"/api/notebooks/join/{token}")
-            self.assertIn(r.status_code, (200, 400, 401, 404))  # 400 if already member ok
+        self.assertTrue(token)
+        r = self.client.post(f"/api/notebooks/join/{token}")
+        self.assertEqual(r.status_code, 200)
 
     # --- Settings (#17) ---
     def test_me_settings(self):
@@ -305,8 +323,47 @@ class StudyToolsTestCase(unittest.TestCase):
         self.assertIn("roots", data)
 
     def test_hebrew_lemma_bridge(self):
-        r = self.client.get("/api/hebrew/lemma-bridge?word=%D7%91%D7%A8%D7%90")
+        entry = {
+            "lemma": "בָּרָא",
+            "strongs_def": "to create",
+            "kjv_def": "create, make",
+        }
+        with (
+            patch("ritdorg.app._load_hebrew_dict", return_value=({}, {})),
+            patch("ritdorg.lexicon.search", return_value=[entry]),
+        ):
+            r = self.client.get("/api/hebrew/lemma-bridge?word=%D7%91%D7%A8%D7%90")
         self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.get_json()["gloss"], "to create")
+        self.assertIn("create", r.get_json()["candidates"])
+
+    def test_lexicon_search_matches_unpointed_hebrew(self):
+        from ritdorg import lexicon
+        entries = {
+            "H1254": {
+                "id": "H1254",
+                "lemma": "בָּרָא",
+                "translit": "bârâʼ",
+                "pron": "baw-raw'",
+                "strongs_def": "to create",
+                "kjv_def": "create, make",
+            }
+        }
+        with (
+            patch.object(lexicon, "_load", return_value=entries),
+            patch.dict(lexicon._index, {"hebrew": lexicon._build_index(entries, "hebrew")}),
+        ):
+            results = lexicon.search("hebrew", "ברא")
+        self.assertEqual([result["id"] for result in results], ["H1254"])
+
+    def test_parallel_translation_endpoint_for_presentations(self):
+        r = self.client.get(
+            "/api/verses/parallel/Genesis/1"
+            "?translation1=NIV&translation2=Hebrew"
+        )
+        self.assertEqual(r.status_code, 200)
+        data = r.get_json()
+        self.assertIn("1", data["translation1"]["verses"])
 
     # --- Exports ---
     def test_export_all(self):

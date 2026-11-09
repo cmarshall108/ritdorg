@@ -682,7 +682,8 @@
             switchTab('outlines');
         });
         $('#ol-new-title').addEventListener('keydown', (e) => { if (e.key==='Enter') $('#ol-new').click(); });
-        $$('button[data-act=present]', root).forEach(b => b.addEventListener('click', () => openPresent(+b.dataset.id)));
+        $$('button[data-act=present]', root).forEach(b => b.addEventListener('click', () =>
+            openPresent(+b.dataset.id).catch(e => toast(`Could not open presentation: ${e.message}`, 'error'))));
         $$('button[data-act=del]', root).forEach(b => b.addEventListener('click', async () => {
             if (!await confirmInline(`Delete outline “${b.dataset.name}”?`)) return;
             await api('/api/me/outlines/' + b.dataset.id, { method: 'DELETE' });
@@ -757,7 +758,8 @@
             $('#ol-print').addEventListener('click', () => {
                 window.open(`/api/me/outlines/${o.id}/export?translation=NIV`, '_blank');
             });
-            $('#ol-present').addEventListener('click', () => openPresent(o.id));
+            $('#ol-present').addEventListener('click', () =>
+                openPresent(o.id).catch(e => toast(`Could not open presentation: ${e.message}`, 'error')));
         }));
     };
 
@@ -799,7 +801,8 @@
             await api(`/api/me/playlists/${b.dataset.id}/items`, { method: 'POST', body: { book: c.book, chapter: c.chapter, verse_start: c.verse, verse_end: c.verse } });
             toast('Added ✓');
         }));
-        $$('button[data-act=preach]', root).forEach(b => b.addEventListener('click', () => openPreach(+b.dataset.id)));
+        $$('button[data-act=preach]', root).forEach(b => b.addEventListener('click', () =>
+            openPreach(+b.dataset.id).catch(e => toast(`Could not open presentation: ${e.message}`, 'error'))));
     };
 
     // ---- Presentation viewer -------------------------------------------
@@ -855,7 +858,9 @@
         for (const v of verseRefs) {
             const ck = `${v.book}|${v.chapter}`;
             if (!chapters.has(ck)) {
-                chapters.set(ck, api(`/api/parallel/${encodeURIComponent(v.book)}/${v.chapter}/${encodeURIComponent(tr)}/Hebrew`).catch(() => null));
+                chapters.set(ck, api(
+                    `/api/verses/parallel/${encodeURIComponent(v.book)}/${v.chapter}?translation1=${encodeURIComponent(tr)}&translation2=Hebrew`
+                ));
             }
         }
         for (const v of verseRefs) {
@@ -878,14 +883,24 @@
         const tr = (currentRef().translation || 'NIV');
         const items = [];
         for (const item of (p.items || [])) {
+            let ch;
             try {
-                const ch = await api(`/api/parallel/${encodeURIComponent(item.book)}/${item.chapter}/${encodeURIComponent(tr)}/Hebrew`);
-                const start = item.verse_start || 1, end = item.verse_end || start;
-                for (let v = start; v <= end; v++) {
-                    const text = (ch.translation1 && ch.translation1.verses && (ch.translation1.verses[v] || ch.translation1.verses[String(v)])) || '';
-                    if (text) items.push({ ref: `${item.book} ${item.chapter}:${v}`, text, note: item.note });
-                }
-            } catch (_) {}
+                ch = await api(
+                    `/api/verses/parallel/${encodeURIComponent(item.book)}/${item.chapter}?translation1=${encodeURIComponent(tr)}&translation2=Hebrew`
+                );
+            } catch (e) {
+                toast(`Could not load ${item.book} ${item.chapter}: ${e.message}`, 'error');
+                continue;
+            }
+            const start = item.verse_start || 1, end = item.verse_end || start;
+            for (let v = start; v <= end; v++) {
+                const text = (ch.translation1 && ch.translation1.verses && (ch.translation1.verses[v] || ch.translation1.verses[String(v)])) || '';
+                if (text) items.push({ ref: `${item.book} ${item.chapter}:${v}`, text, note: item.note });
+            }
+        }
+        if (!items.length) {
+            toast('No verse text is available for this list.', 'error');
+            return;
         }
         launchDeck(buildPlaylistSlides(p, items), p.title);
     }
