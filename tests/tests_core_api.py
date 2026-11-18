@@ -226,6 +226,26 @@ class TTSVoiceSelectionTestCase(unittest.TestCase):
         response = app.test_client().get("/api/tts?text=hello&lang=en&voice=unknown")
         self.assertEqual(response.status_code, 400)
 
+    def test_learn_align_uses_the_requested_languages_and_keeps_every_target_word(self):
+        def verses(translation, book, chapter):
+            if translation == 'NIV':
+                return {16: 'For God so loved the world'}
+            if translation == 'Spanish':
+                return {16: 'Porque de tal manera amó Dios al mundo'}
+            return {}
+
+        with patch('ritdorg.app._safe_get_verses', side_effect=verses):
+            response = app.test_client().get('/api/learn/align/John/3?native=NIV&target=Spanish')
+        self.assertEqual(response.status_code, 200)
+        verse = response.get_json()['verses']['16']
+        glosses = [word for item in verse['words'] for word in item['gloss_words']]
+        self.assertEqual(glosses, ['Porque', 'de', 'tal', 'manera', 'amó', 'Dios', 'al', 'mundo'])
+        self.assertEqual(response.get_json()['target_lang'], 'es')
+
+    def test_learn_align_rejects_an_unknown_book(self):
+        response = app.test_client().get('/api/learn/align/NotABook/1?native=NIV&target=KJV')
+        self.assertEqual(response.status_code, 404)
+
     def test_default_voice_can_still_fall_back_to_google(self):
         def write_audio(buffer):
             buffer.write(b"fallback-mp3")

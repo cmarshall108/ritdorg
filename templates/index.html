@@ -141,6 +141,14 @@
                         <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
                     </svg>
                 </button>
+                <button class="help-btn learn-open-btn" id="learnOpenBtn" type="button" aria-expanded="false" aria-controls="learnDock" aria-pressed="false" title="Learn a language while you read">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                        <path d="M8 7h8M8 11h5"/>
+                    </svg>
+                    <span class="learn-open-label">Learn</span>
+                </button>
                 <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode" title="Toggle theme">
                     <svg class="sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="5"/>
@@ -160,6 +168,45 @@
             </div>
         </div>
     </header>
+
+    <section class="learn-dock" id="learnDock" hidden>
+        <div class="learn-dock-main">
+            <div class="learn-dock-copy">
+                <h2>Learn a language</h2>
+                <p id="learnHint">Read the Bible in the language you know. The language you are learning appears above each word, and the full sentence stays in the bar so the meaning is not lost. Italic words belong to the neighboring phrase.</p>
+            </div>
+            <div class="learn-choices">
+                <label class="learn-choice">
+                    <span>I read</span>
+                    <input id="learnNativeSearch" type="search" placeholder="Find a language" autocomplete="off" aria-label="Find the language you read">
+                    <select id="learnNative" class="styled-select"></select>
+                </label>
+                <button class="swap-btn" id="learnSwapBtn" type="button" title="Swap languages" aria-label="Swap languages">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M7 16V4M7 4L3 8M7 4l4 4M17 8v12M17 20l4-4M17 20l-4-4"/>
+                    </svg>
+                </button>
+                <label class="learn-choice">
+                    <span>I'm learning</span>
+                    <input id="learnTargetSearch" type="search" placeholder="Find a language" autocomplete="off" aria-label="Find the language you are learning">
+                    <select id="learnTarget" class="styled-select"></select>
+                </label>
+            </div>
+            <div class="learn-actions">
+                <button class="modal-btn" id="learnStartBtn" type="button">Start learning</button>
+                <button class="modal-btn modal-btn-secondary" id="learnBesideBtn" type="button">Show the full sentence beside me</button>
+            </div>
+        </div>
+    </section>
+    <div class="learn-context" id="learnContext" hidden aria-live="polite">
+        <div class="learn-context-tools">
+            <button type="button" id="learnPrevWord" aria-label="Previous word">‹</button>
+            <p class="learn-context-pair" id="learnContextPair">Tap a word, or press play. Each word keeps its place in the sentence.</p>
+            <button type="button" id="learnNextWord" aria-label="Next word">›</button>
+            <button type="button" id="learnHearBtn">Hear word</button>
+        </div>
+        <p class="learn-context-verse" id="learnContextVerse" dir="auto"></p>
+    </div>
 
     <!-- Main Content -->
     <main class="main-content">
@@ -691,7 +738,7 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script src="{{ url_for('static', filename='js/userdata.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tooltips.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js', v='2') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js', v='3') }}"></script>
     <script src="{{ url_for('static', filename='js/study.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tutorial.js') }}"></script>
 

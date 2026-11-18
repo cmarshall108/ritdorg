@@ -1,11 +1,11 @@
 /* RITDorg service worker — chapter + assets caching for offline reading. */
-const CACHE_STATIC = 'ritd-static-v1';
+const CACHE_STATIC = 'ritd-static-v2';
 const CACHE_CHAPTERS = 'ritd-chapters-v1';
 const CACHE_TTS = 'ritd-tts-v2';
 const STATIC_ASSETS = [
     '/static/css/style.css',
     '/static/js/app.js',
-    '/static/js/app.js?v=2',
+    '/static/js/app.js?v=3',
     '/static/js/userdata.js',
     '/static/js/study.js',
 ];
@@ -16,7 +16,13 @@ self.addEventListener('install', (e) => {
 });
 
 self.addEventListener('activate', (e) => {
-    e.waitUntil(self.clients.claim());
+    e.waitUntil((async () => {
+        const keys = await caches.keys();
+        await Promise.all(keys
+            .filter((key) => key.startsWith('ritd-static-') && key !== CACHE_STATIC)
+            .map((key) => caches.delete(key)));
+        await self.clients.claim();
+    })());
 });
 
 self.addEventListener('fetch', (event) => {

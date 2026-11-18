@@ -89,6 +89,24 @@ class BibleReader {
             try { return localStorage.getItem('hebrewDisabled') === '1'; }
             catch { return false; }
         })();
+
+        // Read in a known language while learning another. Glosses come from
+        // the same verse in the target translation, so the sentence stays intact.
+        this.learn = (() => {
+            const def = { enabled: false, native: 'NIV', target: '' };
+            try {
+                const parsed = JSON.parse(localStorage.getItem('learnMode') || '');
+                return {
+                    enabled: !!parsed.enabled,
+                    native: parsed.native || def.native,
+                    target: parsed.target || def.target,
+                };
+            } catch { return def; }
+        })();
+        this._learnChapter = null;
+        this._learnKey = '';
+        this._learnToken = 0;
+        this._learnHoldUntil = 0;
         
         // Dynamic caption sync
         this.captions = null;
@@ -441,6 +459,7 @@ class BibleReader {
 
         // Voice / TTS settings dialog
         this.bindTTSSettings();
+        this.bindLearnMode();
 
         // Hebrew word definition popover
         this.bindHebrewWordLookup();
@@ -608,6 +627,10 @@ class BibleReader {
             this.loadVideoSync();
         }
 
+        if (this.learn?.enabled && activeView === 'reader' && this.currentTranslation !== this.learn.native) {
+            this.currentTranslation = this.learn.native;
+            this.loadChapter(this.currentBook, this.currentChapter);
+        }
         if (persist) this._scheduleSessionStateSave();
     }
 
@@ -955,6 +978,7 @@ class BibleReader {
         document.getElementById('leftPageNum').textContent = this.currentPage + 1;
         document.getElementById('rightPageNum').textContent = this.currentPage + 2;
         this._restoreSavedScrollPositions(['leftVerses', 'rightVerses', 'windowY']);
+        this.scheduleLearnLayer();
     }
     
     renderVerses(verseNums) {
@@ -1213,6 +1237,7 @@ class BibleReader {
                 this.highlightParallelVerse(verseNum);
             });
         });
+        this.scheduleLearnLayer();
     }
     
     highlightParallelVerse(verseNum) {
@@ -1392,6 +1417,7 @@ class BibleReader {
         // built from the previous translation/lang). Restart it from the
         // current verse so the new column's language is used.
         this.restartTTSIfPlaying();
+        this.scheduleLearnLayer();
     }
     
     renderSyncVerses(verses, withWordSync) {
@@ -1457,6 +1483,7 @@ class BibleReader {
         
         this.setupSyncColumnScroll();
         this._restoreSavedScrollPositions(['syncVerses1', 'syncVerses2']);
+        this.scheduleLearnLayer();
     }
     
     renderSimpleVerses(verses) {
@@ -1980,6 +2007,483 @@ class BibleReader {
         });
     }
 
+    // ===== Learn a language while reading =====
+    saveLearn() {
+        try { localStorage.setItem('learnMode', JSON.stringify(this.learn)); } catch {}
+    }
+
+    learnWordIndex(count, ratio) {
+        if (!count) return -1;
+        const position = Math.min(0.999, Math.max(0, Number(ratio) || 0));
+        return Math.floor(position * count);
+    }
+
+    learnCore(text) {
+        return (text || '').replace(/^[\s.,;:!?\"'“”‘’()[\]{}<>«»—–…··։،؛؟。、・「」『』（）【】《》〈〉〔〕]+|[\s.,;:!?\"'“”‘’()[\]{}<>«»—–…··։،؛؟。、・「」『』（）【】《》〈〉〔〕]+$/g, '');
+    }
+
+    bindLearnMode() {
+        const openBtn = document.getElementById('learnOpenBtn');
+        const dock = document.getElementById('learnDock');
+        if (!openBtn || !dock) return;
+        const startBtn = document.getElementById('learnStartBtn');
+        const swapBtn = document.getElementById('learnSwapBtn');
+        const besideBtn = document.getElementById('learnBesideBtn');
+        const prevBtn = document.getElementById('learnPrevWord');
+        const nextBtn = document.getElementById('learnNextWord');
+        const hearBtn = document.getElementById('learnHearBtn');
+        openBtn.addEventListener('click', () => {
+            const open = dock.hasAttribute('hidden');
+            dock.toggleAttribute('hidden', !open);
+            openBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) this.populateLearnSelects();
+        });
+        startBtn?.addEventListener('click', () => this.setLearnEnabled(!this.learn.enabled));
+        swapBtn?.addEventListener('click', () => this.swapLearnLanguages());
+        besideBtn?.addEventListener('click', () => this.showTargetBeside());
+        prevBtn?.addEventListener('click', () => this.stepLearnWord(-1));
+        nextBtn?.addEventListener('click', () => this.stepLearnWord(1));
+        hearBtn?.addEventListener('click', () => this.hearLearnUnit(document.querySelector('.lx-word.lx-live')));
+        document.getElementById('learnNativeSearch')?.addEventListener('input', (e) => {
+            this.fillLearnSelect(document.getElementById('learnNative'), e.target.value, this.learn.native);
+        });
+        document.getElementById('learnTargetSearch')?.addEventListener('input', (e) => {
+            this.fillLearnSelect(document.getElementById('learnTarget'), e.target.value, this.learn.target);
+        });
+        document.getElementById('learnNative')?.addEventListener('change', (e) => {
+            this.learn.native = e.target.value;
+            this.saveLearn();
+            this._learnKey = '';
+            if (this.learn.enabled) this.setLearnEnabled(true);
+        });
+        document.getElementById('learnTarget')?.addEventListener('change', (e) => {
+            this.learn.target = e.target.value;
+            this.saveLearn();
+            this._learnKey = '';
+            if (this.learn.enabled) this.setLearnEnabled(true);
+        });
+        document.addEventListener('pointerover', (e) => {
+            const unit = e.target.closest?.('.lx-word');
+            if (!unit || !this.learn?.enabled) return;
+            this.focusLearnUnit(unit, { hold: true });
+        });
+        document.addEventListener('click', (e) => {
+            const gloss = e.target.closest?.('.lx-gloss');
+            if (!gloss) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const unit = gloss.closest('.lx-word');
+            this.focusLearnUnit(unit, { hold: true, announce: true });
+            this.hearLearnUnit(unit);
+        }, true);
+        this.populateLearnSelects();
+        this.syncLearnChrome();
+        if (this.learn.enabled) {
+            dock.hidden = false;
+            openBtn.setAttribute('aria-expanded', 'true');
+        }
+    }
+
+    populateLearnSelects() {
+        if (!this.allTranslations.length) {
+            const source = document.getElementById('syncTrans1') || document.getElementById('bookSelect');
+            this.allTranslations = source
+                ? Array.from(source.options).map(option => ({ value: option.value, text: option.text }))
+                : [];
+        }
+        this._learnNames = this.allTranslations.map(item => item.value || item.text).filter(Boolean);
+        if (!this.learn.target || !this._learnNames.includes(this.learn.target)) {
+            this.learn.target = this.pickDefaultTarget(this.learn.native, this._learnNames);
+            this.saveLearn();
+        }
+        this.fillLearnSelect(document.getElementById('learnNative'), document.getElementById('learnNativeSearch')?.value, this.learn.native);
+        this.fillLearnSelect(document.getElementById('learnTarget'), document.getElementById('learnTargetSearch')?.value, this.learn.target);
+    }
+
+    pickDefaultTarget(native, names) {
+        const preferred = ['Spanish', 'French', 'Swahili', 'Hungarian', 'Portuguese', 'German', 'Chinese', 'Arabic', 'Hebrew'];
+        for (const name of preferred) {
+            const hit = names.find(item => item !== native && (item === name || item.startsWith(name)));
+            if (hit) return hit;
+        }
+        return names.find(item => item !== native) || native;
+    }
+
+    fillLearnSelect(select, filter, selected) {
+        if (!select) return;
+        const query = (filter || '').trim().toLowerCase();
+        const shown = (this._learnNames || []).filter(name => !query || name.toLowerCase().includes(query) || name === selected);
+        select.replaceChildren();
+        shown.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+        });
+        if ([...select.options].some(option => option.value === selected)) select.value = selected;
+    }
+
+    syncLearnChrome() {
+        document.body.classList.toggle('learn-on', !!this.learn.enabled);
+        const context = document.getElementById('learnContext');
+        if (context) context.hidden = !this.learn.enabled;
+        const start = document.getElementById('learnStartBtn');
+        if (start) start.textContent = this.learn.enabled ? 'Stop learning' : 'Start learning';
+        const open = document.getElementById('learnOpenBtn');
+        open?.classList.toggle('active', !!this.learn.enabled);
+        open?.setAttribute('aria-pressed', this.learn.enabled ? 'true' : 'false');
+        const same = this.learn.native && this.learn.native === this.learn.target;
+        const hint = document.getElementById('learnHint');
+        if (hint && same) hint.textContent = 'Choose two different languages. The sentence you already understand stays whole.';
+    }
+
+    swapLearnLanguages() {
+        const native = this.learn.native;
+        this.learn.native = this.learn.target || native;
+        this.learn.target = native;
+        this.saveLearn();
+        this.populateLearnSelects();
+        this._learnKey = '';
+        if (this.learn.enabled) this.setLearnEnabled(true);
+        else this.syncLearnChrome();
+    }
+
+    async setLearnEnabled(on) {
+        this.learn.enabled = !!on;
+        this.saveLearn();
+        this.syncLearnChrome();
+        if (!this.learn.enabled) {
+            this._learnToken += 1;
+            this.clearLearnLayer();
+            this.renderLearnContext(null);
+            return;
+        }
+        if (!this.learn.target || this.learn.target === this.learn.native) {
+            this.showToast('Choose a different language to learn', 'info');
+            this.learn.enabled = false;
+            this.saveLearn();
+            this.syncLearnChrome();
+            return;
+        }
+        const switched = await this.ensureLearnReadingColumn();
+        if (switched) this.showToast(`Reading in ${this.learn.native}`, 'info');
+        this.scheduleLearnLayer();
+    }
+
+    async ensureLearnReadingColumn() {
+        if (!this.learn?.enabled || this._learnArranging) return false;
+        const already = this.syncTrans1 === this.learn.native || (this.syncTrans2 === this.learn.native && !this.hebrewDisabled);
+        if (already) return false;
+        this._learnArranging = true;
+        try {
+            this.syncTrans1 = this.learn.native;
+            const select = document.getElementById('syncTrans1');
+            if (select) select.value = this.learn.native;
+            const name = document.getElementById('syncColName1');
+            if (name) name.textContent = this.learn.native;
+            await this.renderSyncText();
+            return true;
+        } finally {
+            this._learnArranging = false;
+        }
+    }
+
+    showTargetBeside() {
+        const target = this.learn.target;
+        if (!target || target === this.learn.native) {
+            this.showToast('Choose a different language to learn', 'info');
+            return;
+        }
+        if (this.syncTrans1 === this.learn.native) {
+            this.syncTrans2 = target;
+            const select = document.getElementById('syncTrans2');
+            if (select) select.value = target;
+            if (this.hebrewDisabled) {
+                this.hebrewDisabled = false;
+                try { localStorage.setItem('hebrewDisabled', '0'); } catch {}
+                const toggle = document.getElementById('hebrewToggleBtn');
+                toggle?.classList.add('active');
+                toggle?.setAttribute('aria-pressed', 'true');
+            }
+        } else {
+            this.syncTrans1 = target;
+            const select = document.getElementById('syncTrans1');
+            if (select) select.value = target;
+        }
+        this.renderSyncText();
+        this.showToast(`The full ${target} sentence is beside the reading`, 'info');
+    }
+
+    scheduleLearnLayer() {
+        if (!this.learn?.enabled) return;
+        if (!this.learn.target || this.learn.target === this.learn.native) return;
+        if (!this.learnRoots().length) {
+            this.ensureLearnReadingColumn();
+            return;
+        }
+        const key = `${this.currentBook}|${this.currentChapter}|${this.learn.native}|${this.learn.target}`;
+        if (this._learnKey === key && this._learnChapter) {
+            this.applyLearnLayer();
+            return;
+        }
+        if (this._learnInflight === key) return;
+        this.refreshLearn();
+    }
+
+    async refreshLearn() {
+        const key = `${this.currentBook}|${this.currentChapter}|${this.learn.native}|${this.learn.target}`;
+        const token = ++this._learnToken;
+        this._learnInflight = key;
+        try {
+            const url = `/api/learn/align/${encodeURIComponent(this.currentBook)}/${this.currentChapter}`
+                + `?native=${encodeURIComponent(this.learn.native)}&target=${encodeURIComponent(this.learn.target)}`;
+            const response = await fetch(url);
+            if (token !== this._learnToken) return;
+            if (!response.ok) {
+                this.showToast('Could not load the learning text', 'error');
+                return;
+            }
+            this._learnChapter = await response.json();
+            this._learnKey = key;
+            this.applyLearnLayer();
+            this.renderLearnContext(document.querySelector('.lx-word.lx-live'));
+        } catch (err) {
+            console.warn('learn align failed', err);
+            if (token === this._learnToken) this.showToast('Could not load the learning text', 'error');
+        } finally {
+            if (this._learnInflight === key) this._learnInflight = '';
+        }
+    }
+
+    learnRoots() {
+        const native = this.learn?.native;
+        const roots = [];
+        if (this.currentTranslation === native) {
+            roots.push(document.getElementById('leftVerses'), document.getElementById('rightVerses'));
+        }
+        if (this.syncTrans1 === native) roots.push(document.getElementById('syncVerses1'));
+        if (this.syncTrans2 === native && !this.hebrewDisabled) roots.push(document.getElementById('syncVerses2'));
+        if (this.parallelTrans1 === native) roots.push(document.getElementById('col1Verses'));
+        if (this.parallelTrans2 === native) roots.push(document.getElementById('col2Verses'));
+        return roots.filter(Boolean);
+    }
+
+    applyLearnLayer() {
+        const verses = this._learnChapter?.verses || {};
+        this.learnRoots().forEach(root => {
+            root.classList.add('lx-reading');
+            root.querySelectorAll('.verse, .sync-verse, .parallel-verse').forEach(verse => {
+                const aligned = verses[verse.dataset.verse];
+                if (aligned) this.decorateVerse(verse, aligned.words || []);
+            });
+        });
+    }
+
+    clearLearnLayer() {
+        document.querySelectorAll('.lx-word').forEach(unit => {
+            const word = unit.querySelector('.bw-word, .heb-word, .sync-word');
+            if (word) unit.replaceWith(word);
+            else unit.replaceWith(...unit.childNodes);
+        });
+        document.querySelectorAll('.lx-verse, .lx-reading').forEach(el => {
+            el.classList.remove('lx-verse', 'lx-reading');
+            delete el.dataset.lxReady;
+        });
+    }
+
+    decorateVerse(verse, words) {
+        if (verse.dataset.lxReady === '1' || !words.length) return;
+        const spans = [...verse.querySelectorAll('.bw-word, .heb-word, .sync-word')]
+            .filter(span => this.learnCore(span.textContent));
+        let index = 0;
+        spans.forEach(span => {
+            if (index >= words.length) return;
+            const core = this.learnCore(span.textContent);
+            if (this.learnCore(words[index].word) !== core) {
+                const found = words.slice(index, index + 4).findIndex(item => this.learnCore(item.word) === core);
+                if (found < 0) return;
+                index += found;
+            }
+            this.attachLearnGloss(span, words[index], index);
+            index += 1;
+        });
+        verse.dataset.lxReady = '1';
+        verse.classList.add('lx-verse');
+    }
+
+    attachLearnGloss(span, info, index) {
+        if (!span || span.closest('.lx-word')) return;
+        const unit = document.createElement('span');
+        unit.className = 'lx-word' + (info.shared ? ' lx-shared' : '') + (info.gloss ? '' : ' lx-missing');
+        unit.dataset.lxWord = info.word || '';
+        unit.dataset.lxGloss = info.gloss || '';
+        unit.dataset.lxPhrase = info.phrase || info.gloss || '';
+        unit.style.setProperty('--lx-i', String(Math.min(index, 28)));
+        const gloss = document.createElement('span');
+        gloss.className = 'lx-gloss';
+        gloss.dir = 'auto';
+        gloss.lang = this._learnChapter?.target_lang || '';
+        gloss.setAttribute('aria-hidden', 'true');
+        gloss.textContent = info.gloss || '·';
+        gloss.title = info.shared
+            ? `Part of “${info.phrase || info.gloss}”`
+            : (info.phrase || info.gloss || '');
+        span.before(unit);
+        unit.append(gloss, span);
+    }
+
+    focusLearnUnit(unit, opts = {}) {
+        if (!unit) return;
+        if (opts.hold) this._learnHoldUntil = performance.now() + 2800;
+        if (unit.classList.contains('lx-live')) {
+            if (opts.announce) this.renderLearnContext(unit);
+            return;
+        }
+        document.querySelectorAll('.lx-word.lx-live').forEach(el => el.classList.remove('lx-live'));
+        unit.classList.add('lx-live');
+        this.renderLearnContext(unit);
+    }
+
+    renderLearnContext(unit) {
+        const pair = document.getElementById('learnContextPair');
+        const sentence = document.getElementById('learnContextVerse');
+        if (!pair || !sentence) return;
+        sentence.dir = this._learnChapter?.target_dir || 'ltr';
+        if (!unit) {
+            pair.textContent = this.learn.enabled
+                ? 'Tap a word, or press play. Each word keeps its place in the sentence.'
+                : 'Choose the language you read and the language you want to learn.';
+            sentence.textContent = '';
+            return;
+        }
+        pair.replaceChildren();
+        const native = document.createElement('span');
+        native.className = 'learn-context-native';
+        native.textContent = unit.dataset.lxWord || '';
+        const arrow = document.createElement('span');
+        arrow.className = 'learn-context-arrow';
+        arrow.setAttribute('aria-hidden', 'true');
+        arrow.textContent = '→';
+        const gloss = document.createElement('span');
+        gloss.className = 'learn-context-gloss';
+        gloss.dir = 'auto';
+        gloss.textContent = unit.dataset.lxGloss || '—';
+        pair.append(native, arrow, gloss);
+        if (unit.classList.contains('lx-shared')) {
+            const note = document.createElement('span');
+            note.className = 'learn-context-note';
+            note.textContent = 'part of the phrase';
+            pair.append(note);
+        }
+        const verse = unit.closest('[data-verse]');
+        const data = this._learnChapter?.verses?.[verse?.dataset.verse];
+        sentence.replaceChildren();
+        if (!data?.target) {
+            sentence.textContent = `This verse is not in ${this.learn.target} yet.`;
+            return;
+        }
+        const phrase = unit.dataset.lxPhrase || '';
+        const at = phrase ? data.target.indexOf(phrase) : -1;
+        if (at < 0) {
+            sentence.textContent = data.target;
+            return;
+        }
+        sentence.append(data.target.slice(0, at));
+        const mark = document.createElement('mark');
+        mark.textContent = phrase;
+        sentence.append(mark, data.target.slice(at + phrase.length));
+    }
+
+    stepLearnWord(direction) {
+        const words = [...document.querySelectorAll('.lx-reading .lx-word')];
+        if (!words.length) return;
+        const live = document.querySelector('.lx-word.lx-live');
+        let index = live ? words.indexOf(live) : -1;
+        index = Math.max(0, Math.min(words.length - 1, index + direction));
+        this.focusLearnUnit(words[index], { hold: true, announce: true });
+        try { words[index].scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+    }
+
+    hearLearnUnit(unit) {
+        const phrase = unit?.dataset.lxPhrase || unit?.dataset.lxGloss;
+        if (!phrase) return;
+        if (this.ttsState === 'playing') {
+            this.showToast('Pause reading to hear this word on its own', 'info');
+            return;
+        }
+        const lang = this._learnChapter?.target_lang || '';
+        const voices = window.speechSynthesis?.getVoices?.() || [];
+        const voice = voices.find(item => lang && (item.lang || '').toLowerCase().startsWith(lang));
+        if (voice && window.SpeechSynthesisUtterance) {
+            const utterance = new SpeechSynthesisUtterance(phrase);
+            utterance.lang = voice.lang;
+            utterance.voice = voice;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utterance);
+            return;
+        }
+        if (['en', 'hu', 'he', 'sw'].includes(lang)) {
+            const audio = new Audio(`/api/tts?v=2&lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(phrase)}`);
+            audio.play().catch(() => this.showToast('Could not play that word', 'error'));
+            return;
+        }
+        this.showToast('No voice is installed for this language yet. The word is still shown in its sentence.', 'info');
+    }
+
+    learnFollowProgress(item, ratio) {
+        if (!this.learn?.enabled || performance.now() < (this._learnHoldUntil || 0)) return;
+        const words = [...(item?.el?.querySelectorAll('.lx-word') || [])];
+        const index = this.learnWordIndex(words.length, ratio);
+        if (index >= 0) this.focusLearnUnit(words[index]);
+    }
+
+    learnFollowChar(item, charIndex) {
+        const length = (item?.text || '').length || 1;
+        this.learnFollowProgress(item, (charIndex || 0) / length);
+    }
+
+    _learnReadingVerses() {
+        const columns = [
+            ['syncVerses2', this.syncTrans2, !!this.hebrewDisabled],
+            ['syncVerses1', this.syncTrans1, false],
+        ];
+        for (const [id, translation, hidden] of columns) {
+            if (hidden || translation !== this.learn.native) continue;
+            const container = document.getElementById(id);
+            const column = container?.closest('.sync-column');
+            if (!container || column?.classList.contains('hidden-column')) continue;
+            const nodes = [...container.querySelectorAll('.sync-verse')];
+            if (!nodes.length) continue;
+            const lang = this.ttsLangFor(translation);
+            return nodes.map(node => ({
+                el: node,
+                verse: node.dataset.verse,
+                text: this.learnVerseText(node),
+                lang,
+            })).filter(item => item.text);
+        }
+        return [];
+    }
+
+    learnVerseText(verseEl) {
+        const parts = [];
+        verseEl.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node.textContent.trim();
+                if (text) parts.push(text);
+                return;
+            }
+            if (!(node instanceof HTMLElement) || node.classList.contains('verse-num')) return;
+            if (node.classList.contains('lx-word')) {
+                const word = node.querySelector('.bw-word, .heb-word, .sync-word');
+                parts.push((word || node).textContent);
+                return;
+            }
+            if (!node.classList.contains('lx-gloss')) parts.push(node.textContent);
+        });
+        return parts.join(' ').replace(/\s+/g, ' ').trim();
+    }
+
     // ===== Hebrew word lookup popover =====
     // Click/tap any Hebrew word in a verse to see its English gloss and a
     // short list of related (same-root) words for comparison.
@@ -2365,8 +2869,9 @@ class BibleReader {
     // strips it again before sending to the server.
     _wrapWordToken(word, extraClass) {
         const cls = extraClass ? `${extraClass} bw-word` : 'bw-word';
-        // Skip empty, pure-punctuation, or numeric tokens.
-        if (!word || !/[A-Za-z\u00C0-\u024F\u1E00-\u1EFF]/.test(word)) {
+        // Any letter or number, in any script, can carry a learning gloss.
+        // Punctuation-only tokens stay plain so they do not become buttons.
+        if (!word || !/[\p{L}\p{N}]/u.test(word)) {
             return extraClass
                 ? `<span class="${extraClass}">${this._escapeHtml(word || '')}</span>`
                 : this._escapeHtml(word || '');
@@ -3391,6 +3896,12 @@ class BibleReader {
     }
 
     collectVisibleVerses() {
+        // While learning, read the language the glosses belong to so the
+        // word above the text is the word being heard.
+        if (this.learn?.enabled) {
+            const learning = this._learnReadingVerses();
+            if (learning.length) return learning;
+        }
         // The RIGHT column is the "Read aloud" source; the LEFT column is
         // the "Follow along" mirror. Prefer the right column unless it's
         // hidden (e.g. user toggled the Hebrew column off, or it fell back
@@ -3527,6 +4038,10 @@ class BibleReader {
             u.lang = item.lang;
             u.rate = this.playbackRate || 1;
             if (voice) u.voice = voice;
+            u.onboundary = (event) => {
+                if (event.name && event.name !== 'word') return;
+                this.learnFollowChar(item, event.charIndex || 0);
+            };
             const startedAt = performance.now();
             const minMs = Math.max(120, chunks[i].length * 18);
             u.onend = () => {
@@ -3576,6 +4091,10 @@ class BibleReader {
             const audio = new Audio(url);
             audio.playbackRate = this.playbackRate || 1;
             audio.preload = 'auto';
+            audio.ontimeupdate = () => {
+                if (myGen !== this._ttsGen || !audio.duration) return;
+                this.learnFollowProgress(item, audio.currentTime / audio.duration);
+            };
             audio.onended = () => {
                 if (myGen !== this._ttsGen) return; // stale, queue was rebuilt
                 if (this.ttsAudio === audio) this.ttsAudio = null;
@@ -4201,6 +4720,8 @@ class BibleReader {
                 if (!wordText) continue;
                 if (wordText === currentNorm || this.looseWordMatch(wordText, currentNorm)) {
                     wordEl.classList.add('caption-match-strong');
+                    const unit = wordEl.closest('.lx-word');
+                    if (unit) this.focusLearnUnit(unit);
                     break;
                 }
             }

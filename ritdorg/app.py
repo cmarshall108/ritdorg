@@ -78,6 +78,7 @@ from . import lexicon
 from . import auth
 from . import video_transcode
 from . import study
+from .learn_align import align_verse, guess_lang, text_dir
 
 logger = logging.getLogger(__name__)
 
@@ -1030,6 +1031,64 @@ def tts_voices():
     for lang in out:
         out[lang].append({'id': 'gtts', 'label': '— Legacy Google voice —'})
     return jsonify(out)
+
+
+def _learn_chapter_verses(translation, book, chapter):
+    """Verse text for language learning. Never substitutes another language."""
+    verses = _safe_get_verses(translation, book, chapter)
+    if verses:
+        return verses
+    try:
+        bible = BIBLE_TRANSLATIONS.get(translation)
+        if bible and book in bible and chapter in bible[book]:
+            return bible[book][chapter]
+    except Exception as exc:
+        logger.warning("learn verse lookup failed for %s: %s", translation, exc)
+    return {}
+
+
+@app.route('/api/learn/align/<book>/<int:chapter>')
+def learn_align(book, chapter):
+    """Align a chapter in the reader's language with the language they are learning."""
+    if book not in ALL_BOOKS:
+        return jsonify({"error": "unknown book"}), 404
+    native = (request.args.get('native') or 'NIV').strip()
+    target = (request.args.get('target') or '').strip()
+    if not target:
+        return jsonify({"error": "target required"}), 400
+    native_verses = _learn_chapter_verses(native, book, chapter)
+    target_verses = _learn_chapter_verses(target, book, chapter)
+    keys = set(native_verses) | set(target_verses)
+
+    def verse_number(item):
+        try:
+            return int(item)
+        except (TypeError, ValueError):
+            return 10**9
+
+    verses = {}
+    target_sample = []
+    for key in sorted(keys, key=verse_number):
+        native_text = native_verses.get(key) or native_verses.get(int(key)) or ''
+        target_text = target_verses.get(key) or target_verses.get(int(key)) or ''
+        if target_text and len(target_sample) < 4:
+            target_sample.append(target_text)
+        verses[str(key)] = {
+            'native': native_text,
+            'target': target_text,
+            'words': align_verse(native_text, target_text),
+        }
+    sample = ' '.join(target_sample)
+    return jsonify({
+        'book': book,
+        'chapter': chapter,
+        'native': native,
+        'target': target,
+        'native_lang': guess_lang(native),
+        'target_lang': guess_lang(target),
+        'target_dir': text_dir(sample),
+        'verses': verses,
+    })
 
 
 # ----- Hebrew word study -----------------------------------------------------
