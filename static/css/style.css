@@ -1785,6 +1785,15 @@ body.focus-reading-mode .reader-view.active {
     padding-bottom: 12px;
 }
 
+body.focus-reading-mode .video-view.active {
+    max-height: 100vh;
+    max-height: 100dvh;
+}
+
+body.focus-reading-mode.nav-menu-open .main-content {
+    padding-top: 0;
+}
+
 body.focus-reading-mode .video-content-area {
     gap: 12px;
 }
@@ -1799,11 +1808,7 @@ body.focus-reading-mode .sync-header {
 
 body.focus-reading-mode .video-container {
     height: calc(100vh - 24px);
-}
-
-body.focus-reading-mode .audio-controls-bar {
-    position: sticky;
-    bottom: 0;
+    height: calc(100dvh - 24px);
 }
 
 /* Video player visible state - side by side with text */
@@ -2888,7 +2893,7 @@ body.focus-reading-mode .audio-controls-bar {
         padding-top: calc(var(--header-height) + 57px + var(--open-nav-height, 220px));
     }
 
-    body.nav-menu-open .video-container {
+    body.nav-menu-open:not(.focus-reading-mode) .video-container {
         height: calc(100dvh - var(--header-height) - 57px - var(--open-nav-height, 220px) - 16px);
     }
 
@@ -3071,10 +3076,6 @@ body.focus-reading-mode .audio-controls-bar {
     }
 
     #rateLabel { min-width: 28px; font-size: 0.78rem; }
-
-    body.focus-reading-mode .video-container {
-        height: calc(100vh - 12px);
-    }
 
     body.focus-reading-mode .audio-controls-bar {
         border-radius: 10px;
@@ -4466,6 +4467,7 @@ body.modal-open { overflow: hidden; touch-action: none; }
     border-color: var(--accent-primary);
 }
 .heb-action[disabled] { opacity: 0.55; cursor: progress; }
+.study-resume-reading[hidden] { display: none; }
 /* The speaker uses a soft pulse while audio is loading or playing; the
    "count" button uses the same pulse for its loading state. Other action
    buttons share the same class but get no animation by default. */
@@ -4833,6 +4835,7 @@ body.modal-open { overflow: hidden; touch-action: none; }
 #learnNextWord,
 #learnHearBtn,
 #learnStudyBtn,
+#learnResumeBtn,
 .learn-close {
     border: 1px solid var(--border-color);
     background: var(--bg-tertiary);
@@ -4842,7 +4845,17 @@ body.modal-open { overflow: hidden; touch-action: none; }
     height: 32px;
     cursor: pointer;
 }
-#learnHearBtn, #learnStudyBtn { padding: 0 12px; }
+#learnHearBtn, #learnStudyBtn, #learnResumeBtn { padding: 0 12px; }
+#learnResumeBtn:not([hidden]) {
+    background: var(--accent-primary);
+    color: var(--on-accent);
+    border-color: var(--accent-primary);
+}
+.learn-playback-status {
+    margin: 8px 0 0;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
 .learn-close {
     font-size: 1.2rem;
 }
@@ -4853,6 +4866,7 @@ body.modal-open { overflow: hidden; touch-action: none; }
 }
 .learn-context-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 10px;
 }

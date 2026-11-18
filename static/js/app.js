@@ -602,6 +602,7 @@ class BibleReader {
 
     applyFocusMode(enabled) {
         document.body.classList.toggle('focus-reading-mode', enabled);
+        this.positionLearnContext();
 
         const focusBtn = document.getElementById('focusModeBtn');
         if (focusBtn) {
@@ -1778,6 +1779,13 @@ class BibleReader {
     onPlayerStateChange(event) {
         const playBtn = document.getElementById('playPauseBtn');
 
+        if (event.data === YT.PlayerState.PLAYING) this.stopLearnAudio();
+        if ((event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.ENDED
+                || event.data === YT.PlayerState.CUED)
+            && this._studyPlayback === 'video') {
+            this._studyPlayback = null;
+            this.syncStudyResumeControl();
+        }
         if (
             event.data === YT.PlayerState.PLAYING ||
             event.data === YT.PlayerState.CUED
@@ -1813,6 +1821,7 @@ class BibleReader {
     }
     
     togglePlay() {
+        this.stopLearnAudio();
         if (this.ttsState === 'playing' || this.ttsState === 'paused' || this.ttsUsesSelectedVoice()) {
             this.toggleTTS();
             return;
@@ -1835,6 +1844,10 @@ class BibleReader {
         if (state === YT.PlayerState.PLAYING) {
             this.player.pauseVideo();
         } else {
+            if (this._studyPlayback === 'video') {
+                this._studyPlayback = null;
+                this.syncStudyResumeControl();
+            }
             this.player.playVideo();
         }
     }
@@ -1844,6 +1857,8 @@ class BibleReader {
     // appropriate language, highlights the active verse, and updates the
     // existing progress bar / time display / play button.
     ttsLangFor(translationName) {
+        const code = window.RITD_TRANSLATION_LANGUAGES?.[translationName];
+        if (code) return { en: 'en-US', hu: 'hu-HU', he: 'he-IL', sw: 'sw-KE' }[code] || code;
         const t = (translationName || '').toLowerCase();
         if (t.includes('hungarian')) return 'hu-HU';
         if (t.includes('hebrew'))    return 'he-IL';
@@ -1938,6 +1953,7 @@ class BibleReader {
         const closeBtn = document.getElementById('ttsSettingsClose');
         const testBtn  = document.getElementById('ttsTestBtn');
         const resetBtn = document.getElementById('ttsResetBtn');
+        const aiBtn = document.getElementById('ttsUseAI');
         const preferEl = document.getElementById('ttsPreferServer');
 
         const open = async () => {
@@ -1973,7 +1989,8 @@ class BibleReader {
             });
         });
         // Online (neural) voice selectors.
-        ['ttsOnlineVoiceEn', 'ttsOnlineVoiceHu', 'ttsOnlineVoiceHe', 'ttsOnlineVoiceSw'].forEach(id => {
+        ['ttsOnlineVoiceEn', 'ttsOnlineVoiceHu', 'ttsOnlineVoiceHe', 'ttsOnlineVoiceSw',
+            'ttsOnlineVoiceEs', 'ttsOnlineVoiceFr', 'ttsOnlineVoiceDe', 'ttsOnlineVoicePt'].forEach(id => {
             const el = document.getElementById(id);
             if (!el) return;
             el.addEventListener('change', () => {
@@ -1991,6 +2008,7 @@ class BibleReader {
         });
 
         testBtn?.addEventListener('click', () => this.testTTSVoice());
+        aiBtn?.addEventListener('click', () => this.useAIForCurrentReading());
 
         resetBtn?.addEventListener('click', () => {
             this.ttsSettings = {
@@ -2035,6 +2053,7 @@ class BibleReader {
         const closeBtn = document.getElementById('learnCloseBtn');
         const contextClose = document.getElementById('learnContextClose');
         const studyBtn = document.getElementById('learnStudyBtn');
+        const resumeBtn = document.getElementById('learnResumeBtn');
         const closeSettings = () => {
             dock.hidden = true;
             openBtn.setAttribute('aria-expanded', 'false');
@@ -2050,6 +2069,7 @@ class BibleReader {
         });
         closeBtn?.addEventListener('click', () => { closeSettings(); openBtn.focus(); });
         contextClose?.addEventListener('click', () => this.closeLearnContext(true));
+        resumeBtn?.addEventListener('click', () => this.resumeReadingForStudy());
         studyBtn?.addEventListener('click', () => {
             const unit = this._learnContextUnit;
             const word = unit?.querySelector('.heb-word, .bw-word');
@@ -2108,6 +2128,10 @@ class BibleReader {
         }, true);
         window.addEventListener('scroll', () => this.positionLearnContext(), true);
         window.addEventListener('resize', () => this.positionLearnContext());
+        const sidebar = document.getElementById('sidebar');
+        sidebar?.addEventListener('transitionend', (e) => {
+            if (e.target === sidebar) this.positionLearnContext();
+        });
         this.populateLearnSelects();
         this.syncLearnChrome();
     }
@@ -2196,7 +2220,7 @@ class BibleReader {
         const hint = document.getElementById('learnHint');
         if (hint) hint.textContent = same
             ? 'Choose two different languages. The sentence you already understand stays whole.'
-            : 'Select a word to see its context. Glosses are approximate positions in the other verse, not verified word translations.';
+            : 'Select a word to pause reading and explore its context. Glosses are approximate positions in the other verse, not verified word translations.';
     }
 
     swapLearnLanguages() {
@@ -2406,7 +2430,11 @@ class BibleReader {
     focusLearnUnit(unit, opts = {}) {
         if (!unit) return;
         if (opts.hold) this._learnHoldUntil = performance.now() + 2800;
-        if (opts.show) this._learnContextDismissed = false;
+        if (opts.show) {
+            this.stopLearnAudio();
+            this.pauseReadingForStudy();
+            this._learnContextDismissed = false;
+        }
         document.querySelectorAll('.lx-word.lx-live').forEach(el => el.classList.remove('lx-live'));
         unit.classList.add('lx-live');
         this._learnContextUnit = unit;
@@ -2419,6 +2447,7 @@ class BibleReader {
     }
 
     closeLearnContext(dismiss = false) {
+        this.stopLearnAudio();
         const context = document.getElementById('learnContext');
         if (dismiss && context?.contains(document.activeElement)) {
             this._learnContextUnit?.focus({ preventScroll: true });
@@ -2426,6 +2455,55 @@ class BibleReader {
         if (context) context.hidden = true;
         if (dismiss) this._learnContextDismissed = true;
         this._learnContextUnit = null;
+    }
+
+    syncStudyResumeControl() {
+        const resume = document.getElementById('learnResumeBtn');
+        const status = document.getElementById('learnPlaybackStatus');
+        if (resume) resume.hidden = !this._studyPlayback;
+        if (status) status.hidden = !this._studyPlayback;
+        for (const popover of [this._wordPopover, this._hebPopover]) {
+            const action = popover?.querySelector('.study-resume-reading');
+            if (action) action.hidden = !this._studyPlayback;
+        }
+    }
+
+    pauseReadingForStudy() {
+        let source = null;
+        if (this.ttsState === 'playing') {
+            this.pauseTTS();
+            source = 'tts';
+        } else if (this.ttsState === 'paused') {
+            source = 'tts';
+        } else if (this.player && this.isPlayerReady && typeof YT !== 'undefined') {
+            const state = this.player.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) {
+                this.player.pauseVideo();
+                source = 'video';
+            } else if (state === YT.PlayerState.PAUSED) {
+                source = 'video';
+            }
+        }
+        this._studyPlayback = source;
+        this.syncStudyResumeControl();
+        return !!source;
+    }
+
+    resumeReadingForStudy() {
+        this.stopLearnAudio();
+        if (this._studyPlayback === 'tts' && this.ttsState === 'paused') {
+            this.resumeTTS();
+        } else if (this._studyPlayback === 'video' && this.player && this.isPlayerReady) {
+            this.player.playVideo();
+            this._studyPlayback = null;
+            this.syncStudyResumeControl();
+        } else {
+            this._studyPlayback = null;
+            this.syncStudyResumeControl();
+            this.showToast('Reading is no longer paused', 'info');
+            return false;
+        }
+        return true;
     }
 
     positionLearnContext() {
@@ -2513,27 +2591,89 @@ class BibleReader {
         try { words[index].scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
     }
 
+    stopLearnAudio() {
+        if (this._learnAudio) {
+            const audio = this._learnAudio;
+            this._learnAudio = null;
+            audio.pause();
+        }
+        if (this._learnUtterance && window.speechSynthesis) {
+            this._learnUtterance = null;
+            window.speechSynthesis.cancel();
+        }
+        for (const key of ['_bwAudio', '_hebAudio']) {
+            const audio = this[key];
+            if (!audio) continue;
+            this[key] = null;
+            audio._superseded = true;
+            audio.pause();
+        }
+        for (const popover of [this._wordPopover, this._hebPopover]) {
+            popover?.querySelector('.bw-action-speak, .heb-action-speak')
+                ?.classList.remove('is-loading', 'is-playing');
+        }
+    }
+
+    playLearnAudio(url) {
+        const audio = new Audio(url);
+        this._learnAudio = audio;
+        const fail = () => {
+            if (this._learnAudio !== audio) return;
+            this._learnAudio = null;
+            this.showToast('Could not play that phrase', 'error');
+        };
+        audio.onerror = fail;
+        audio.onended = () => {
+            if (this._learnAudio === audio) this._learnAudio = null;
+        };
+        audio.play().catch(fail);
+    }
+
     hearLearnUnit(unit) {
         const phrase = unit?.dataset.lxPhrase || unit?.dataset.lxGloss;
         if (!phrase) return;
-        if (this.ttsState === 'playing') {
+        if (this.ttsState === 'playing'
+            || (this.player && this.isPlayerReady && typeof YT !== 'undefined'
+                && this.player.getPlayerState() === YT.PlayerState.PLAYING)) {
             this.showToast('Pause reading to hear this word on its own', 'info');
             return;
         }
+        this.stopLearnAudio();
         const lang = this._learnChapter?.target_lang || '';
+        const selected = this.ttsSettings?.preferServer && this.ttsSettings.onlineVoice?.[lang];
+        if (selected) {
+            this.playLearnAudio(`/api/tts?v=2&lang=${encodeURIComponent(lang)}`
+                + `&voice=${encodeURIComponent(selected)}&text=${encodeURIComponent(phrase)}`);
+            return;
+        }
         const voices = window.speechSynthesis?.getVoices?.() || [];
         const voice = voices.find(item => lang && (item.lang || '').toLowerCase().startsWith(lang));
         if (voice && window.SpeechSynthesisUtterance) {
+            if (this.ttsState === 'paused' && this.ttsMode === 'speech' && !this._ttsNeedsStart) {
+                this._ttsGen = (this._ttsGen || 0) + 1;
+                this._ttsNeedsStart = true;
+                this.currentUtterance = null;
+                this.showToast('Reading will resume from the start of this verse', 'info');
+            }
             const utterance = new SpeechSynthesisUtterance(phrase);
             utterance.lang = voice.lang;
             utterance.voice = voice;
             window.speechSynthesis.cancel();
+            window.speechSynthesis.resume();
+            this._learnUtterance = utterance;
+            utterance.onend = () => {
+                if (this._learnUtterance === utterance) this._learnUtterance = null;
+            };
+            utterance.onerror = () => {
+                if (this._learnUtterance !== utterance) return;
+                this._learnUtterance = null;
+                this.showToast('Could not play that phrase', 'error');
+            };
             window.speechSynthesis.speak(utterance);
             return;
         }
         if (['en', 'hu', 'he', 'sw'].includes(lang)) {
-            const audio = new Audio(`/api/tts?v=2&lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(phrase)}`);
-            audio.play().catch(() => this.showToast('Could not play that word', 'error'));
+            this.playLearnAudio(`/api/tts?v=2&lang=${encodeURIComponent(lang)}&text=${encodeURIComponent(phrase)}`);
             return;
         }
         this.showToast('No voice is installed for this language yet. The word is still shown in its sentence.', 'info');
@@ -2569,6 +2709,7 @@ class BibleReader {
                 verse: node.dataset.verse,
                 text: this.learnVerseText(node),
                 lang,
+                translation,
             })).filter(item => item.text);
         }
         return [];
@@ -2608,6 +2749,8 @@ class BibleReader {
             }
             if (target.classList.contains('heb-word')) {
                 e.stopPropagation();
+                this.stopLearnAudio();
+                this.pauseReadingForStudy();
                 this.openHebrewPopover(target);
             }
         }, true);
@@ -2648,6 +2791,7 @@ class BibleReader {
 
     closeHebrewPopover() {
         if (this._hebPopover) {
+            this.stopLearnAudio();
             this._hebPopover.remove();
             this._hebPopover = null;
         }
@@ -2674,6 +2818,7 @@ class BibleReader {
             <div class="heb-popover-related"></div>
             <div class="heb-popover-occurrences"></div>
             <div class="heb-popover-foot">
+                <button type="button" class="heb-action study-resume-reading" hidden>Resume reading</button>
                 <button type="button" class="heb-action heb-action-speak" aria-label="Hear pronunciation" title="Hear pronunciation">
                     <span class="heb-action-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2699,7 +2844,11 @@ class BibleReader {
         `;
         document.body.appendChild(pop);
         this._hebPopover = pop;
+        this.syncStudyResumeControl();
         pop.querySelector('.heb-popover-close').addEventListener('click', () => this.closeHebrewPopover());
+        pop.querySelector('.study-resume-reading').addEventListener('click', () => {
+            if (this.resumeReadingForStudy()) this.closeHebrewPopover();
+        });
         pop.addEventListener('click', (e) => e.stopPropagation());
 
         // Pronunciation is intentionally restricted to the right-side
@@ -2822,16 +2971,9 @@ class BibleReader {
     // element so rapid taps don't stack overlapping playbacks.
     async _speakHebrewWord(word, pop) {
         if (!word) return;
+        this.stopLearnAudio();
         const btn = pop?.querySelector('.heb-action-speak');
         if (btn) btn.classList.add('is-loading');
-        // Stop any prior playback BEFORE wiring new listeners. We mark the
-        // old audio as superseded so its later 'error' / 'ended' events
-        // (fired when we clear its src) don't trigger a misleading toast.
-        if (this._hebAudio) {
-            this._hebAudio._superseded = true;
-            try { this._hebAudio.pause(); } catch {}
-            try { this._hebAudio.removeAttribute('src'); this._hebAudio.load(); } catch {}
-        }
         const audio = new Audio(`/api/tts?text=${encodeURIComponent(word)}&lang=he`);
         this._hebAudio = audio;
         audio.addEventListener('ended', () => {
@@ -2850,6 +2992,7 @@ class BibleReader {
         });
         try {
             await audio.play();
+            if (audio._superseded) return;
             played = true;
             if (btn) {
                 btn.classList.remove('is-loading');
@@ -3032,6 +3175,8 @@ class BibleReader {
             }
             if (target.classList.contains('bw-word')) {
                 e.stopPropagation();
+                this.stopLearnAudio();
+                this.pauseReadingForStudy();
                 this.openWordPopover(target);
             }
         }, true);
@@ -3049,6 +3194,7 @@ class BibleReader {
 
     closeWordPopover() {
         if (this._wordPopover) {
+            this.stopLearnAudio();
             this._wordPopover.remove();
             this._wordPopover = null;
         }
@@ -3056,12 +3202,7 @@ class BibleReader {
 
     // Map a translation display name to a TTS BCP-47 lang code.
     _langForTranslation(translation) {
-        const en = ['NIV', 'NKJV', 'KJV', 'ESV', 'NASB1995'];
-        if (en.includes(translation)) return 'en';
-        if (translation === 'Hungarian' || translation === 'Hungarian-Revised') return 'hu';
-        if (translation === 'Hebrew') return 'he';
-        if (translation === 'Kenyah') return 'id';
-        return 'en';
+        return this.ttsLangFor(translation).split('-')[0];
     }
 
     async openWordPopover(wordEl) {
@@ -3072,7 +3213,7 @@ class BibleReader {
         const raw = (wordEl.textContent || '').trim();
         // Strip leading/trailing punctuation but preserve apostrophes
         // mid-word (e.g. don't, l'âme).
-        const word = raw.replace(/^[\s\W_]+|[\s\W_]+$/gu, '');
+        const word = raw.replace(/^[^\p{L}\p{M}\p{N}]+|[^\p{L}\p{M}\p{N}]+$/gu, '');
         if (!word) return;
 
         const translation = this._translationForNode(wordEl);
@@ -3089,6 +3230,7 @@ class BibleReader {
             <div class="bw-popover-meta">${this._escapeHtml(translation)}</div>
             <div class="bw-popover-occurrences"></div>
             <div class="bw-popover-foot">
+                <button type="button" class="heb-action study-resume-reading" hidden>Resume reading</button>
                 ${isRight ? `
                     <button type="button" class="heb-action bw-action-speak" aria-label="Hear pronunciation" title="Hear pronunciation">
                         <span class="heb-action-icon" aria-hidden="true">
@@ -3116,8 +3258,12 @@ class BibleReader {
         `;
         document.body.appendChild(pop);
         this._wordPopover = pop;
+        this.syncStudyResumeControl();
         pop.addEventListener('click', (e) => e.stopPropagation());
         pop.querySelector('.bw-popover-close').addEventListener('click', () => this.closeWordPopover());
+        pop.querySelector('.study-resume-reading').addEventListener('click', () => {
+            if (this.resumeReadingForStudy()) this.closeWordPopover();
+        });
         pop.querySelector('.bw-action-speak')
             ?.addEventListener('click', () => this._speakWord(word, lang, pop));
         pop.querySelector('.bw-action-count')
@@ -3152,13 +3298,9 @@ class BibleReader {
     // BCP-47 code matches the TTS engine.
     async _speakWord(word, lang, pop) {
         if (!word) return;
+        this.stopLearnAudio();
         const btn = pop?.querySelector('.bw-action-speak');
         if (btn) btn.classList.add('is-loading');
-        if (this._bwAudio) {
-            this._bwAudio._superseded = true;
-            try { this._bwAudio.pause(); } catch {}
-            try { this._bwAudio.removeAttribute('src'); this._bwAudio.load(); } catch {}
-        }
         const audio = new Audio(`/api/tts?text=${encodeURIComponent(word)}&lang=${encodeURIComponent(lang || 'en')}`);
         this._bwAudio = audio;
         let played = false;
@@ -3173,6 +3315,7 @@ class BibleReader {
         });
         try {
             await audio.play();
+            if (audio._superseded) return;
             played = true;
             if (btn) {
                 btn.classList.remove('is-loading');
@@ -3657,13 +3800,44 @@ class BibleReader {
         if (this._onlineVoicesCache) return this._onlineVoicesCache;
         try {
             const r = await fetch('/api/tts/voices');
-            if (!r.ok) return null;
+            if (!r.ok) {
+                console.warn('Online voice catalog returned', r.status);
+                return null;
+            }
             this._onlineVoicesCache = await r.json();
             return this._onlineVoicesCache;
         } catch (e) {
             console.warn('Failed to fetch online voices', e);
             return null;
         }
+    }
+
+    async useAIForCurrentReading() {
+        const catalog = await this._fetchOnlineVoices();
+        const reading = this.collectVisibleVerses()[0];
+        const lang = reading?.lang?.toLowerCase().split('-')[0];
+        if (!lang) {
+            this.showToast('No reading text is available yet', 'info');
+            return;
+        }
+        if (reading.translation && window.RITD_TRANSLATION_LANGUAGES?.[reading.translation] === '') {
+            this.showToast('No AI voice is available for this language', 'error');
+            return;
+        }
+        const voice = catalog?.[lang]?.find(item => item.default);
+        if (!voice) {
+            this.showToast(catalog ? 'No AI voice is available for this language' : 'AI voice catalog unavailable', 'error');
+            return;
+        }
+        this.ttsSettings.onlineVoice[lang] = voice.id;
+        this.ttsSettings.preferServer = true;
+        this._ttsTestLang = lang;
+        const select = document.getElementById(`ttsOnlineVoice${lang[0].toUpperCase()}${lang.slice(1)}`);
+        if (select) select.value = voice.id;
+        const prefer = document.getElementById('ttsPreferServer');
+        if (prefer) prefer.checked = true;
+        this.applyTTSSettings();
+        this.showToast('AI voice selected for the current reading', 'info');
     }
 
     // Male voices first. The English picker was getting stuck on a voice
@@ -3754,13 +3928,19 @@ class BibleReader {
         fillOnline('ttsOnlineVoiceHe', 'he');
         fillOnline('ttsOnlineVoiceHu', 'hu');
         fillOnline('ttsOnlineVoiceEn', 'en');
+        fillOnline('ttsOnlineVoiceEs', 'es');
+        fillOnline('ttsOnlineVoiceFr', 'fr');
+        fillOnline('ttsOnlineVoiceDe', 'de');
+        fillOnline('ttsOnlineVoicePt', 'pt');
 
         const preferEl = document.getElementById('ttsPreferServer');
         if (preferEl) preferEl.checked = !!this.ttsSettings.preferServer;
     }
 
     testTTSVoice() {
-        const selectedLangs = { en: 'en-US', hu: 'hu-HU', he: 'he-IL', sw: 'sw-KE' };
+        this.stopLearnAudio();
+        const selectedLangs = { en: 'en-US', hu: 'hu-HU', he: 'he-IL', sw: 'sw-KE',
+            es: 'es', fr: 'fr', de: 'de', pt: 'pt' };
         const lang = selectedLangs[this._ttsTestLang]
             || this.collectVisibleVerses()[0]?.lang
             || this.ttsLangFor(this.currentTranslation);
@@ -3769,6 +3949,10 @@ class BibleReader {
             'hu-HU': 'Mert úgy szerette Isten a világot, hogy egyszülött Fiát adta.',
             'he-IL': 'כִּי כָּכָה אָהַב הָאֱלֹהִים אֶת־הָעוֹלָם.',
             'sw-KE': 'Kwa maana Mungu aliupenda ulimwengu hivi, hata akamtoa Mwanawe wa pekee, ili kila mtu amwaminiye asipotee, bali awe na uzima wa milele.',
+            'es': 'Hola, bienvenido.',
+            'fr': 'Bonjour, bienvenue.',
+            'de': 'Hallo, willkommen.',
+            'pt': 'Olá, bem-vindo.',
         };
         const text = samples[lang] || samples['en-US'];
         if (this.ttsState === 'playing' || this.ttsState === 'paused') this.stopTTS();
@@ -3863,15 +4047,27 @@ class BibleReader {
     }
 
     resumeTTS() {
+        this.stopLearnAudio();
+        if (this._studyPlayback === 'tts') {
+            this._studyPlayback = null;
+            this.syncStudyResumeControl();
+        }
         if (this._ttsNeedsStart) {
             this._ttsNeedsStart = false;
             this.ttsState = 'playing';
             this.setPlayBtnPlaying(true);
+            window.speechSynthesis?.resume();
             this.speakNextTTS();
             return;
         }
         if (this.ttsMode === 'audio' && this.ttsAudio) {
-            this.ttsAudio.play().catch(() => {});
+            const audio = this.ttsAudio;
+            audio.play().catch(err => {
+                if (this.ttsAudio !== audio || this.ttsState !== 'playing') return;
+                console.warn('Could not resume read-aloud', err);
+                this.stopTTS();
+                this.showToast('Could not resume reading', 'error');
+            });
         } else if (window.speechSynthesis) {
             window.speechSynthesis.resume();
             this.startTTSKeepalive();
@@ -3889,6 +4085,7 @@ class BibleReader {
     // instead of replaying the previous one.
     restartTTSIfPlaying() {
         if (this.ttsState !== 'playing' && this.ttsState !== 'paused') return;
+        this.stopLearnAudio();
         const wasPaused = (this.ttsState === 'paused');
         const currentVerse = this.ttsQueue[this.ttsIndex] && this.ttsQueue[this.ttsIndex].verse;
         // Invalidate any in-flight audio/utterance callbacks so they
@@ -3930,6 +4127,7 @@ class BibleReader {
     }
 
     async startTTS(opts = {}) {
+        this.stopLearnAudio();
         // The right column is the intended "Read aloud" source. If the
         // sync render hasn't populated it yet (e.g. user pressed play
         // very quickly after navigating), wait for it before queueing
@@ -3944,6 +4142,10 @@ class BibleReader {
         if (!verses.length) {
             this.showToast('No text available to read', 'info');
             return;
+        }
+        if (this._studyPlayback === 'video') {
+            this._studyPlayback = null;
+            this.syncStudyResumeControl();
         }
         // For Hebrew, prefer the RITDorg YouTube video if one exists for
         // this chapter. Falls through to gTTS, which itself falls through
@@ -4032,6 +4234,7 @@ class BibleReader {
                 verse: n.dataset.verse,
                 text: (n.innerText || n.textContent || '').replace(/^\s*\d+\s*/, '').trim(),
                 lang,
+                translation: transName,
             })).filter(v => v.text);
         }
         return [];
@@ -4272,6 +4475,10 @@ class BibleReader {
     }
 
     stopTTS() {
+        if (this._studyPlayback === 'tts') {
+            this._studyPlayback = null;
+            this.syncStudyResumeControl();
+        }
         this._ttsGen = (this._ttsGen || 0) + 1;
         if (window.speechSynthesis) window.speechSynthesis.cancel();
         if (this.ttsAudio) { try { this.ttsAudio.pause(); } catch {} this.ttsAudio = null; }

@@ -368,7 +368,9 @@ def _available_translations():
 @app.route('/')
 def index():
     books = list(ALL_BOOKS.keys())
-    return render_template('index.html', books=books, translations=_available_translations())
+    translations = _available_translations()
+    languages = {name: TRANSLATION_LANG.get(name) or guess_lang(name) for name in translations}
+    return render_template('index.html', books=books, translations=translations, translation_languages=languages)
 
 
 @app.route('/favicon.ico')
@@ -900,8 +902,12 @@ def tts_audio():
         voice = ''
     elif voice and voice not in EDGE_VOICE_NAMES:
         abort(400, 'Unknown TTS voice')
+    elif voice and not voice.lower().startswith(f'{lang}-'):
+        abort(400, 'TTS voice does not match language')
     if engine == 'edge' and not voice:
-        voice = DEFAULT_EDGE_VOICE.get(lang) or DEFAULT_EDGE_VOICE['en']
+        voice = DEFAULT_EDGE_VOICE.get(lang, '')
+        if not voice:
+            engine = 'gtts'
 
     if engine == 'edge':
         cached = study.tts_cache_lookup(text, lang, voice)
@@ -912,6 +918,8 @@ def tts_audio():
             return resp
         try:
             audio_bytes = _synthesize_edge(text, voice)
+            if not audio_bytes:
+                raise RuntimeError('No audio returned by neural TTS')
             study.tts_cache_store(text, lang, voice, audio_bytes)
             resp = Response(audio_bytes, mimetype='audio/mpeg')
             resp.headers['Cache-Control'] = 'public, max-age=86400'
@@ -981,6 +989,24 @@ EDGE_VOICES = {
         ('sw-KE-ZuriNeural',     'Zuri — female (Kenya)'),
         ('sw-KE-RafikiNeural',   'Rafiki — male (Kenya)'),
     ],
+    'es': [
+        ('es-ES-ElviraNeural', 'Elvira — Spain, female'),
+        ('es-ES-AlvaroNeural', 'Álvaro — Spain, male'),
+        ('es-MX-DaliaNeural', 'Dalia — Mexico, female'),
+        ('es-MX-JorgeNeural', 'Jorge — Mexico, male'),
+    ],
+    'fr': [
+        ('fr-FR-DeniseNeural', 'Denise — France, female'),
+        ('fr-FR-HenriNeural', 'Henri — France, male'),
+    ],
+    'de': [
+        ('de-DE-KatjaNeural', 'Katja — Germany, female'),
+        ('de-DE-ConradNeural', 'Conrad — Germany, male'),
+    ],
+    'pt': [
+        ('pt-BR-FranciscaNeural', 'Francisca — Brazil, female'),
+        ('pt-BR-AntonioNeural', 'Antonio — Brazil, male'),
+    ],
 }
 EDGE_VOICE_NAMES = {v[0] for vs in EDGE_VOICES.values() for v in vs}
 DEFAULT_EDGE_VOICE = {
@@ -988,6 +1014,10 @@ DEFAULT_EDGE_VOICE = {
     'hu': 'hu-HU-NoemiNeural',
     'he': 'he-IL-HilaNeural',
     'sw': 'sw-KE-ZuriNeural',
+    'es': 'es-ES-ElviraNeural',
+    'fr': 'fr-FR-DeniseNeural',
+    'de': 'de-DE-KatjaNeural',
+    'pt': 'pt-BR-FranciscaNeural',
 }
 
 
@@ -1026,7 +1056,10 @@ def tts_voices():
     """Expose the curated voice catalog to the client (settings dialog)."""
     out = {}
     for lang, voices in EDGE_VOICES.items():
-        out[lang] = [{'id': v[0], 'label': v[1]} for v in voices]
+        out[lang] = [
+            {'id': voice, 'label': label, 'default': voice == DEFAULT_EDGE_VOICE[lang]}
+            for voice, label in voices
+        ]
     # Synthetic "use legacy Google Translate voice" option per language.
     for lang in out:
         out[lang].append({'id': 'gtts', 'label': '— Legacy Google voice —'})

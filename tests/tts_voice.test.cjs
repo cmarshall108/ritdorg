@@ -8,7 +8,7 @@ function setup() {
     const elements = {};
     for (const id of ['ttsSettingsBtn', 'ttsSettingsOverlay', 'ttsSettingsClose',
         'ttsTestBtn', 'ttsResetBtn', 'ttsPreferServer', 'ttsVoiceEn',
-        'ttsOnlineVoiceEn']) {
+        'ttsOnlineVoiceEn', 'ttsOnlineVoiceEs', 'ttsUseAI']) {
         elements[id] = {
             listeners: {},
             addEventListener(event, fn) { this.listeners[event] = fn; },
@@ -35,15 +35,16 @@ function setup() {
     const audio = [];
     class Audio {
         constructor(url) { this.url = url; audio.push(this); }
-        play() { return Promise.resolve(); }
-        pause() {}
+        play() { this.playCount = (this.playCount || 0) + 1; return Promise.resolve(); }
+        pause() { this.pauseCount = (this.pauseCount || 0) + 1; }
     }
+    class SpeechSynthesisUtterance { constructor(text) { this.text = text; } }
     const context = {
-        document, window: { speechSynthesis: synthesis, Audio },
+        document, window: { speechSynthesis: synthesis, SpeechSynthesisUtterance, Audio },
         localStorage: { getItem() { return null; }, setItem() {} },
-        SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
+        SpeechSynthesisUtterance,
         Audio, console, setTimeout, setInterval, clearInterval, performance,
-        YT: { PlayerState: { PLAYING: 1 } },
+        YT: { PlayerState: { PLAYING: 1, PAUSED: 2, ENDED: 0, CUED: 5 } },
     };
     vm.createContext(context);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '../static/js/app.js'), 'utf8')
@@ -58,7 +59,7 @@ function setup() {
         setPlayBtnPlaying() {}, updateTTSProgress() {}, startTTSKeepalive() {},
         showToast() {},
     });
-    return { reader, elements, spoken, audio, voices };
+    return { reader, elements, spoken, audio, voices, browser: context.window, context };
 }
 
 test('starting read-aloud honors the selected browser voice', async () => {
@@ -175,4 +176,170 @@ test('failed online and browser voices stop without retrying indefinitely', () =
     assert.equal(reader.ttsState, 'idle');
     assert.equal(audio.length, 1);
     assert.ok(messages.includes('Could not play the selected voice'));
+});
+
+test('AI shortcut selects the current reading language and replaces video narration', async () => {
+    const { reader, elements, audio } = setup();
+    reader.collectVisibleVerses = () => [{ verse: '1', text: 'Hola.', lang: 'es' }];
+    reader._fetchOnlineVoices = async () => ({
+        es: [{ id: 'es-ES-ElviraNeural', default: true }],
+    });
+    let paused = false;
+    reader.player = { getPlayerState: () => 1, pauseVideo() { paused = true; } };
+    reader.isPlayerReady = true;
+    await reader.useAIForCurrentReading();
+    assert.equal(paused, true);
+    assert.equal(elements.ttsOnlineVoiceEs.value, 'es-ES-ElviraNeural');
+    assert.match(audio[0].url, /lang=es/);
+    assert.match(audio[0].url, /voice=es-ES-ElviraNeural/);
+});
+
+test('AI shortcut reports unsupported languages without changing the voice', async () => {
+    const { reader } = setup();
+    reader.collectVisibleVerses = () => [{ lang: 'ja' }];
+    reader._fetchOnlineVoices = async () => ({ en: [] });
+    const messages = [];
+    reader.showToast = message => messages.push(message);
+    await reader.useAIForCurrentReading();
+    assert.equal(reader.ttsSettings.preferServer, false);
+    assert.match(messages[0], /No AI voice/);
+});
+
+test('reading and learning audio use the selected language and AI voice', () => {
+    const { reader, audio, browser } = setup();
+    browser.RITD_TRANSLATION_LANGUAGES = { Spanish: 'es' };
+    assert.equal(reader.ttsLangFor('Spanish'), 'es');
+    reader.ttsSettings.preferServer = true;
+    reader.ttsSettings.onlineVoice.es = 'es-ES-ElviraNeural';
+    reader._learnChapter = { target_lang: 'es' };
+    reader.hearLearnUnit({ dataset: { lxPhrase: 'Hola' } });
+    assert.match(audio[0].url, /lang=es/);
+    assert.match(audio[0].url, /voice=es-ES-ElviraNeural/);
+});
+
+test('explicit word selection pauses server narration and resumes the same audio', async () => {
+    const { reader, audio } = setup();
+    reader.ttsSettings.preferServer = true;
+    await reader.startTTS();
+    reader.renderLearnContext = () => {};
+    const unit = { classList: { add() {} } };
+    reader.focusLearnUnit(unit, { hold: true, show: true });
+    assert.equal(reader.ttsState, 'paused');
+    assert.equal(audio[0].pauseCount, 1);
+    reader.closeLearnContext(true);
+    assert.equal(reader.ttsState, 'paused');
+    assert.equal(reader.resumeReadingForStudy(), true);
+    assert.equal(reader.ttsState, 'playing');
+    assert.equal(reader.ttsAudio, audio[0]);
+    assert.equal(audio[0].playCount, 2);
+});
+
+test('automatic follow does not pause narration; idle selection does not offer resume', async () => {
+    const { reader } = setup();
+    reader.renderLearnContext = () => {};
+    const unit = { classList: { add() {} } };
+    await reader.startTTS();
+    reader.focusLearnUnit(unit);
+    assert.equal(reader.ttsState, 'playing');
+    reader.stopTTS();
+    reader.focusLearnUnit(unit, { show: true });
+    assert.equal(reader._studyPlayback, null);
+});
+
+test('browser pronunciation invalidates paused narration and restarts its verse safely', async () => {
+    const { reader, spoken, browser } = setup();
+    let cancellations = 0;
+    browser.speechSynthesis.cancel = () => { cancellations++; };
+    reader._learnChapter = { target_lang: 'en' };
+    await reader.startTTS();
+    const old = spoken[0];
+    reader.pauseReadingForStudy();
+    const generation = reader._ttsGen;
+    reader.hearLearnUnit({ dataset: { lxPhrase: 'Hello' } });
+    assert.equal(reader._ttsGen, generation + 1);
+    assert.equal(reader._ttsNeedsStart, true);
+    assert.equal(spoken[1].text, 'Hello');
+    old.onerror({ error: 'interrupted' });
+    assert.equal(reader.ttsState, 'paused');
+    assert.equal(reader.resumeReadingForStudy(), true);
+    assert.equal(spoken[2].text, 'A verse to read.');
+    assert.equal(reader.ttsState, 'playing');
+    assert.ok(cancellations >= 3);
+    spoken[1].onerror({ error: 'canceled' });
+    assert.equal(reader.ttsState, 'playing');
+});
+
+test('resuming stops study audio and ignores its late failure', async () => {
+    const { reader, audio } = setup();
+    const messages = [];
+    reader.showToast = message => messages.push(message);
+    reader.ttsSettings.preferServer = true;
+    reader.ttsSettings.onlineVoice.en = 'en-US-AriaNeural';
+    reader._learnChapter = { target_lang: 'en' };
+    await reader.startTTS();
+    reader.pauseReadingForStudy();
+    reader.hearLearnUnit({ dataset: { lxPhrase: 'Hello' } });
+    const study = audio[1];
+    reader.resumeReadingForStudy();
+    assert.equal(study.pauseCount, 1);
+    study.onerror();
+    assert.equal(messages.length, 0);
+    assert.equal(audio[0].playCount, 2);
+});
+
+test('changing voices while paused stops the study phrase without resuming narration', async () => {
+    const { reader, audio } = setup();
+    reader.ttsSettings.preferServer = true;
+    reader.ttsSettings.onlineVoice.en = 'en-US-AriaNeural';
+    reader._learnChapter = { target_lang: 'en' };
+    await reader.startTTS();
+    reader.pauseReadingForStudy();
+    reader.hearLearnUnit({ dataset: { lxPhrase: 'Hello' } });
+    reader.restartTTSIfPlaying();
+    assert.equal(audio[1].pauseCount, 1);
+    assert.equal(reader.ttsState, 'paused');
+    assert.equal(reader._ttsNeedsStart, true);
+});
+
+test('failed resume reports the error and stops reading', async () => {
+    const { reader, audio } = setup();
+    const messages = [];
+    reader.showToast = message => messages.push(message);
+    reader.ttsSettings.preferServer = true;
+    await reader.startTTS();
+    reader.pauseReadingForStudy();
+    audio[0].play = () => Promise.reject(new Error('blocked'));
+    reader.resumeReadingForStudy();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(reader.ttsState, 'idle');
+    assert.ok(messages.includes('Could not resume reading'));
+});
+
+test('word study pauses or preserves paused video and resumes without toggling', () => {
+    const { reader } = setup();
+    let state = 1, pauses = 0, plays = 0;
+    reader.player = {
+        getPlayerState: () => state,
+        pauseVideo() { pauses++; state = 2; },
+        playVideo() { plays++; state = 1; },
+    };
+    reader.isPlayerReady = true;
+    assert.equal(reader.pauseReadingForStudy(), true);
+    assert.equal(reader.pauseReadingForStudy(), true);
+    assert.equal(pauses, 1);
+    assert.equal(reader.resumeReadingForStudy(), true);
+    assert.equal(plays, 1);
+    assert.equal(reader.resumeReadingForStudy(), false);
+    assert.equal(plays, 1);
+});
+
+test('resuming from the main player clears a stale study resume action', async () => {
+    const { reader } = setup();
+    await reader.startTTS();
+    reader.pauseReadingForStudy();
+    reader.togglePlay();
+    assert.equal(reader.ttsState, 'playing');
+    assert.equal(reader._studyPlayback, null);
+    assert.equal(reader.resumeReadingForStudy(), false);
+    assert.equal(reader.ttsState, 'playing');
 });

@@ -14,9 +14,16 @@ making the Word of God more accessible in the original Hebrew and Greek.
   counts and cross-translation concordance.
 - **Verse-by-verse audio** (text-to-speech) for any chapter in any
   supported language.
+- **Online AI voices** — choose neural voices in Voice settings for English,
+  Hebrew, Hungarian, Swahili, Spanish, French, German and Portuguese. They
+  use Microsoft's online service through `edge-tts` without a paid API key;
+  internet access is required and service availability is not guaranteed.
 - **Learn a language** — read a chapter in your own language with floating
   glosses and a sentence-context popup. Glosses are approximate positions in
-  the target verse, not verified word-by-word translations.
+  the target verse, not verified word-by-word translations. Select a word to
+  pause narration for study, then choose Resume reading when ready. If a
+  browser voice is used to hear a study phrase, reading resumes at the start
+  of the current verse.
 - **Free Hebrew lessons** — alphabet, vocabulary and grammar taught
   straight from Genesis.
 - **Bible study tools** — bookmarks, highlights, notes, reading plans,
@@ -50,6 +57,8 @@ A `.env` file (see `.env.example`) is now loaded automatically via
 
 Run the voice playback regression tests with `node --test tests/tts_voice.test.cjs`
 (Node.js 18 or newer).
+When updating an existing deployment, reinstall `requirements.txt` and restart
+the server so its `edge-tts` version is up to date.
 
 Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
 `.env`) before serving production traffic — see `ritdorg/set_admin_password.py`.

@@ -50,7 +50,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='4') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='6') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/study.css') }}">
 </head>
 <body>
@@ -174,7 +174,7 @@
             <div class="learn-dock-copy">
                 <button class="learn-close" id="learnCloseBtn" type="button" aria-label="Close learning settings">×</button>
                 <h2 id="learnTitle">Learn a language</h2>
-                <p id="learnHint">Select a word to see its context. Glosses are approximate positions in the other verse, not verified word translations.</p>
+                <p id="learnHint">Select a word to pause reading and explore its context. Glosses are approximate positions in the other verse, not verified word translations.</p>
             </div>
             <div class="learn-choices">
                 <label class="learn-choice">
@@ -207,9 +207,11 @@
             <button class="learn-close" id="learnContextClose" type="button" aria-label="Close word context">×</button>
         </div>
         <p class="learn-context-verse" id="learnContextVerse" dir="auto"></p>
+        <p class="learn-playback-status" id="learnPlaybackStatus" role="status" hidden>Reading paused for word study.</p>
         <div class="learn-context-actions">
             <button type="button" id="learnHearBtn">Hear phrase</button>
             <button type="button" id="learnStudyBtn">Word study</button>
+            <button type="button" id="learnResumeBtn" hidden>Resume reading</button>
         </div>
     </div>
 
@@ -649,9 +651,9 @@
             <div class="modal-body">
                 <p class="modal-help">
                     Choose which voice the read-aloud feature uses for each language.
-                    <strong>Online voices</strong> are powered by Microsoft neural TTS — they sound
-                    very natural but require an internet connection.
-                    <strong>Browser voices</strong> come from your device and work offline, but quality varies.
+                    <strong>AI voices</strong> use Microsoft neural text-to-speech over the internet
+                    without a paid API key. Availability depends on the external service.
+                    <strong>Browser voices</strong> come from your device; offline availability and quality vary.
                     Choosing a voice switches the provider for all languages and updates read-aloud playback.
                     For a language with a selected voice, read-aloud replaces prerecorded video narration.
                     Choose Default to use video where available.
@@ -661,14 +663,19 @@
                 <div class="settings-row settings-row-check">
                     <label>
                         <input type="checkbox" id="ttsPreferServer" checked/>
-                        Use online (neural) voices
+                        Use online AI voices
                     </label>
                     <small class="settings-hint">Recommended. When off, device voices are used where available; some languages use online voices unless a browser voice is selected.</small>
                 </div>
 
+                <div class="settings-row">
+                    <button class="modal-btn" id="ttsUseAI" type="button">Use AI voice for current reading</button>
+                    <small class="settings-hint">Selects the default AI voice for the read-aloud language, replacing prerecorded narration when you press play.</small>
+                </div>
+
                 <hr class="settings-divider"/>
 
-                <p class="modal-help">Start at the bottom language and work up. English is last so it stays easy to open and change, including to a male voice.</p>
+                <p class="modal-help">Choose a specific AI voice for a language, or use the button above for the current reading.</p>
                 <div class="settings-row">
                     <label for="ttsOnlineVoiceSw">Swahili online voice</label>
                     <select id="ttsOnlineVoiceSw" class="styled-select"></select>
@@ -685,6 +692,25 @@
                     <label for="ttsOnlineVoiceEn">English online voice</label>
                     <select id="ttsOnlineVoiceEn" class="styled-select"></select>
                 </div>
+                <details class="settings-details">
+                    <summary>More AI languages</summary>
+                    <div class="settings-row">
+                        <label for="ttsOnlineVoiceEs">Spanish AI voice</label>
+                        <select id="ttsOnlineVoiceEs" class="styled-select"></select>
+                    </div>
+                    <div class="settings-row">
+                        <label for="ttsOnlineVoiceFr">French AI voice</label>
+                        <select id="ttsOnlineVoiceFr" class="styled-select"></select>
+                    </div>
+                    <div class="settings-row">
+                        <label for="ttsOnlineVoiceDe">German AI voice</label>
+                        <select id="ttsOnlineVoiceDe" class="styled-select"></select>
+                    </div>
+                    <div class="settings-row">
+                        <label for="ttsOnlineVoicePt">Portuguese AI voice</label>
+                        <select id="ttsOnlineVoicePt" class="styled-select"></select>
+                    </div>
+                </details>
 
                 <hr class="settings-divider"/>
 
@@ -741,9 +767,10 @@
 
     <!-- YouTube API -->
     <script src="https://www.youtube.com/iframe_api"></script>
+    <script>window.RITD_TRANSLATION_LANGUAGES = {{ translation_languages | tojson }};</script>
     <script src="{{ url_for('static', filename='js/userdata.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tooltips.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js', v='5') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js', v='8') }}"></script>
     <script src="{{ url_for('static', filename='js/study.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tutorial.js') }}"></script>
 

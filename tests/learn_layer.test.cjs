@@ -9,7 +9,7 @@ function reader() {
         document: { getElementById: () => null, addEventListener() {}, querySelectorAll: () => [], documentElement: { setAttribute() {} } },
         window: { speechSynthesis: { getVoices: () => [], cancel() {}, speak() {} } },
         localStorage: { getItem: () => null, setItem() {} },
-        console, setTimeout, setInterval, clearInterval,
+        console, setTimeout, setInterval, clearInterval, performance,
     };
     vm.createContext(context);
     vm.runInContext(
@@ -56,6 +56,25 @@ test('word context floats near the selected word and stays inside the viewport',
     assert.equal(popup.hidden, true);
 });
 
+test('word context follows its anchor when focus mode changes the layout', () => {
+    const app = reader();
+    const popup = { hidden: false, offsetWidth: 200, offsetHeight: 100, style: {} };
+    let focused = false;
+    app.testContext.document.body = { classList: { toggle: (_, value) => { focused = value; } } };
+    app.testContext.document.getElementById = id => id === 'learnContext' ? popup : null;
+    Object.assign(app.testContext.window, { innerWidth: 600, innerHeight: 600 });
+    app._scheduleSessionStateSave = () => {};
+    app._learnContextUnit = {
+        isConnected: true,
+        getBoundingClientRect: () => ({ left: focused ? 100 : 200, width: 20, top: 100, bottom: 120 }),
+        closest: () => ({ getBoundingClientRect: () => ({ top: 0, bottom: 600 }) }),
+    };
+    app.positionLearnContext();
+    assert.equal(popup.style.left, '110px');
+    app.applyFocusMode(true);
+    assert.equal(popup.style.left, '10px');
+});
+
 test('learning follows the visible column of the active view', () => {
     const app = reader();
     const columns = {
@@ -85,6 +104,72 @@ test('context navigation stays in the selected reading column', () => {
     app.focusLearnUnit = unit => { focused = unit; };
     app.stepLearnWord(1);
     assert.equal(focused, second);
+});
+
+test('click and keyboard word selection pause, but follow highlighting does not', () => {
+    const app = reader();
+    const listeners = {};
+    const button = { addEventListener() {}, setAttribute() {}, contains: () => false };
+    const dock = { ...button, hidden: true };
+    app.testContext.document.getElementById = id => ({ learnOpenBtn: button, learnDock: dock }[id] || null);
+    app.testContext.document.addEventListener = (name, fn) => { listeners[name] = fn; };
+    app.testContext.window.addEventListener = () => {};
+    app.learn = { enabled: true };
+    app.ttsState = 'playing';
+    let pauses = 0;
+    app.pauseTTS = () => { pauses++; app.ttsState = 'paused'; };
+    app.renderLearnContext = () => {};
+    app.populateLearnSelects = () => {};
+    app.updateLearnUI = () => {};
+    app.syncLearnChrome = () => {};
+    app.bindLearnMode();
+    const unit = { classList: { add() {} }, closest: () => unit };
+    const event = { target: unit, preventDefault() {}, stopImmediatePropagation() {} };
+    listeners.click(event);
+    assert.equal(pauses, 1);
+    app.ttsState = 'playing';
+    listeners.keydown({ ...event, key: 'Enter' });
+    assert.equal(pauses, 2);
+    app.ttsState = 'playing';
+    app.focusLearnUnit(unit);
+    assert.equal(pauses, 2);
+});
+
+test('ordinary word clicks pause reading before opening study', () => {
+    const app = reader();
+    const listeners = {};
+    class Element {}
+    app.testContext.HTMLElement = Element;
+    app.testContext.Node = class {};
+    app.testContext.document.addEventListener = (name, fn) => { listeners[name] = fn; };
+    app.testContext.window.addEventListener = () => {};
+    app.ttsState = 'playing';
+    app.pauseTTS = () => { app.ttsState = 'paused'; };
+    let stateAtOpen;
+    app.openWordPopover = () => { stateAtOpen = app.ttsState; };
+    app.bindGenericWordLookup();
+    const word = new Element();
+    word.classList = { contains: cls => cls === 'bw-word' };
+    listeners.click({ target: word, stopPropagation() {} });
+    assert.equal(stateAtOpen, 'paused');
+    assert.equal(app._studyPlayback, 'tts');
+});
+
+test('word study accepts words in non-Latin scripts', async () => {
+    const app = reader();
+    const controls = { addEventListener() {} };
+    const pop = {
+        setAttribute() {}, addEventListener() {},
+        querySelector: () => controls,
+    };
+    app.testContext.document.createElement = () => pop;
+    app.testContext.document.body = { appendChild() {} };
+    app._translationForNode = () => 'Chinese';
+    app._langForTranslation = () => 'zh';
+    app._isRightSideContainer = () => false;
+    app._positionPopoverNear = () => {};
+    await app.openWordPopover({ textContent: '«世界»', classList: { add() {} } });
+    assert.match(pop.innerHTML, /bw-popover-word">世界</);
 });
 
 test('a late alignment response cannot restore an old learning selection', async () => {

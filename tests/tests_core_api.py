@@ -222,9 +222,44 @@ class TTSVoiceSelectionTestCase(unittest.TestCase):
             response = app.test_client().get("/api/tts?text=hello&lang=en&voice=en-US-AriaNeural")
         self.assertEqual(response.status_code, 503)
 
+    def test_selected_voice_empty_audio_is_not_cached(self):
+        with (
+            patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.study.tts_cache_store") as store,
+            patch("ritdorg.app._synthesize_edge", return_value=b""),
+        ):
+            response = app.test_client().get("/api/tts?text=hello&lang=en&voice=en-US-AriaNeural")
+        self.assertEqual(response.status_code, 503)
+        store.assert_not_called()
+
     def test_unknown_voice_is_rejected(self):
         response = app.test_client().get("/api/tts?text=hello&lang=en&voice=unknown")
         self.assertEqual(response.status_code, 400)
+
+    def test_ai_voice_defaults_and_language_match(self):
+        catalog = app.test_client().get("/api/tts/voices").get_json()
+        self.assertTrue(any(v["id"] == "es-ES-ElviraNeural" and v["default"] for v in catalog["es"]))
+        with (
+            patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.study.tts_cache_store"),
+            patch("ritdorg.app._synthesize_edge", return_value=b"mp3") as synthesize,
+        ):
+            response = app.test_client().get("/api/tts?text=hola&lang=es")
+        self.assertEqual(response.status_code, 200)
+        synthesize.assert_called_once_with("hola", "es-ES-ElviraNeural")
+        response = app.test_client().get("/api/tts?text=hola&lang=es&voice=en-US-AriaNeural")
+        self.assertEqual(response.status_code, 400)
+
+    def test_unsupported_neural_language_does_not_use_english_voice(self):
+        with (
+            patch("ritdorg.app._synthesize_edge") as synthesize,
+            patch("gtts.gTTS") as google,
+        ):
+            google.return_value.write_to_fp.side_effect = lambda buffer: buffer.write(b"mp3")
+            response = app.test_client().get("/api/tts?text=bonjour&lang=it")
+        self.assertEqual(response.status_code, 200)
+        synthesize.assert_not_called()
+        self.assertEqual(google.call_args.kwargs["lang"], "it")
 
     def test_learn_align_uses_the_requested_languages_and_keeps_every_target_word(self):
         def verses(translation, book, chapter):
