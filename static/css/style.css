@@ -4819,6 +4819,55 @@ body.modal-open { overflow: hidden; touch-action: none; }
     font-size: 0.75rem;
     color: var(--text-muted);
 }
+.learn-context > .learn-context-note { margin: 6px 0 0; }
+.learn-review-backdrop:not([hidden]) {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    background: var(--bg-primary);
+}
+body.learn-review-open { overflow: hidden; }
+.learn-review {
+    width: min(440px, 100%);
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 18px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-secondary);
+    box-shadow: var(--shadow-lg);
+}
+.learn-review-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.learn-review-heading h2 {
+    font-family: var(--font-serif);
+    font-size: 1.25rem;
+}
+.learn-review-help, .learn-review-status, .learn-review-label, .learn-review-reference {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin: 10px 0;
+}
+.learn-review-reference { font-weight: 650; }
+.learn-review-prompt, .learn-review-answer {
+    font-family: var(--font-reader);
+    line-height: 1.5;
+    margin: 8px 0;
+}
+.learn-review-answer {
+    border-inline-start: 3px solid var(--accent-primary);
+    padding-inline-start: 10px;
+}
 .learn-context-verse {
     margin: 6px 0 0;
     font-family: var(--font-reader);
@@ -4835,7 +4884,9 @@ body.modal-open { overflow: hidden; touch-action: none; }
 #learnNextWord,
 #learnHearBtn,
 #learnStudyBtn,
+#learnSaveVerse,
 #learnResumeBtn,
+.learn-review .learn-context-actions button,
 .learn-close {
     border: 1px solid var(--border-color);
     background: var(--bg-tertiary);
@@ -4845,7 +4896,10 @@ body.modal-open { overflow: hidden; touch-action: none; }
     height: 32px;
     cursor: pointer;
 }
-#learnHearBtn, #learnStudyBtn, #learnResumeBtn { padding: 0 12px; }
+#learnHearBtn, #learnStudyBtn, #learnSaveVerse, #learnResumeBtn,
+.learn-review .learn-context-actions button { padding: 0 12px; }
+.learn-review button[hidden] { display: none; }
+#learnSaveVerse:disabled { opacity: 0.55; cursor: default; }
 #learnResumeBtn:not([hidden]) {
     background: var(--accent-primary);
     color: var(--on-accent);
@@ -4869,6 +4923,13 @@ body.modal-open { overflow: hidden; touch-action: none; }
     flex-wrap: wrap;
     gap: 8px;
     margin-top: 10px;
+}
+@media (pointer: coarse) {
+    .learn-review .learn-context-actions button,
+    .learn-review .learn-close {
+        min-height: 44px;
+        height: auto;
+    }
 }
 .lx-reading .lx-verse,
 .lx-reading .sync-verse,

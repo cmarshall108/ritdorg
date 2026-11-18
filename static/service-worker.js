@@ -1,12 +1,12 @@
 /* RITDorg service worker — chapter + assets caching for offline reading. */
-const CACHE_STATIC = 'ritd-static-v7';
+const CACHE_STATIC = 'ritd-static-v8';
 const CACHE_CHAPTERS = 'ritd-chapters-v1';
 const CACHE_TTS = 'ritd-tts-v2';
 const STATIC_ASSETS = [
     '/static/css/style.css',
-    '/static/css/style.css?v=6',
+    '/static/css/style.css?v=7',
     '/static/js/app.js',
-    '/static/js/app.js?v=8',
+    '/static/js/app.js?v=9',
     '/static/js/userdata.js',
     '/static/js/study.js',
 ];

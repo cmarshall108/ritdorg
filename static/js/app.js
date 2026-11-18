@@ -295,7 +295,7 @@ class BibleReader {
         // pages on every arrow press.
         document.addEventListener('keydown', (e) => {
             const t = e.target;
-            if (t && (t.matches('input, textarea, select, [contenteditable="true"]')
+            if (t && (t.closest('#learnReview') || t.matches('input, textarea, select, [contenteditable="true"]')
                       || t.isContentEditable)) return;
             if (e.key === 'ArrowLeft') this.prevPage();
             if (e.key === 'ArrowRight') this.nextPage();
@@ -2030,6 +2030,207 @@ class BibleReader {
         try { localStorage.setItem('learnMode', JSON.stringify(this.learn)); } catch {}
     }
 
+    readLearnReview() {
+        try {
+            const raw = localStorage.getItem('learnReviewV1');
+            if (!raw) return [];
+            const cards = JSON.parse(raw);
+            if (!Array.isArray(cards) || !cards.every(card =>
+                card && ['id', 'book', 'verse', 'native', 'target', 'nativeText', 'targetText']
+                    .every(key => typeof card[key] === 'string' && card[key])
+                && Number.isInteger(card.chapter) && card.chapter > 0
+                && Number.isFinite(card.due) && Number.isInteger(card.stage)
+                && card.stage >= 0 && card.stage <= 6)) {
+                throw new Error('Invalid review data');
+            }
+            return cards;
+        } catch (err) {
+            console.warn('Could not read verse reviews', err);
+            this.showToast('Could not read saved verse reviews on this device', 'error');
+            return null;
+        }
+    }
+
+    writeLearnReview(cards) {
+        try {
+            localStorage.setItem('learnReviewV1', JSON.stringify(cards));
+            return true;
+        } catch (err) {
+            console.warn('Could not save verse reviews', err);
+            this.showToast('Could not save verse reviews on this device', 'error');
+            return false;
+        }
+    }
+
+    learnReviewVerse(unit) {
+        const verse = unit?.closest('[data-verse]')?.dataset.verse;
+        const key = `${this.currentBook}|${this.currentChapter}|${this.learn.native}|${this.learn.target}`;
+        const chapter = Number(this.currentChapter);
+        if (!verse || !this.currentBook || !this.learn.native || !this.learn.target
+            || !Number.isInteger(chapter) || chapter < 1 || this._learnKey !== key) return null;
+        const data = this._learnChapter?.verses?.[verse];
+        if (!data?.native || !data?.target) return null;
+        return {
+            id: JSON.stringify([this.currentBook, chapter, String(verse), this.learn.native, this.learn.target]),
+            book: this.currentBook,
+            chapter,
+            verse: String(verse),
+            native: this.learn.native,
+            target: this.learn.target,
+            nativeText: data.native,
+            targetText: data.target,
+            due: Date.now(),
+            stage: 0,
+        };
+    }
+
+    saveLearnVerse() {
+        const card = this.learnReviewVerse(this._learnContextUnit);
+        if (!card) {
+            this.showToast('The full verse is not available for review yet', 'info');
+            return;
+        }
+        const cards = this.readLearnReview();
+        if (!cards) return;
+        if (cards.some(item => item.id === card.id)) {
+            this.showToast('This verse is already saved for review', 'info');
+            return;
+        }
+        cards.push(card);
+        if (!this.writeLearnReview(cards)) return;
+        this.updateLearnReviewCount(cards);
+        this.showToast('Verse saved for review on this device', 'info');
+    }
+
+    updateLearnReviewCount(cards = this.readLearnReview()) {
+        if (!cards) return;
+        const button = document.getElementById('learnReviewOpen');
+        if (!button) return;
+        const due = cards.filter(card => card.due <= Date.now()).length;
+        button.textContent = due ? `Review saved verses (${due} due)` : 'Review saved verses';
+    }
+
+    openLearnReview() {
+        const cards = this.readLearnReview();
+        if (!cards) return;
+        this.stopLearnAudio();
+        this.closeLearnContext(true);
+        if (cards.length) this.pauseReadingForStudy();
+        this._learnReviewCardId = null;
+        this._learnReviewRevealed = false;
+        this._learnReviewEarly = false;
+        document.getElementById('learnReview').hidden = false;
+        document.body.classList.add('learn-review-open');
+        this.renderLearnReview(cards);
+        this.syncStudyResumeControl();
+        document.getElementById('learnReviewClose')?.focus();
+    }
+
+    closeLearnReview() {
+        const review = document.getElementById('learnReview');
+        if (review) review.hidden = true;
+        document.body.classList.remove('learn-review-open');
+        this._learnReviewCardId = null;
+        this._learnReviewRevealed = false;
+        document.getElementById('learnOpenBtn')?.focus();
+    }
+
+    renderLearnReview(cards = this.readLearnReview()) {
+        if (!cards) return;
+        const now = Date.now();
+        const ordered = [...cards].sort((a, b) => a.due - b.due);
+        let card = ordered.find(item => item.id === this._learnReviewCardId);
+        if (!card) {
+            card = ordered.find(item => item.due <= now) || (this._learnReviewEarly ? ordered[0] : null);
+            this._learnReviewCardId = card?.id || null;
+            this._learnReviewRevealed = false;
+        }
+        const due = ordered.filter(item => item.due <= now).length;
+        const status = document.getElementById('learnReviewStatus');
+        const panel = document.getElementById('learnReviewCard');
+        const early = document.getElementById('learnReviewEarly');
+        panel.hidden = !card;
+        early.hidden = !!card || !ordered.length;
+        if (!card) {
+            status.textContent = ordered.length
+                ? `All caught up. Next review: ${new Date(ordered[0].due).toLocaleString()}.`
+                : 'No saved verses yet. Select a learning word and save its verse.';
+            this.updateLearnReviewCount(cards);
+            return;
+        }
+        status.textContent = card.due > now ? 'Reviewing early.' : `${due} ${due === 1 ? 'verse' : 'verses'} due.`;
+        document.getElementById('learnReviewReference').textContent =
+            `${card.book} ${card.chapter}:${card.verse} · ${card.native} → ${card.target}`;
+        document.getElementById('learnReviewPrompt').textContent = card.nativeText;
+        document.getElementById('learnReviewAnswerLabel').textContent =
+            `${card.target} passage (wording may differ between translations):`;
+        document.getElementById('learnReviewAnswer').textContent = card.targetText;
+        document.getElementById('learnReviewAnswerLabel').hidden = !this._learnReviewRevealed;
+        document.getElementById('learnReviewAnswer').hidden = !this._learnReviewRevealed;
+        document.getElementById('learnReviewReveal').hidden = this._learnReviewRevealed;
+        document.getElementById('learnReviewAgain').hidden = !this._learnReviewRevealed;
+        const remembered = document.getElementById('learnReviewRemembered');
+        remembered.hidden = !this._learnReviewRevealed;
+        const days = this.learnReviewDays(card.stage);
+        remembered.textContent = `Remembered (${days} ${days === 1 ? 'day' : 'days'})`;
+        this.updateLearnReviewCount(cards);
+    }
+
+    learnReviewDays(stage) {
+        const intervals = [1, 3, 7, 14, 30, 60];
+        return intervals[Math.min(stage, intervals.length - 1)];
+    }
+
+    gradeLearnReview(remembered) {
+        if (!this._learnReviewCardId || !this._learnReviewRevealed) {
+            this.showToast('Reveal the verse before rating your recall', 'info');
+            return;
+        }
+        const cards = this.readLearnReview();
+        if (!cards) return;
+        const card = cards.find(item => item.id === this._learnReviewCardId);
+        if (!card) {
+            this.showToast('This verse is no longer saved', 'info');
+            this._learnReviewCardId = null;
+            this.renderLearnReview(cards);
+            return;
+        }
+        card.due = Date.now() + (remembered ? this.learnReviewDays(card.stage) * 86400000 : 600000);
+        card.stage = remembered ? Math.min(card.stage + 1, 6) : 0;
+        if (!this.writeLearnReview(cards)) return;
+        this._learnReviewCardId = null;
+        this._learnReviewRevealed = false;
+        this._learnReviewEarly = false;
+        this.renderLearnReview(cards);
+        this.focusLearnReviewAction();
+    }
+
+    focusLearnReviewAction() {
+        const card = document.getElementById('learnReviewCard');
+        const early = document.getElementById('learnReviewEarly');
+        const next = card && !card.hidden ? document.getElementById(
+            this._learnReviewRevealed ? 'learnReviewRemembered' : 'learnReviewReveal')
+            : early && !early.hidden ? early : document.getElementById('learnReviewClose');
+        next?.focus();
+    }
+
+    removeLearnReview() {
+        if (!this._learnReviewCardId || !window.confirm('Remove this verse from review?')) return;
+        const cards = this.readLearnReview();
+        if (!cards) return;
+        const remaining = cards.filter(item => item.id !== this._learnReviewCardId);
+        if (remaining.length === cards.length) {
+            this.showToast('This verse is no longer saved', 'info');
+            return;
+        }
+        if (!this.writeLearnReview(remaining)) return;
+        this._learnReviewCardId = null;
+        this._learnReviewRevealed = false;
+        this._learnReviewEarly = false;
+        this.renderLearnReview(remaining);
+        this.focusLearnReviewAction();
+    }
+
     learnWordIndex(count, ratio) {
         if (!count) return -1;
         const position = Math.min(0.999, Math.max(0, Number(ratio) || 0));
@@ -2054,6 +2255,7 @@ class BibleReader {
         const contextClose = document.getElementById('learnContextClose');
         const studyBtn = document.getElementById('learnStudyBtn');
         const resumeBtn = document.getElementById('learnResumeBtn');
+        const review = document.getElementById('learnReview');
         const closeSettings = () => {
             dock.hidden = true;
             openBtn.setAttribute('aria-expanded', 'false');
@@ -2063,13 +2265,37 @@ class BibleReader {
             dock.toggleAttribute('hidden', !open);
             openBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
             if (open) {
+                if (review && !review.hidden) this.closeLearnReview();
                 this.populateLearnSelects();
+                this.updateLearnReviewCount();
                 closeBtn?.focus();
             }
         });
         closeBtn?.addEventListener('click', () => { closeSettings(); openBtn.focus(); });
         contextClose?.addEventListener('click', () => this.closeLearnContext(true));
         resumeBtn?.addEventListener('click', () => this.resumeReadingForStudy());
+        document.getElementById('learnSaveVerse')?.addEventListener('click', () => this.saveLearnVerse());
+        document.getElementById('learnReviewOpen')?.addEventListener('click', () => {
+            closeSettings();
+            this.openLearnReview();
+        });
+        document.getElementById('learnReviewClose')?.addEventListener('click', () => this.closeLearnReview());
+        document.getElementById('learnReviewReveal')?.addEventListener('click', () => {
+            this._learnReviewRevealed = true;
+            this.renderLearnReview();
+            document.getElementById('learnReviewRemembered')?.focus();
+        });
+        document.getElementById('learnReviewAgain')?.addEventListener('click', () => this.gradeLearnReview(false));
+        document.getElementById('learnReviewRemembered')?.addEventListener('click', () => this.gradeLearnReview(true));
+        document.getElementById('learnReviewRemove')?.addEventListener('click', () => this.removeLearnReview());
+        document.getElementById('learnReviewEarly')?.addEventListener('click', () => {
+            this._learnReviewEarly = true;
+            this.renderLearnReview();
+            this.focusLearnReviewAction();
+        });
+        document.getElementById('learnReviewResume')?.addEventListener('click', () => {
+            if (this.resumeReadingForStudy()) this.focusLearnReviewAction();
+        });
         studyBtn?.addEventListener('click', () => {
             const unit = this._learnContextUnit;
             const word = unit?.querySelector('.heb-word, .bw-word');
@@ -2114,8 +2340,23 @@ class BibleReader {
             this.focusLearnUnit(unit, { hold: true, announce: true, show: true });
         }, true);
         document.addEventListener('keydown', (e) => {
+            if (review && !review.hidden && e.key === 'Tab') {
+                const buttons = [...review.querySelectorAll('button:not([hidden]):not(:disabled)')]
+                    .filter(button => button.getClientRects().length);
+                const first = buttons[0];
+                const last = buttons[buttons.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+                return;
+            }
             if (e.key === 'Escape') {
-                if (!dock.hidden) { closeSettings(); openBtn.focus(); }
+                if (review && !review.hidden) this.closeLearnReview();
+                else if (!dock.hidden) { closeSettings(); openBtn.focus(); }
                 else if (this._learnContextUnit) this.closeLearnContext(true);
                 return;
             }
@@ -2412,7 +2653,7 @@ class BibleReader {
         unit.dataset.lxPhrase = info.phrase || info.gloss || '';
         unit.tabIndex = 0;
         unit.setAttribute('role', 'button');
-        unit.setAttribute('aria-label', `${info.word}: ${info.gloss || 'no gloss available'}. Show context`);
+        unit.setAttribute('aria-label', `${info.word}. Show context; nearby target words are approximate.`);
         unit.style.setProperty('--lx-i', String(Math.min(index, 28)));
         const gloss = document.createElement('span');
         gloss.className = 'lx-gloss';
@@ -2462,6 +2703,8 @@ class BibleReader {
         const status = document.getElementById('learnPlaybackStatus');
         if (resume) resume.hidden = !this._studyPlayback;
         if (status) status.hidden = !this._studyPlayback;
+        const reviewResume = document.getElementById('learnReviewResume');
+        if (reviewResume) reviewResume.hidden = !this._studyPlayback;
         for (const popover of [this._wordPopover, this._hebPopover]) {
             const action = popover?.querySelector('.study-resume-reading');
             if (action) action.hidden = !this._studyPlayback;
@@ -2535,6 +2778,8 @@ class BibleReader {
         const pair = document.getElementById('learnContextPair');
         const sentence = document.getElementById('learnContextVerse');
         if (!pair || !sentence) return;
+        const save = document.getElementById('learnSaveVerse');
+        if (save) save.disabled = !unit || !this.learnReviewVerse(unit);
         sentence.dir = this._learnChapter?.target_dir || 'ltr';
         if (!unit) {
             pair.textContent = this.learn.enabled

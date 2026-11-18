@@ -172,6 +172,106 @@ test('word study accepts words in non-Latin scripts', async () => {
     assert.match(pop.innerHTML, /bw-popover-word">世界</);
 });
 
+function reviewReader() {
+    const app = reader();
+    const storage = {};
+    app.testContext.localStorage = {
+        getItem: key => storage[key] ?? null,
+        setItem: (key, value) => { storage[key] = value; },
+    };
+    const ids = ['learnReviewOpen', 'learnReview', 'learnReviewStatus', 'learnReviewCard',
+        'learnReviewEarly', 'learnReviewReference', 'learnReviewPrompt', 'learnReviewAnswerLabel',
+        'learnReviewAnswer', 'learnReviewReveal', 'learnReviewAgain', 'learnReviewRemembered',
+        'learnReviewRemove', 'learnReviewClose', 'learnReviewResume'];
+    const elements = Object.fromEntries(ids.map(id => [id, { hidden: false, textContent: '', focus() {} }]));
+    app.testContext.document.getElementById = id => elements[id] || null;
+    app.testContext.window.confirm = () => true;
+    app.currentBook = 'John';
+    app.currentChapter = 3;
+    app.learn = { enabled: true, native: 'NIV', target: 'Spanish' };
+    app._learnKey = 'John|3|NIV|Spanish';
+    app._learnChapter = { verses: { '16': { native: 'For God loved the world.', target: 'Dios amó al mundo.' } } };
+    app._learnContextUnit = { closest: () => ({ dataset: { verse: '16' } }) };
+    app.showToast = message => { app.messages.push(message); };
+    app.messages = [];
+    return { app, storage, elements };
+}
+
+test('saving uses complete verse pairs, deduplicates, and rejects stale or missing passages', () => {
+    const { app, storage } = reviewReader();
+    app.saveLearnVerse();
+    app.saveLearnVerse();
+    const cards = JSON.parse(storage.learnReviewV1);
+    assert.equal(cards.length, 1);
+    assert.equal(cards[0].nativeText, 'For God loved the world.');
+    assert.equal(cards[0].targetText, 'Dios amó al mundo.');
+    assert.match(app.messages.at(-1), /already saved/);
+    app.currentChapter = 4;
+    app.saveLearnVerse();
+    assert.match(app.messages.at(-1), /not available/);
+    assert.equal(JSON.parse(storage.learnReviewV1).length, 1);
+    app.currentChapter = 3;
+    app._learnChapter.verses['16'].target = '';
+    app.saveLearnVerse();
+    assert.match(app.messages.at(-1), /not available/);
+});
+
+test('review hides the answer until reveal and schedules self-rated recall', () => {
+    const { app, storage, elements } = reviewReader();
+    app.saveLearnVerse();
+    app.renderLearnReview();
+    assert.equal(elements.learnReviewAnswer.hidden, true);
+    assert.equal(elements.learnReviewRemembered.hidden, true);
+    app.gradeLearnReview(true);
+    assert.equal(JSON.parse(storage.learnReviewV1)[0].stage, 0);
+    app._learnReviewRevealed = true;
+    app.renderLearnReview();
+    assert.equal(elements.learnReviewAnswer.hidden, false);
+    assert.equal(elements.learnReviewAnswer.textContent, 'Dios amó al mundo.');
+    const now = Date.now();
+    app.gradeLearnReview(true);
+    let card = JSON.parse(storage.learnReviewV1)[0];
+    assert.equal(card.stage, 1);
+    assert.ok(card.due >= now + 86400000 && card.due < now + 86401000);
+    assert.equal(elements.learnReviewCard.hidden, true);
+    assert.equal(elements.learnReviewEarly.hidden, false);
+    app._learnReviewEarly = true;
+    app.renderLearnReview();
+    assert.equal(elements.learnReviewAnswer.hidden, true);
+    app._learnReviewRevealed = true;
+    app.gradeLearnReview(false);
+    card = JSON.parse(storage.learnReviewV1)[0];
+    assert.equal(card.stage, 0);
+    assert.ok(card.due >= now + 600000 && card.due < now + 601000);
+});
+
+test('review prioritizes due cards and allows removal without affecting others', () => {
+    const { app, storage, elements } = reviewReader();
+    app.saveLearnVerse();
+    const cards = JSON.parse(storage.learnReviewV1);
+    cards[0].due = Date.now() + 86400000;
+    cards.push({ ...cards[0], id: 'another-pair', target: 'French', targetText: 'Dieu a aimé le monde.', due: Date.now() - 1 });
+    storage.learnReviewV1 = JSON.stringify(cards);
+    app.renderLearnReview();
+    assert.equal(elements.learnReviewAnswer.textContent, 'Dieu a aimé le monde.');
+    app.removeLearnReview();
+    assert.equal(JSON.parse(storage.learnReviewV1).length, 1);
+    assert.equal(elements.learnReviewCard.hidden, true);
+    assert.equal(elements.learnReviewEarly.hidden, false);
+});
+
+test('review storage errors are reported without overwriting existing data', () => {
+    const { app, storage } = reviewReader();
+    storage.learnReviewV1 = '{"broken":true}';
+    app.saveLearnVerse();
+    assert.equal(storage.learnReviewV1, '{"broken":true}');
+    assert.match(app.messages.at(-1), /Could not read/);
+    delete storage.learnReviewV1;
+    app.testContext.localStorage.setItem = () => { throw new Error('storage blocked'); };
+    app.saveLearnVerse();
+    assert.match(app.messages.at(-1), /Could not save/);
+});
+
 test('a late alignment response cannot restore an old learning selection', async () => {
     const app = reader();
     let finish;

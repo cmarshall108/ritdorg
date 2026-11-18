@@ -50,7 +50,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='6') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='7') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/study.css') }}">
 </head>
 <body>
@@ -196,6 +196,7 @@
             <div class="learn-actions">
                 <button class="modal-btn" id="learnStartBtn" type="button">Start learning</button>
                 <button class="modal-btn modal-btn-secondary" id="learnBesideBtn" type="button">Show the full sentence beside me</button>
+                <button class="modal-btn modal-btn-secondary" id="learnReviewOpen" type="button">Review saved verses</button>
             </div>
         </div>
     </section>
@@ -206,13 +207,41 @@
             <button type="button" id="learnNextWord" aria-label="Next word">›</button>
             <button class="learn-close" id="learnContextClose" type="button" aria-label="Close word context">×</button>
         </div>
+        <p class="learn-context-note">Position-based suggestion, not a verified word translation.</p>
         <p class="learn-context-verse" id="learnContextVerse" dir="auto"></p>
         <p class="learn-playback-status" id="learnPlaybackStatus" role="status" hidden>Reading paused for word study.</p>
         <div class="learn-context-actions">
             <button type="button" id="learnHearBtn">Hear phrase</button>
             <button type="button" id="learnStudyBtn">Word study</button>
+            <button type="button" id="learnSaveVerse">Save verse for review</button>
             <button type="button" id="learnResumeBtn" hidden>Resume reading</button>
         </div>
+    </div>
+    <div class="learn-review-backdrop" id="learnReview" hidden>
+        <section class="learn-review" role="dialog" aria-modal="true" aria-labelledby="learnReviewTitle">
+            <div class="learn-review-heading">
+                <h2 id="learnReviewTitle">Verse review</h2>
+                <button class="learn-close" id="learnReviewClose" type="button" aria-label="Close verse review">×</button>
+            </div>
+            <p class="learn-review-help">Try to recall how the passage is expressed in your learning language, then reveal and compare. Reviews are saved on this device.</p>
+            <p id="learnReviewStatus" class="learn-review-status" role="status"></p>
+            <div id="learnReviewCard" hidden>
+                <p id="learnReviewReference" class="learn-review-reference"></p>
+                <p id="learnReviewPrompt" class="learn-review-prompt" dir="auto"></p>
+                <p id="learnReviewAnswerLabel" class="learn-review-label" hidden></p>
+                <p id="learnReviewAnswer" class="learn-review-answer" dir="auto" hidden></p>
+                <div class="learn-context-actions">
+                    <button type="button" id="learnReviewReveal">Reveal verse</button>
+                    <button type="button" id="learnReviewAgain" hidden>Again in 10 minutes</button>
+                    <button type="button" id="learnReviewRemembered" hidden>Remembered</button>
+                    <button type="button" id="learnReviewRemove">Remove verse</button>
+                </div>
+            </div>
+            <div class="learn-context-actions">
+                <button type="button" id="learnReviewEarly" hidden>Review next verse early</button>
+                <button type="button" id="learnReviewResume" hidden>Resume reading</button>
+            </div>
+        </section>
     </div>
 
     <!-- Main Content -->
@@ -770,7 +799,7 @@
     <script>window.RITD_TRANSLATION_LANGUAGES = {{ translation_languages | tojson }};</script>
     <script src="{{ url_for('static', filename='js/userdata.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tooltips.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js', v='8') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js', v='9') }}"></script>
     <script src="{{ url_for('static', filename='js/study.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tutorial.js') }}"></script>
 

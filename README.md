@@ -23,7 +23,13 @@ making the Word of God more accessible in the original Hebrew and Greek.
   the target verse, not verified word-by-word translations. Select a word to
   pause narration for study, then choose Resume reading when ready. If a
   browser voice is used to hear a study phrase, reading resumes at the start
-  of the current verse.
+  of the current verse. Save complete verses for a self-checked recall review:
+  reveal the target passage and rate your recall to schedule another review.
+  Reviews are stored only in this browser on this device. The intervals are a
+  simple aid, not a guarantee of learning or an assessed translation.
+  The design draws on research into [retrieval practice and vocabulary
+  learning](https://doi.org/10.1017/S0272263119000500) and [spaced practice
+  in second-language learning](https://doi.org/10.1111/lang.12479).
 - **Free Hebrew lessons** — alphabet, vocabulary and grammar taught
   straight from Genesis.
 - **Bible study tools** — bookmarks, highlights, notes, reading plans,
