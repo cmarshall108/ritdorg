@@ -50,7 +50,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v='4') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/study.css') }}">
 </head>
 <body>
@@ -169,11 +169,12 @@
         </div>
     </header>
 
-    <section class="learn-dock" id="learnDock" hidden>
+    <section class="learn-dock" id="learnDock" role="dialog" aria-labelledby="learnTitle" hidden>
         <div class="learn-dock-main">
             <div class="learn-dock-copy">
-                <h2>Learn a language</h2>
-                <p id="learnHint">Read the Bible in the language you know. The language you are learning appears above each word, and the full sentence stays in the bar so the meaning is not lost. Italic words belong to the neighboring phrase.</p>
+                <button class="learn-close" id="learnCloseBtn" type="button" aria-label="Close learning settings">×</button>
+                <h2 id="learnTitle">Learn a language</h2>
+                <p id="learnHint">Select a word to see its context. Glosses are approximate positions in the other verse, not verified word translations.</p>
             </div>
             <div class="learn-choices">
                 <label class="learn-choice">
@@ -198,14 +199,18 @@
             </div>
         </div>
     </section>
-    <div class="learn-context" id="learnContext" hidden aria-live="polite">
+    <div class="learn-context" id="learnContext" role="region" aria-label="Learning word context" hidden>
         <div class="learn-context-tools">
             <button type="button" id="learnPrevWord" aria-label="Previous word">‹</button>
             <p class="learn-context-pair" id="learnContextPair">Tap a word, or press play. Each word keeps its place in the sentence.</p>
             <button type="button" id="learnNextWord" aria-label="Next word">›</button>
-            <button type="button" id="learnHearBtn">Hear word</button>
+            <button class="learn-close" id="learnContextClose" type="button" aria-label="Close word context">×</button>
         </div>
         <p class="learn-context-verse" id="learnContextVerse" dir="auto"></p>
+        <div class="learn-context-actions">
+            <button type="button" id="learnHearBtn">Hear phrase</button>
+            <button type="button" id="learnStudyBtn">Word study</button>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -738,7 +743,7 @@
     <script src="https://www.youtube.com/iframe_api"></script>
     <script src="{{ url_for('static', filename='js/userdata.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tooltips.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js', v='3') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js', v='5') }}"></script>
     <script src="{{ url_for('static', filename='js/study.js') }}"></script>
     <script src="{{ url_for('static', filename='js/tutorial.js') }}"></script>
 

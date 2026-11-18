@@ -2032,13 +2032,36 @@ class BibleReader {
         const prevBtn = document.getElementById('learnPrevWord');
         const nextBtn = document.getElementById('learnNextWord');
         const hearBtn = document.getElementById('learnHearBtn');
+        const closeBtn = document.getElementById('learnCloseBtn');
+        const contextClose = document.getElementById('learnContextClose');
+        const studyBtn = document.getElementById('learnStudyBtn');
+        const closeSettings = () => {
+            dock.hidden = true;
+            openBtn.setAttribute('aria-expanded', 'false');
+        };
         openBtn.addEventListener('click', () => {
             const open = dock.hasAttribute('hidden');
             dock.toggleAttribute('hidden', !open);
             openBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-            if (open) this.populateLearnSelects();
+            if (open) {
+                this.populateLearnSelects();
+                closeBtn?.focus();
+            }
         });
-        startBtn?.addEventListener('click', () => this.setLearnEnabled(!this.learn.enabled));
+        closeBtn?.addEventListener('click', () => { closeSettings(); openBtn.focus(); });
+        contextClose?.addEventListener('click', () => this.closeLearnContext(true));
+        studyBtn?.addEventListener('click', () => {
+            const unit = this._learnContextUnit;
+            const word = unit?.querySelector('.heb-word, .bw-word');
+            this.closeLearnContext(true);
+            if (word?.classList.contains('heb-word')) this.openHebrewPopover(word);
+            else if (word) this.openWordPopover(word);
+        });
+        startBtn?.addEventListener('click', () => {
+            const enabling = !this.learn.enabled;
+            this.setLearnEnabled(enabling);
+            if (enabling && this.learn.target && this.learn.target !== this.learn.native) closeSettings();
+        });
         swapBtn?.addEventListener('click', () => this.swapLearnLanguages());
         besideBtn?.addEventListener('click', () => this.showTargetBeside());
         prevBtn?.addEventListener('click', () => this.stepLearnWord(-1));
@@ -2062,26 +2085,64 @@ class BibleReader {
             this._learnKey = '';
             if (this.learn.enabled) this.setLearnEnabled(true);
         });
-        document.addEventListener('pointerover', (e) => {
+        document.addEventListener('click', (e) => {
+            if (!dock.hidden && !dock.contains(e.target) && !openBtn.contains(e.target)) closeSettings();
             const unit = e.target.closest?.('.lx-word');
             if (!unit || !this.learn?.enabled) return;
-            this.focusLearnUnit(unit, { hold: true });
-        });
-        document.addEventListener('click', (e) => {
-            const gloss = e.target.closest?.('.lx-gloss');
-            if (!gloss) return;
             e.preventDefault();
-            e.stopPropagation();
-            const unit = gloss.closest('.lx-word');
-            this.focusLearnUnit(unit, { hold: true, announce: true });
-            this.hearLearnUnit(unit);
+            e.stopImmediatePropagation();
+            this.focusLearnUnit(unit, { hold: true, announce: true, show: true });
         }, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (!dock.hidden) { closeSettings(); openBtn.focus(); }
+                else if (this._learnContextUnit) this.closeLearnContext(true);
+                return;
+            }
+            const unit = e.target.closest?.('.lx-word');
+            if (unit && this.learn?.enabled && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                this.focusLearnUnit(unit, { hold: true, announce: true, show: true });
+            }
+        }, true);
+        window.addEventListener('scroll', () => this.positionLearnContext(), true);
+        window.addEventListener('resize', () => this.positionLearnContext());
         this.populateLearnSelects();
         this.syncLearnChrome();
-        if (this.learn.enabled) {
-            dock.hidden = false;
-            openBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    visibleReadingTranslation() {
+        const view = this._currentViewName();
+        if (view === 'reader') return this.currentTranslation || '';
+        const parallel = view === 'parallel';
+        const left = document.getElementById(parallel ? 'parallelCol1' : 'syncCol1');
+        const right = document.getElementById(parallel ? 'parallelCol2' : 'syncCol2');
+        const first = parallel ? this.parallelTrans1 : this.syncTrans1;
+        const second = parallel ? this.parallelTrans2 : this.syncTrans2;
+        if (left && !left.classList.contains('hidden-column') && first) return first;
+        if (right && !right.classList.contains('hidden-column') && (parallel || !this.hebrewDisabled) && second) {
+            return second;
         }
+        return this.currentTranslation || '';
+    }
+
+    syncLearnLanguageToColumn() {
+        const reading = this.visibleReadingTranslation();
+        if (!reading || reading === this.learn.native || reading === this.learn.target) return false;
+        this._learnToken += 1;
+        this._learnInflight = '';
+        this.clearLearnLayer();
+        this.closeLearnContext();
+        this.learn.native = reading;
+        this.saveLearn();
+        this.fillLearnSelect(
+            document.getElementById('learnNative'),
+            document.getElementById('learnNativeSearch')?.value,
+            this.learn.native,
+        );
+        this._learnKey = '';
+        return true;
     }
 
     populateLearnSelects() {
@@ -2125,8 +2186,7 @@ class BibleReader {
 
     syncLearnChrome() {
         document.body.classList.toggle('learn-on', !!this.learn.enabled);
-        const context = document.getElementById('learnContext');
-        if (context) context.hidden = !this.learn.enabled;
+        if (!this.learn.enabled) this.closeLearnContext();
         const start = document.getElementById('learnStartBtn');
         if (start) start.textContent = this.learn.enabled ? 'Stop learning' : 'Start learning';
         const open = document.getElementById('learnOpenBtn');
@@ -2134,7 +2194,9 @@ class BibleReader {
         open?.setAttribute('aria-pressed', this.learn.enabled ? 'true' : 'false');
         const same = this.learn.native && this.learn.native === this.learn.target;
         const hint = document.getElementById('learnHint');
-        if (hint && same) hint.textContent = 'Choose two different languages. The sentence you already understand stays whole.';
+        if (hint) hint.textContent = same
+            ? 'Choose two different languages. The sentence you already understand stays whole.'
+            : 'Select a word to see its context. Glosses are approximate positions in the other verse, not verified word translations.';
     }
 
     swapLearnLanguages() {
@@ -2149,12 +2211,15 @@ class BibleReader {
     }
 
     async setLearnEnabled(on) {
+        this._learnToken += 1;
+        this._learnInflight = '';
+        this.clearLearnLayer();
+        this.closeLearnContext();
+        this._learnContextDismissed = false;
         this.learn.enabled = !!on;
         this.saveLearn();
         this.syncLearnChrome();
         if (!this.learn.enabled) {
-            this._learnToken += 1;
-            this.clearLearnLayer();
             this.renderLearnContext(null);
             return;
         }
@@ -2216,6 +2281,7 @@ class BibleReader {
 
     scheduleLearnLayer() {
         if (!this.learn?.enabled) return;
+        this.syncLearnLanguageToColumn();
         if (!this.learn.target || this.learn.target === this.learn.native) return;
         if (!this.learnRoots().length) {
             this.ensureLearnReadingColumn();
@@ -2243,7 +2309,9 @@ class BibleReader {
                 this.showToast('Could not load the learning text', 'error');
                 return;
             }
-            this._learnChapter = await response.json();
+            const chapter = await response.json();
+            if (token !== this._learnToken || !this.learn.enabled) return;
+            this._learnChapter = chapter;
             this._learnKey = key;
             this.applyLearnLayer();
             this.renderLearnContext(document.querySelector('.lx-word.lx-live'));
@@ -2251,7 +2319,7 @@ class BibleReader {
             console.warn('learn align failed', err);
             if (token === this._learnToken) this.showToast('Could not load the learning text', 'error');
         } finally {
-            if (this._learnInflight === key) this._learnInflight = '';
+            if (token === this._learnToken && this._learnInflight === key) this._learnInflight = '';
         }
     }
 
@@ -2318,6 +2386,9 @@ class BibleReader {
         unit.dataset.lxWord = info.word || '';
         unit.dataset.lxGloss = info.gloss || '';
         unit.dataset.lxPhrase = info.phrase || info.gloss || '';
+        unit.tabIndex = 0;
+        unit.setAttribute('role', 'button');
+        unit.setAttribute('aria-label', `${info.word}: ${info.gloss || 'no gloss available'}. Show context`);
         unit.style.setProperty('--lx-i', String(Math.min(index, 28)));
         const gloss = document.createElement('span');
         gloss.className = 'lx-gloss';
@@ -2335,13 +2406,51 @@ class BibleReader {
     focusLearnUnit(unit, opts = {}) {
         if (!unit) return;
         if (opts.hold) this._learnHoldUntil = performance.now() + 2800;
-        if (unit.classList.contains('lx-live')) {
-            if (opts.announce) this.renderLearnContext(unit);
-            return;
-        }
+        if (opts.show) this._learnContextDismissed = false;
         document.querySelectorAll('.lx-word.lx-live').forEach(el => el.classList.remove('lx-live'));
         unit.classList.add('lx-live');
+        this._learnContextUnit = unit;
         this.renderLearnContext(unit);
+        const context = document.getElementById('learnContext');
+        if (context && !this._learnContextDismissed) {
+            context.hidden = false;
+            this.positionLearnContext();
+        }
+    }
+
+    closeLearnContext(dismiss = false) {
+        const context = document.getElementById('learnContext');
+        if (dismiss && context?.contains(document.activeElement)) {
+            this._learnContextUnit?.focus({ preventScroll: true });
+        }
+        if (context) context.hidden = true;
+        if (dismiss) this._learnContextDismissed = true;
+        this._learnContextUnit = null;
+    }
+
+    positionLearnContext() {
+        const context = document.getElementById('learnContext');
+        const unit = this._learnContextUnit;
+        if (!context || context.hidden || !unit) return;
+        if (!unit.isConnected) { this.closeLearnContext(); return; }
+        const anchor = unit.getBoundingClientRect();
+        const container = unit.closest('.sync-verses, .column-verses, .verses');
+        const bounds = container?.getBoundingClientRect();
+        if (anchor.bottom < 0 || anchor.top > window.innerHeight ||
+            (bounds && (anchor.bottom <= bounds.top || anchor.top >= bounds.bottom))) {
+            context.style.visibility = 'hidden';
+            return;
+        }
+        context.style.visibility = '';
+        const gap = 10;
+        const width = context.offsetWidth;
+        const height = context.offsetHeight;
+        const left = Math.max(gap, Math.min(window.innerWidth - width - gap, anchor.left + anchor.width / 2 - width / 2));
+        const below = anchor.bottom + gap;
+        const top = below + height <= window.innerHeight - gap
+            ? below : Math.max(gap, anchor.top - height - gap);
+        context.style.left = `${left}px`;
+        context.style.top = `${top}px`;
     }
 
     renderLearnContext(unit) {
@@ -2395,12 +2504,12 @@ class BibleReader {
     }
 
     stepLearnWord(direction) {
-        const words = [...document.querySelectorAll('.lx-reading .lx-word')];
+        const root = this._learnContextUnit?.closest('.lx-reading');
+        const words = [...(root?.querySelectorAll('.lx-word') || [])];
         if (!words.length) return;
-        const live = document.querySelector('.lx-word.lx-live');
-        let index = live ? words.indexOf(live) : -1;
+        let index = words.indexOf(this._learnContextUnit);
         index = Math.max(0, Math.min(words.length - 1, index + direction));
-        this.focusLearnUnit(words[index], { hold: true, announce: true });
+        this.focusLearnUnit(words[index], { hold: true, announce: true, show: true });
         try { words[index].scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
     }
 

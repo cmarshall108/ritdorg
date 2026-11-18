@@ -14,8 +14,9 @@ making the Word of God more accessible in the original Hebrew and Greek.
   counts and cross-translation concordance.
 - **Verse-by-verse audio** (text-to-speech) for any chapter in any
   supported language.
-- **Learn a language** — read a chapter in your own language and see each
-  word in the language you are learning, with the full sentence kept in view.
+- **Learn a language** — read a chapter in your own language with floating
+  glosses and a sentence-context popup. Glosses are approximate positions in
+  the target verse, not verified word-by-word translations.
 - **Free Hebrew lessons** — alphabet, vocabulary and grammar taught
   straight from Genesis.
 - **Bible study tools** — bookmarks, highlights, notes, reading plans,
