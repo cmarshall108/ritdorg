@@ -45,6 +45,9 @@ A `.env` file (see `.env.example`) is now loaded automatically via
 `python-dotenv` if present; this is the easiest way to provide
 `SECRET_KEY` / `ADMIN_PASS_HASH` for both dev and the production paths.
 
+Run the voice playback regression tests with `node --test tests/tts_voice.test.cjs`
+(Node.js 18 or newer).
+
 Set `SECRET_KEY` and `ADMIN_PASS_HASH` environment variables (or use
 `.env`) before serving production traffic — see `ritdorg/set_admin_password.py`.
 Without `ADMIN_PASS_HASH`, admin login is disabled. Without a secure

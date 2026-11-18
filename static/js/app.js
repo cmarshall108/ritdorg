@@ -897,7 +897,10 @@ class BibleReader {
                         // above already scheduled a targeted playVideoAt / load. Using togglePlay
                         // here can race and pause a just-started video. Instead, ensure it is
                         // playing without toggling. For pure TTS we still go through togglePlay.
-                        if (this.player && this.isPlayerReady) {
+                        if (this.ttsUsesSelectedVoice() || this.hebrewDisabled) {
+                            if (this.player && this.isPlayerReady) this.player.pauseVideo();
+                            this.startTTS({ _videoChecked: true });
+                        } else if (this.player && this.isPlayerReady) {
                             try {
                                 const st = this.player.getPlayerState();
                                 if (st !== YT.PlayerState.PLAYING && st !== YT.PlayerState.BUFFERING) {
@@ -1294,6 +1297,7 @@ class BibleReader {
                 this.currentCaptionIndex = -1;
                 this.lastCaptionText = null;
                 
+                await this.renderSyncText();
                 // If we have an explicit video_id, load it directly for best caption support
                 // Otherwise fall back to playlist-based loading
                 if (videoId && videoId !== 'placeholder_video_id') {
@@ -1302,7 +1306,6 @@ class BibleReader {
                     this.initYouTubePlayer(null, playlistId, playlistIndex);
                 }
                 
-                this.renderSyncText();
                 document.querySelector('.video-placeholder').style.display = 'none';
                 const _vBtn = document.getElementById('videoToggleBtn');
                 if (_vBtn) _vBtn.style.display = '';
@@ -1654,6 +1657,7 @@ class BibleReader {
     }
     
     initYouTubePlayer(videoId, playlistId = null, playlistIndex = 0) {
+        const suppressAutoPlay = this.suppressAutoPlay || this.ttsUsesSelectedVoice();
         // If switching to a non-playlist chapter, clear playlist tracking so a
         // later playlist book will force a fresh cue.
         if (!playlistId) {
@@ -1675,15 +1679,15 @@ class BibleReader {
                 // Only auto-play / jump if not navigating from search.
                 // Use a short delay for in-playlist chapter switches (no re-cue) so we
                 // don't fight YouTube's own end-of-item continuation.
-                if (!this.suppressAutoPlay) {
+                if (!suppressAutoPlay) {
                     setTimeout(() => {
-                        if (this.player) {
+                        if (this.player && !this.ttsUsesSelectedVoice()) {
                             this.player.playVideoAt(playlistIndex);
                         }
                     }, needsCue ? 500 : 80);
                 }
             } else if (videoId) {
-                if (this.suppressAutoPlay) {
+                if (suppressAutoPlay) {
                     this.player.cueVideoById(videoId);
                 } else {
                     this.player.loadVideoById(videoId);
@@ -1705,7 +1709,7 @@ class BibleReader {
             'controls': 1,  // Enable controls for playlist navigation
             'modestbranding': 1,
             'rel': 0,
-            'autoplay': this.suppressAutoPlay ? 0 : 1
+            'autoplay': suppressAutoPlay ? 0 : 1
         };
         // Clear the flag after using it for new player creation
         if (this.suppressAutoPlay) this.suppressAutoPlay = false;
@@ -1782,6 +1786,10 @@ class BibleReader {
     }
     
     togglePlay() {
+        if (this.ttsState === 'playing' || this.ttsState === 'paused' || this.ttsUsesSelectedVoice()) {
+            this.toggleTTS();
+            return;
+        }
         // If the user has disabled the Hebrew column, the (Hebrew-narrated)
         // video isn't useful — drive TTS for the left translation instead.
         if (this.hebrewDisabled) {
@@ -1822,10 +1830,29 @@ class BibleReader {
     // spelling out characters) in Chrome/Safari when nikud/cantillation
     // marks are present.
     ttsShouldForceServer(lang) {
-        // User override: always use the online voice.
         if (this.ttsSettings && this.ttsSettings.preferServer) return true;
         const base = (lang || '').toLowerCase().split('-')[0];
+        if (this.ttsSettings?.voice?.[base]) return false;
         return base === 'he' || base === 'ar' || base === 'yi' || base === 'sw';
+    }
+
+    ttsUsesSelectedVoice() {
+        const lang = this.collectVisibleVerses()[0]?.lang;
+        if (!lang) return false;
+        const base = lang.toLowerCase().split('-')[0];
+        const voices = this.ttsShouldForceServer(lang) ? this.ttsSettings.onlineVoice : this.ttsSettings.voice;
+        return !!voices?.[base];
+    }
+
+    applyTTSSettings() {
+        this.saveTTSSettings();
+        if (this.ttsState === 'playing' || this.ttsState === 'paused') {
+            this.restartTTSIfPlaying();
+        } else if (this.ttsUsesSelectedVoice() && this.player && this.isPlayerReady
+            && this.player.getPlayerState() === YT.PlayerState.PLAYING) {
+            this.player.pauseVideo();
+            this.startTTS({ _videoChecked: true });
+        }
     }
 
     pickTTSVoice(lang) {
@@ -1852,6 +1879,7 @@ class BibleReader {
 
     waitForVoices(timeoutMs = 1500) {
         return new Promise(resolve => {
+            if (!window.speechSynthesis) return resolve([]);
             const got = window.speechSynthesis.getVoices();
             if (got && got.length) return resolve(got);
             let done = false;
@@ -1911,7 +1939,10 @@ class BibleReader {
             el.addEventListener('change', () => {
                 const lang = id.slice(-2).toLowerCase();
                 this.ttsSettings.voice[lang] = el.value || '';
-                this.saveTTSSettings();
+                this._ttsTestLang = lang;
+                this.ttsSettings.preferServer = false;
+                if (preferEl) preferEl.checked = false;
+                this.applyTTSSettings();
             });
         });
         // Online (neural) voice selectors.
@@ -1921,12 +1952,15 @@ class BibleReader {
             el.addEventListener('change', () => {
                 const lang = id.slice(-2).toLowerCase();
                 this.ttsSettings.onlineVoice[lang] = el.value || '';
-                this.saveTTSSettings();
+                this._ttsTestLang = lang;
+                this.ttsSettings.preferServer = true;
+                if (preferEl) preferEl.checked = true;
+                this.applyTTSSettings();
             });
         });
         preferEl?.addEventListener('change', () => {
             this.ttsSettings.preferServer = !!preferEl.checked;
-            this.saveTTSSettings();
+            this.applyTTSSettings();
         });
 
         testBtn?.addEventListener('click', () => this.testTTSVoice());
@@ -1939,6 +1973,8 @@ class BibleReader {
                 tld: 'com',
             };
             this.saveTTSSettings();
+            this._ttsTestLang = null;
+            this.restartTTSIfPlaying();
             this.populateVoiceSettings();
             this.showToast('Voice settings reset', 'info');
         });
@@ -3110,9 +3146,10 @@ class BibleReader {
     }
 
     testTTSVoice() {
-        const transName = (document.getElementById('syncTrans1')?.value)
-            || this.currentTranslation || 'NIV';
-        const lang = this.ttsLangFor(transName);
+        const selectedLangs = { en: 'en-US', hu: 'hu-HU', he: 'he-IL', sw: 'sw-KE' };
+        const lang = selectedLangs[this._ttsTestLang]
+            || this.collectVisibleVerses()[0]?.lang
+            || this.ttsLangFor(this.currentTranslation);
         const samples = {
             'en-US': 'For God so loved the world that he gave his one and only Son.',
             'hu-HU': 'Mert úgy szerette Isten a világot, hogy egyszülött Fiát adta.',
@@ -3120,14 +3157,15 @@ class BibleReader {
             'sw-KE': 'Kwa maana Mungu aliupenda ulimwengu hivi, hata akamtoa Mwanawe wa pekee, ili kila mtu amwaminiye asipotee, bali awe na uzima wa milele.',
         };
         const text = samples[lang] || samples['en-US'];
-        try { window.speechSynthesis.cancel(); } catch {}
+        if (this.ttsState === 'playing' || this.ttsState === 'paused') this.stopTTS();
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
         if (this._testAudio) { try { this._testAudio.pause(); } catch {} this._testAudio = null; }
 
-        if (this.ttsShouldForceServer(lang)) {
+        if (this.ttsShouldForceServer(lang) || !window.speechSynthesis) {
             const base = lang.split('-')[0];
             const tld = this.ttsSettings.tld || 'com';
             const onlineVoice = (this.ttsSettings.onlineVoice && this.ttsSettings.onlineVoice[base]) || '';
-            let url = `/api/tts?lang=${encodeURIComponent(base)}`
+            let url = `/api/tts?v=2&lang=${encodeURIComponent(base)}`
                 + `&tld=${encodeURIComponent(tld)}`
                 + `&text=${encodeURIComponent(text)}`;
             if (onlineVoice) url += `&voice=${encodeURIComponent(onlineVoice)}`;
@@ -3145,6 +3183,7 @@ class BibleReader {
         u.rate = this.playbackRate || 1;
         const voice = this.pickTTSVoice(lang);
         if (voice) u.voice = voice;
+        u.onerror = () => this.showToast('Could not play test voice', 'error');
         window.speechSynthesis.speak(u);
     }
 
@@ -3186,12 +3225,6 @@ class BibleReader {
     }
 
     toggleTTS() {
-        const hasSpeech = ('speechSynthesis' in window) && ('SpeechSynthesisUtterance' in window);
-        if (!hasSpeech) {
-            // No native TTS at all → go straight to server fallback
-            this.startTTS({ forceServer: true });
-            return;
-        }
         if (this.ttsState === 'playing') {
             this.pauseTTS();
             return;
@@ -3200,7 +3233,8 @@ class BibleReader {
             this.resumeTTS();
             return;
         }
-        this.startTTS();
+        const hasSpeech = ('speechSynthesis' in window) && ('SpeechSynthesisUtterance' in window);
+        this.startTTS({ forceServer: !hasSpeech });
     }
 
     pauseTTS() {
@@ -3215,6 +3249,13 @@ class BibleReader {
     }
 
     resumeTTS() {
+        if (this._ttsNeedsStart) {
+            this._ttsNeedsStart = false;
+            this.ttsState = 'playing';
+            this.setPlayBtnPlaying(true);
+            this.speakNextTTS();
+            return;
+        }
         if (this.ttsMode === 'audio' && this.ttsAudio) {
             this.ttsAudio.play().catch(() => {});
         } else if (window.speechSynthesis) {
@@ -3263,12 +3304,14 @@ class BibleReader {
         const useServer = this.ttsShouldForceServer(lang) || !window.speechSynthesis;
         this.ttsMode = useServer ? 'audio' : 'speech';
         if (wasPaused) {
+            this._ttsNeedsStart = true;
             // Leave the queue ready but don't start speaking; the next
             // togglePlay() will resume from this verse with the new
             // translation. Make sure the play button reflects 'paused'.
             this.setPlayBtnPlaying(false);
             return;
         }
+        this._ttsNeedsStart = false;
         this.speakNextTTS();
     }
 
@@ -3292,7 +3335,7 @@ class BibleReader {
         // this chapter. Falls through to gTTS, which itself falls through
         // to the local browser voice if it 503s.
         const firstLang = (verses[0] && verses[0].lang || '').toLowerCase().split('-')[0];
-        if (!opts._videoChecked && firstLang === 'he') {
+        if (!opts._videoChecked && firstLang === 'he' && !this.ttsUsesSelectedVoice()) {
             try {
                 const r = await fetch(`/api/sync/${this.currentBook}/${this.currentChapter}`);
                 if (r.ok) {
@@ -3309,11 +3352,15 @@ class BibleReader {
             } catch {}
         }
         // Cancel any previous queue
+        this._ttsGen = (this._ttsGen || 0) + 1;
+        const startGen = this._ttsGen;
         if (window.speechSynthesis) window.speechSynthesis.cancel();
         if (this.ttsAudio) { try { this.ttsAudio.pause(); } catch {} this.ttsAudio = null; }
         this.ttsQueue = verses;
         this.ttsIndex = 0;
         this.ttsState = 'playing';
+        this._serverTTSWarned = false;
+        this._ttsNeedsStart = true;
         this.ttsMode = null; // 'speech' | 'audio'
         this.setPlayBtnPlaying(true);
         const np = document.getElementById('nowPlayingText');
@@ -3322,14 +3369,8 @@ class BibleReader {
         if (status) status.textContent = 'Reading…';
 
         const lang = verses[0].lang;
-        // Prefer server-side Google TTS by default — it's far more
-        // consistent across browsers/devices and supports every language
-        // we ship. Callers may pass `preferBrowser:true` to opt into the
-        // local SpeechSynthesis path; otherwise we only use it as a
-        // fallback when the server can't deliver audio.
-        let useServer = !opts.preferBrowser;
-        if (opts.forceServer) useServer = true;
-        if (this.ttsShouldForceServer(lang)) useServer = true;
+        let useServer = !!opts.forceServer || !window.speechSynthesis
+            || this.ttsShouldForceServer(lang);
         if (useServer && !('Audio' in window)) {
             // Extremely unlikely, but if there's no <audio> support fall
             // back to whatever native synthesis is available.
@@ -3337,6 +3378,7 @@ class BibleReader {
         }
         if (!useServer && window.speechSynthesis) {
             await this.waitForVoices(1500);
+            if (startGen !== this._ttsGen || this.ttsState !== 'playing') return;
             const voice = this.pickTTSVoice(lang);
             if (!voice) {
                 // No installed voice for this language → use server mp3
@@ -3344,6 +3386,7 @@ class BibleReader {
             }
         }
         this.ttsMode = useServer ? 'audio' : 'speech';
+        this._ttsNeedsStart = false;
         this.speakNextTTS();
     }
 
@@ -3450,7 +3493,7 @@ class BibleReader {
         }
     }
 
-    speakViaSynthesis(item, myGen = this._ttsGen) {
+    speakViaSynthesis(item, myGen = this._ttsGen, fromServer = false) {
         const chunks = this.chunkTextForTTS(item.text);
         if (!chunks.length) {
             this.ttsIndex += 1;
@@ -3461,7 +3504,14 @@ class BibleReader {
         let i = 0;
         const failVerseToServer = () => {
             if (myGen !== this._ttsGen) return;
-            try { window.speechSynthesis.cancel(); } catch {}
+            if (fromServer) {
+                this.stopTTS();
+                this.showToast('Could not play the selected voice', 'error');
+                return;
+            }
+            this._ttsGen += 1;
+            window.speechSynthesis.cancel();
+            this.showToast('Device voice unavailable, using online voice', 'info');
             this.ttsMode = 'audio';
             this.speakViaServer(item, this._ttsGen);
         };
@@ -3519,7 +3569,7 @@ class BibleReader {
             // if any. Server falls back to a sane per-language default.
             const onlineVoice = (this.ttsSettings && this.ttsSettings.onlineVoice
                                  && this.ttsSettings.onlineVoice[lang]) || '';
-            let url = `/api/tts?lang=${encodeURIComponent(lang)}`
+            let url = `/api/tts?v=2&lang=${encodeURIComponent(lang)}`
                 + `&tld=${encodeURIComponent(tld)}`
                 + `&text=${encodeURIComponent(item.text)}`;
             if (onlineVoice) url += `&voice=${encodeURIComponent(onlineVoice)}`;
@@ -3532,8 +3582,11 @@ class BibleReader {
                 this.ttsIndex += 1;
                 this.speakNextTTS();
             };
-            audio.onerror = () => {
+            let failed = false;
+            const failAudio = () => {
                 if (myGen !== this._ttsGen) return;
+                if (failed) return;
+                failed = true;
                 if (this.ttsAudio === audio) this.ttsAudio = null;
                 console.warn('Server TTS failed for verse', item.verse, '- falling back to browser TTS');
                 if (window.speechSynthesis && !this._serverTTSWarned) {
@@ -3541,16 +3594,23 @@ class BibleReader {
                     this.showToast('Online voice unavailable, using device voice', 'info');
                 }
                 if (window.speechSynthesis) {
-                    this.speakViaSynthesis(item, this._ttsGen);
+                    this.ttsMode = 'speech';
+                    this.speakViaSynthesis(item, this._ttsGen, true);
                 } else {
-                    this.ttsIndex += 1;
-                    this.speakNextTTS();
+                    this.stopTTS();
+                    this.showToast('Online voice unavailable', 'error');
                 }
             };
+            audio.onerror = failAudio;
             this.ttsAudio = audio;
             const p = audio.play();
             if (p && p.catch) p.catch(err => {
                 if (myGen !== this._ttsGen) return;
+                if (failed) return;
+                if (err.name !== 'NotAllowedError') {
+                    failAudio();
+                    return;
+                }
                 if (this.ttsAudio === audio) this.ttsAudio = null;
                 console.warn('Audio.play rejected', err);
                 this.stopTTS();
@@ -3584,10 +3644,12 @@ class BibleReader {
     }
 
     stopTTS() {
+        this._ttsGen = (this._ttsGen || 0) + 1;
         if (window.speechSynthesis) window.speechSynthesis.cancel();
         if (this.ttsAudio) { try { this.ttsAudio.pause(); } catch {} this.ttsAudio = null; }
         this.stopTTSKeepalive();
         this.ttsState = 'idle';
+        this._ttsNeedsStart = false;
         this.ttsIndex = 0;
         this.ttsQueue = [];
         this.currentUtterance = null;
@@ -3681,6 +3743,7 @@ class BibleReader {
         if (this.ttsState === 'playing') {
             this.speakNextTTS();
         } else {
+            this._ttsNeedsStart = true;
             // Paused / idle: scroll the picked verse into view so the
             // user sees where playback will resume from.
             const v = this.ttsQueue[idx] && this.ttsQueue[idx].el;

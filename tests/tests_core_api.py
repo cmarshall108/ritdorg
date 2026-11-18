@@ -12,6 +12,7 @@ import tempfile
 import shutil
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 # Must set AUTH_DB_PATH *before* importing any ritdorg.* so the module-level
 # default in auth.py picks up our isolated temp DB.
@@ -200,6 +201,44 @@ class CoreAPITestCase(unittest.TestCase):
         self.assertIn("this._ttsGen = (this._ttsGen || 0) + 1;", js_text)
         self.assertIn("this.speakViaServer(item, myGen);", js_text)
         self.assertIn("if (myGen !== this._ttsGen) return;", js_text)
+
+
+class TTSVoiceSelectionTestCase(unittest.TestCase):
+    def test_selected_voice_is_sent_to_the_synthesizer(self):
+        with (
+            patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.study.tts_cache_store"),
+            patch("ritdorg.app._synthesize_edge", return_value=b"mp3") as synthesize,
+        ):
+            response = app.test_client().get("/api/tts?text=hello&lang=en&voice=en-US-AriaNeural")
+        self.assertEqual(response.status_code, 200)
+        synthesize.assert_called_once_with("hello", "en-US-AriaNeural")
+
+    def test_selected_voice_failure_is_not_silently_replaced(self):
+        with (
+            patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.app._synthesize_edge", side_effect=RuntimeError("offline")),
+        ):
+            response = app.test_client().get("/api/tts?text=hello&lang=en&voice=en-US-AriaNeural")
+        self.assertEqual(response.status_code, 503)
+
+    def test_unknown_voice_is_rejected(self):
+        response = app.test_client().get("/api/tts?text=hello&lang=en&voice=unknown")
+        self.assertEqual(response.status_code, 400)
+
+    def test_default_voice_can_still_fall_back_to_google(self):
+        def write_audio(buffer):
+            buffer.write(b"fallback-mp3")
+
+        with (
+            patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.app._synthesize_edge", side_effect=RuntimeError("offline")),
+            patch("gtts.gTTS") as google,
+        ):
+            google.return_value.write_to_fp.side_effect = write_audio
+            response = app.test_client().get("/api/tts?text=hello&lang=en")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, b"fallback-mp3")
 
 
 if __name__ == "__main__":

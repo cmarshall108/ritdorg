@@ -853,8 +853,9 @@ def tts_audio():
     package). These sound dramatically more natural than the legacy
     Google Translate voices.
 
-    Fallback: gTTS (Google Translate TTS) — used only if edge-tts errors
-    or the package is missing.
+    Fallback: gTTS (Google Translate TTS) if the default Edge voice fails.
+    Explicitly selected Edge voices return an error instead of silently
+    changing voices.
 
     Query params:
       text  — sentence/verse to synthesize (required, max 1500 chars)
@@ -869,6 +870,7 @@ def tts_audio():
     lang_raw = (request.args.get('lang') or 'en').strip()
     lang = lang_raw.split('-')[0].lower()
     voice = (request.args.get('voice') or '').strip()
+    explicit_voice = bool(voice and voice != 'gtts')
     tld = (request.args.get('tld') or 'com').strip().lower()
     ALLOWED_TLDS = {'com', 'co.uk', 'com.au', 'ca', 'co.in', 'ie', 'co.za'}
     if tld not in ALLOWED_TLDS:
@@ -896,8 +898,7 @@ def tts_audio():
         engine = 'gtts'
         voice = ''
     elif voice and voice not in EDGE_VOICE_NAMES:
-        # Unknown / spoofed voice — fall back to default for the language.
-        voice = ''
+        abort(400, 'Unknown TTS voice')
     if engine == 'edge' and not voice:
         voice = DEFAULT_EDGE_VOICE.get(lang) or DEFAULT_EDGE_VOICE['en']
 
@@ -915,6 +916,9 @@ def tts_audio():
             resp.headers['Cache-Control'] = 'public, max-age=86400'
             return resp
         except Exception as e:
+            if explicit_voice:
+                app.logger.warning('edge-tts failed for selected voice=%s len=%d: %s', voice, len(text), e)
+                abort(503, 'Selected TTS voice unavailable')
             app.logger.warning(
                 'edge-tts failed for voice=%s len=%d: %s — falling back to gTTS',
                 voice, len(text), e,
