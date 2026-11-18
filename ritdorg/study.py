@@ -37,12 +37,15 @@ import os
 import re
 import secrets
 import sqlite3
+import tempfile
+import threading
 import time
 import zipfile
 import logging
+from concurrent.futures import Future, TimeoutError as FutureTimeoutError
 from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from flask import (
     Blueprint, Response, abort, current_app, jsonify, request, send_file, url_for,
@@ -1168,6 +1171,16 @@ def footnotes(book: str, chapter: int):
 # --- Pronunciation cache (#14) --------------------------------------------
 
 _TTS_CACHE_DIR = None
+_TTS_LOCK = threading.Lock()
+_TTS_START_LOCK = threading.Lock()
+_TTS_SLOTS = threading.BoundedSemaphore(2)
+_TTS_WAITERS = threading.BoundedSemaphore(2)
+_TTS_IN_FLIGHT: dict[tuple[str, str, str], Future] = {}
+_TTS_NEXT_START = 0.0
+
+
+class TTSBusyError(Exception):
+    """The bounded synthesis capacity is currently full."""
 
 
 def _tts_cache_dir() -> str:
@@ -1200,11 +1213,77 @@ def tts_cache_store(text: str, lang: str, voice: str, mp3: bytes) -> None:
         return
     key = hashlib.sha256(f"{lang}|{voice}|{text}".encode("utf-8")).hexdigest()
     path = os.path.join(_tts_cache_dir(), key + ".mp3")
+    temp_path = None
     try:
-        with open(path, "wb") as f:
+        with tempfile.NamedTemporaryFile(dir=_tts_cache_dir(), delete=False) as f:
+            temp_path = f.name
             f.write(mp3)
+        os.replace(temp_path, path)
+        temp_path = None
     except Exception as exc:  # pragma: no cover
         logger.warning("tts cache store failed for %s: %s", key, exc)
+    finally:
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except OSError as exc:
+                logger.warning("tts cache temporary file cleanup failed: %s", exc)
+
+
+def tts_cached_synthesize(
+    text: str, lang: str, voice: str, synthesize: Callable[[], bytes]
+) -> tuple[bytes, bool]:
+    """Share in-flight synthesis and bound work across all TTS routes."""
+    global _TTS_NEXT_START
+    cached = tts_cache_lookup(text, lang, voice)
+    if cached:
+        return cached, True
+    key = (text, lang, voice)
+    with _TTS_LOCK:
+        cached = tts_cache_lookup(text, lang, voice)
+        if cached:
+            return cached, True
+        future = _TTS_IN_FLIGHT.get(key)
+        if future is None:
+            if not _TTS_SLOTS.acquire(blocking=False):
+                raise TTSBusyError("TTS synthesis capacity reached")
+            future = Future()
+            _TTS_IN_FLIGHT[key] = future
+            owner = True
+        else:
+            if not _TTS_WAITERS.acquire(blocking=False):
+                raise TTSBusyError("TTS wait capacity reached")
+            owner = False
+
+    if not owner:
+        try:
+            return future.result(timeout=30), True
+        except FutureTimeoutError as exc:
+            if future.done():
+                raise
+            raise TTSBusyError("TTS synthesis timed out") from exc
+        finally:
+            _TTS_WAITERS.release()
+
+    try:
+        with _TTS_START_LOCK:
+            delay = _TTS_NEXT_START - time.monotonic()
+            if delay > 0:
+                time.sleep(delay)
+            _TTS_NEXT_START = time.monotonic() + 0.5
+        audio = synthesize()
+        if not audio:
+            raise RuntimeError("No audio returned by TTS")
+        tts_cache_store(text, lang, voice, audio)
+        future.set_result(audio)
+        return audio, False
+    except BaseException as exc:
+        future.set_exception(exc)
+        raise
+    finally:
+        with _TTS_LOCK:
+            del _TTS_IN_FLIGHT[key]
+            _TTS_SLOTS.release()
 
 
 # --- Audio clip export (#13) ----------------------------------------------
@@ -1212,7 +1291,7 @@ def tts_cache_store(text: str, lang: str, voice: str, mp3: bytes) -> None:
 @study_bp.route("/clip")
 def audio_clip():
     """Return a single MP3 covering a verse range (concatenated TTS)."""
-    from .app import _synthesize_edge, DEFAULT_EDGE_VOICE, EDGE_VOICE_NAMES
+    from .app import _synthesize_edge, DEFAULT_EDGE_VOICE, EDGE_VOICE_NAMES, tts_busy_response
     from . import bible_fetcher
 
     book = (request.args.get("book") or "").strip()
@@ -1248,16 +1327,15 @@ def audio_clip():
         # Strip cantillation/nikud — same sanitization the /api/tts uses.
         txt = re.sub(r"[\u200B-\u200F\u202A-\u202E\uFEFF]", "", txt)
         txt = re.sub(r"[\u0591-\u05AF]", "", txt)
-        cached = tts_cache_lookup(txt, lang, voice)
-        if cached:
-            parts.append(cached)
-            continue
         try:
-            mp3 = _synthesize_edge(txt, voice)
+            mp3, _ = tts_cached_synthesize(
+                txt, lang, voice, lambda: _synthesize_edge(txt, voice)
+            )
+        except TTSBusyError:
+            return tts_busy_response()
         except Exception as e:
             current_app.logger.warning("clip TTS failed v=%s: %s", v, e)
             continue
-        tts_cache_store(txt, lang, voice, mp3)
         parts.append(mp3)
     if not parts:
         return jsonify({"error": "no audio produced"}), 503

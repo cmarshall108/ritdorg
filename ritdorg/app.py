@@ -847,6 +847,14 @@ def api_analytics_activity():
 
     return jsonify({'ok': True, 'accepted': accepted})
 
+def tts_busy_response():
+    app.logger.warning('TTS capacity reached; asking client to retry')
+    response = make_response('TTS temporarily busy', 503)
+    response.headers['Retry-After'] = '5'
+    response.headers['Cache-Control'] = 'no-store'
+    return response
+
+
 @app.route('/api/tts')
 def tts_audio():
     """Server-side TTS. Returns MP3 audio for the given text in the
@@ -910,20 +918,17 @@ def tts_audio():
             engine = 'gtts'
 
     if engine == 'edge':
-        cached = study.tts_cache_lookup(text, lang, voice)
-        if cached:
-            resp = Response(cached, mimetype='audio/mpeg')
-            resp.headers['Cache-Control'] = 'public, max-age=86400'
-            resp.headers['X-TTS-Cache'] = 'hit'
-            return resp
         try:
-            audio_bytes = _synthesize_edge(text, voice)
-            if not audio_bytes:
-                raise RuntimeError('No audio returned by neural TTS')
-            study.tts_cache_store(text, lang, voice, audio_bytes)
+            audio_bytes, cached = study.tts_cached_synthesize(
+                text, lang, voice, lambda: _synthesize_edge(text, voice)
+            )
             resp = Response(audio_bytes, mimetype='audio/mpeg')
             resp.headers['Cache-Control'] = 'public, max-age=86400'
+            if cached:
+                resp.headers['X-TTS-Cache'] = 'hit'
             return resp
+        except study.TTSBusyError:
+            return tts_busy_response()
         except Exception as e:
             if explicit_voice:
                 app.logger.warning('edge-tts failed for selected voice=%s len=%d: %s', voice, len(text), e)
@@ -937,15 +942,24 @@ def tts_audio():
     # gTTS fallback path.
     GTTS_LANG_ALIAS = {'he': 'iw', 'jv': 'jw'}
     glang = GTTS_LANG_ALIAS.get(lang, lang)
-    try:
+    def synthesize_google():
         from gtts import gTTS
         import io
         buf = io.BytesIO()
-        gTTS(text=text, lang=glang, tld=tld).write_to_fp(buf)
-        buf.seek(0)
-        resp = Response(buf.getvalue(), mimetype='audio/mpeg')
+        gTTS(text=text, lang=glang, tld=tld, timeout=(3, 5)).write_to_fp(buf)
+        return buf.getvalue()
+
+    try:
+        audio_bytes, cached = study.tts_cached_synthesize(
+            text, lang, f'gtts:{tld}', synthesize_google
+        )
+        resp = Response(audio_bytes, mimetype='audio/mpeg')
         resp.headers['Cache-Control'] = 'public, max-age=86400'
+        if cached:
+            resp.headers['X-TTS-Cache'] = 'hit'
         return resp
+    except study.TTSBusyError:
+        return tts_busy_response()
     except Exception as e:
         app.logger.warning('TTS failed for lang=%s len=%d: %s', lang, len(text), e)
         abort(503, f'TTS unavailable: {e}')

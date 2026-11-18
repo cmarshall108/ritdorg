@@ -6,5 +6,6 @@ edge-tts>=7.3.1
 # Server runner (used behind a reverse proxy by the deployment scripts).
 uvicorn>=0.23.0
 asgiref>=3.7.0
+a2wsgi>=1.10.0,<2
 # Optional but recommended: allows .env file to populate SECRET_KEY etc automatically.
 python-dotenv>=1.0.0

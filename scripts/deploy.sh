@@ -25,7 +25,7 @@ fi
 
 echo "Installing dependencies..."
 "$PYTHON_BIN" -m pip install -r requirements.txt
-# (uvicorn + asgiref + python-dotenv are declared in requirements.txt)
+# (uvicorn + a2wsgi + python-dotenv are declared in requirements.txt)
 
 mkdir -p data
 echo "Starting server on $APP_HOST:$APP_PORT with uvicorn..."
@@ -36,8 +36,7 @@ echo "   For automatic crash recovery + git redeploys, prefer: ./scripts/auto_re
 # RITD_NO_CONSOLE_LOG tells app.py to skip adding a StreamHandler so that
 # our RotatingFileHandler output is not duplicated by the tee into server.log.
 RITD_NO_CONSOLE_LOG=1 "$PYTHON_BIN" -c "
-from asgiref.wsgi import WsgiToAsgi
-from ritdorg.app import app
+from ritdorg.asgi import asgi_app
 import uvicorn
-uvicorn.run(WsgiToAsgi(app), host='$APP_HOST', port=$APP_PORT)
+uvicorn.run(asgi_app, host='$APP_HOST', port=$APP_PORT)
 " 2>&1 | tee -a data/server.log

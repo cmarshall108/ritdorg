@@ -102,6 +102,14 @@ restart; it never uses a known fallback credential.
   automatically (python-dotenv). The deploy scripts set `RITD_NO_CONSOLE_LOG=1`
   internally to avoid duplicate log lines in `data/server.log`.
 
+  The server uses eight WSGI workers so slow voice synthesis does not block health
+  checks. Voice synthesis shares cached and in-flight audio across the TTS and clip
+  endpoints, allows two upstream syntheses at a time, and spaces their starts by
+  at least half a second. Excess requests receive HTTP 503 with `Retry-After`;
+  the limits apply per server process, so multiple processes need a shared
+  external limiter. Restart the auto-redeploy script itself after updating it:
+  an already-running script keeps its old launch command in memory.
+
 Run the application as a dedicated unprivileged account on port 8080 and put a
 patched reverse proxy in front of it for ports 80/443. The keeper refuses to run
 as root by default; `ALLOW_ROOT_RUN=1` is available only as a temporary migration

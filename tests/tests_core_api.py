@@ -8,9 +8,13 @@ or
 """
 import os
 import json
+import asyncio
 import tempfile
 import shutil
+import threading
+import time
 import unittest
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
@@ -204,6 +208,150 @@ class CoreAPITestCase(unittest.TestCase):
 
 
 class TTSVoiceSelectionTestCase(unittest.TestCase):
+    def test_concurrent_identical_requests_share_one_synthesis(self):
+        started = threading.Event()
+        release = threading.Event()
+        waiting = threading.Event()
+
+        class NotifyingFuture(Future):
+            def result(self, timeout=None):
+                waiting.set()
+                return super().result(timeout)
+
+        def synthesize(text, voice):
+            started.set()
+            self.assertTrue(release.wait(5))
+            return b"shared-mp3"
+
+        with (
+            tempfile.TemporaryDirectory() as cache,
+            patch("ritdorg.study._TTS_CACHE_DIR", cache),
+            patch("ritdorg.study.Future", NotifyingFuture, create=True),
+            patch("ritdorg.app._synthesize_edge", side_effect=synthesize) as upstream,
+            ThreadPoolExecutor(max_workers=2) as pool,
+        ):
+            first = pool.submit(lambda: app.test_client().get("/api/tts?text=shared&lang=en"))
+            self.assertTrue(started.wait(5))
+            second = pool.submit(lambda: app.test_client().get("/api/tts?text=shared&lang=en"))
+            try:
+                self.assertTrue(waiting.wait(5))
+            finally:
+                release.set()
+            self.assertEqual(first.result(timeout=5).data, b"shared-mp3")
+            self.assertEqual(second.result(timeout=5).data, b"shared-mp3")
+            self.assertEqual(upstream.call_count, 1)
+
+    def test_google_audio_is_cached_per_accent(self):
+        with (
+            tempfile.TemporaryDirectory() as cache,
+            patch("ritdorg.study._TTS_CACHE_DIR", cache),
+            patch("gtts.gTTS") as google,
+        ):
+            google.return_value.write_to_fp.side_effect = lambda buffer: buffer.write(b"google-mp3")
+            client = app.test_client()
+            for tld in ("com", "com", "co.uk"):
+                response = client.get(f"/api/tts?text=hello&lang=en&voice=gtts&tld={tld}")
+                self.assertEqual(response.data, b"google-mp3")
+            self.assertEqual(google.call_count, 2)
+
+    def test_saturated_synthesis_keeps_cache_available_and_rejects_clip(self):
+        started = [threading.Event(), threading.Event()]
+        release = threading.Event()
+        start_times = [0.0, 0.0]
+
+        def synthesize(text, voice):
+            index = int(text[-1])
+            start_times[index] = time.monotonic()
+            started[index].set()
+            if not release.wait(5):
+                raise RuntimeError("test timed out")
+            return b"mp3"
+
+        with (
+            tempfile.TemporaryDirectory() as cache,
+            patch("ritdorg.study._TTS_CACHE_DIR", cache),
+            patch("ritdorg.app._synthesize_edge", side_effect=synthesize),
+            patch("gtts.gTTS") as google,
+            patch("ritdorg.bible_fetcher.get_verses", return_value={"1": "clip verse"}),
+            ThreadPoolExecutor(max_workers=2) as pool,
+        ):
+            _study.tts_cache_store("cached", "en", "en-US-GuyNeural", b"cached-mp3")
+            futures = [
+                pool.submit(lambda i=i: app.test_client().get(f"/api/tts?text=request{i}&lang=en"))
+                for i in range(2)
+            ]
+            try:
+                self.assertTrue(all(event.wait(5) for event in started))
+                self.assertGreaterEqual(abs(start_times[0] - start_times[1]), 0.49)
+                client = app.test_client()
+                self.assertEqual(client.get("/api/tts?text=cached&lang=en").data, b"cached-mp3")
+                response = client.get("/api/tts?text=other&lang=en")
+                self.assertEqual(response.status_code, 503)
+                self.assertEqual(response.headers["Retry-After"], "5")
+                clip = client.get("/api/clip?book=Genesis&chapter=1&from=1")
+                self.assertEqual(clip.status_code, 503)
+                google.assert_not_called()
+            finally:
+                release.set()
+            self.assertTrue(all(future.result(timeout=5).status_code == 200 for future in futures))
+
+    def test_failed_synthesis_can_be_retried(self):
+        with (
+            tempfile.TemporaryDirectory() as cache,
+            patch("ritdorg.study._TTS_CACHE_DIR", cache),
+            patch("ritdorg.app._synthesize_edge", side_effect=[RuntimeError("offline"), b"mp3"]),
+        ):
+            client = app.test_client()
+            url = "/api/tts?text=retry&lang=en&voice=en-US-AriaNeural"
+            self.assertEqual(client.get(url).status_code, 503)
+            self.assertEqual(client.get(url).data, b"mp3")
+
+    def test_health_check_remains_responsive_during_voice_synthesis(self):
+        from ritdorg.asgi import asgi_app
+
+        started = threading.Event()
+        release = threading.Event()
+
+        def synthesize(text, voice):
+            started.set()
+            if not release.wait(5):
+                raise RuntimeError("test timed out")
+            return b"mp3"
+
+        async def request_asgi(path, query=b""):
+            messages = []
+            scope = {
+                "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+                "method": "GET", "scheme": "http", "path": path, "raw_path": path.encode(),
+                "query_string": query, "headers": [], "server": ("localhost", 80),
+                "client": ("127.0.0.1", 1234), "root_path": "",
+            }
+
+            async def receive():
+                return {"type": "http.request", "body": b"", "more_body": False}
+
+            async def send(message):
+                messages.append(message)
+
+            await asgi_app(scope, receive, send)
+            return messages[0]["status"]
+
+        async def exercise():
+            pending = asyncio.create_task(request_asgi("/api/tts", b"text=health-test&lang=en"))
+            try:
+                self.assertTrue(await asyncio.to_thread(started.wait, 5))
+                self.assertEqual(await asyncio.wait_for(request_asgi("/healthz"), 2), 200)
+            finally:
+                release.set()
+                await asyncio.wait_for(pending, 5)
+
+        with (
+            tempfile.TemporaryDirectory() as cache,
+            patch("ritdorg.study._TTS_CACHE_DIR", cache),
+            patch("ritdorg.app._synthesize_edge", side_effect=synthesize),
+        ):
+            asyncio.run(exercise())
+
     def test_selected_voice_is_sent_to_the_synthesizer(self):
         with (
             patch("ritdorg.study.tts_cache_lookup", return_value=None),
@@ -252,6 +400,8 @@ class TTSVoiceSelectionTestCase(unittest.TestCase):
 
     def test_unsupported_neural_language_does_not_use_english_voice(self):
         with (
+            patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.study.tts_cache_store"),
             patch("ritdorg.app._synthesize_edge") as synthesize,
             patch("gtts.gTTS") as google,
         ):
@@ -287,6 +437,7 @@ class TTSVoiceSelectionTestCase(unittest.TestCase):
 
         with (
             patch("ritdorg.study.tts_cache_lookup", return_value=None),
+            patch("ritdorg.study.tts_cache_store"),
             patch("ritdorg.app._synthesize_edge", side_effect=RuntimeError("offline")),
             patch("gtts.gTTS") as google,
         ):

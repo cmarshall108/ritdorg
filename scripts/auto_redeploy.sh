@@ -35,8 +35,8 @@ LAST_DEPLOY_SHA=""
 PYTHON_BIN="$(command -v python3 || command -v python || true)"
 
 # Distinctive one-liner so pkill/pgrep can find our server process reliably.
-SERVER_CMD="from asgiref.wsgi import WsgiToAsgi; from ritdorg.app import app; import uvicorn; uvicorn.run(WsgiToAsgi(app), host='$APP_HOST', port=$APP_PORT, log_level='info', timeout_keep_alive=30, limit_concurrency=100)"
-SERVER_MATCH="from asgiref.wsgi import WsgiToAsgi; from ritdorg.app import app"
+SERVER_CMD="from ritdorg.asgi import asgi_app; import uvicorn; uvicorn.run(asgi_app, host='$APP_HOST', port=$APP_PORT, log_level='info', timeout_keep_alive=30, limit_concurrency=100)"
+SERVER_MATCH="from ritdorg.asgi import asgi_app"
 
 # ---------------------------------------------------------------------------
 # Bootstrap checks
